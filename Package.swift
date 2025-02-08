@@ -22,5 +22,15 @@ let package = Package(
       name: "LibVanguardTests",
       dependencies: ["LibVanguard"]
     ),
+    // Tekkon, the phonabet composer.
+    .target(
+      name: "TekkonNext",
+      path: "./Sources/_Modules/TekkonNext"
+    ),
+    .testTarget(
+      name: "TekkonNextTests",
+      dependencies: ["TekkonNext"],
+      path: "./Tests/_Tests4Components/TekkonNextTests"
+    ),
   ]
 )
