@@ -281,7 +281,12 @@ extension Homa {
     /// - Returns: 元圖陣列。
     private func queryGrams(using keyArray: [String]) -> [Homa.Gram] {
       gramQuerier(keyArray).map {
-        Homa.Gram(current: $0.value, previous: $0.previous, probability: $0.probability)
+        Homa.Gram(
+          keyArray: $0.keyArray,
+          current: $0.value,
+          previous: $0.previous,
+          probability: $0.probability
+        )
       }
     }
   }
@@ -437,11 +442,11 @@ extension Homa.Assembler {
         switch filter {
         case .all:
           // 得加上這道篩選，不然會出現很多無效結果。
-          if !theNode.keyArray.contains(keyAtCursor) { return }
+          if !theNode.keyArray4Query.contains(keyAtCursor) { return }
         case .beginAt:
           guard theAnchor.location == location else { return }
         case .endAt:
-          guard theNode.keyArray.last == keyAtCursor else { return }
+          guard theNode.keyArray4Query.last == keyAtCursor else { return }
           switch theNode.spanLength {
           case 2... where theAnchor.location + theAnchor.node.spanLength - 1 != location: return
           default: break
@@ -518,7 +523,9 @@ extension Homa.Assembler {
     ))
     var overridden: (location: Int, node: Homa.Node)?
     for anchor in arrOverlappedNodes {
-      if keyArray != nil, anchor.node.keyArray != keyArray { continue }
+      if let keyArray, !anchor.node.allActualKeyArraysCached.contains(keyArray) {
+        continue
+      }
       if !anchor.node.selectOverrideGram(value: value, type: type) { continue }
       overridden = anchor
       break
@@ -534,8 +541,8 @@ extension Homa.Assembler {
         arrOverlappedNodes = fetchOverlappingNodes(at: i)
         arrOverlappedNodes.forEach { anchor in
           if anchor.node == overridden.node { return }
-          let anchorNodeKeyJoined = anchor.node.joinedKey(by: "\t")
-          let overriddenNodeKeyJoined = overridden.node.joinedKey(by: "\t")
+          let anchorNodeKeyJoined = anchor.node.keyArray4Query.joined(separator: "\t")
+          let overriddenNodeKeyJoined = overridden.node.keyArray4Query.joined(separator: "\t")
           guard let anchorNodeValue = anchor.node.value else { return }
           guard let overriddenNodeValue = overridden.node.value else { return }
           var shouldReset = !overriddenNodeKeyJoined.has(string: anchorNodeKeyJoined)

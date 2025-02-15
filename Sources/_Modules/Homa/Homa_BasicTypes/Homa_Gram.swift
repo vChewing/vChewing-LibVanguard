@@ -11,11 +11,13 @@ extension Homa {
     // MARK: Lifecycle
 
     public init(
+      keyArray: [String],
       current: String,
       previous: String? = nil,
       probability: Double = 0,
       backoff: Double = 0
     ) {
+      self.keyArray = keyArray
       self.current = current
       if let previous, !previous.isEmpty {
         self.previous = previous
@@ -28,6 +30,7 @@ extension Homa {
 
     // MARK: Public
 
+    public let keyArray: [String]
     public let current: String
     public let previous: String?
     public let probability: Double
@@ -46,13 +49,14 @@ extension Homa {
       lhs.hashValue == rhs.hashValue
     }
 
-    public func describe(queryString: String) -> String {
-      "[\(isUnigram ? "Unigram" : "Bigram")] '\(queryString)', \(description)"
+    public func describe(keySeparator: String) -> String {
+      "[\(isUnigram ? "Unigram" : "Bigram")] '\(keyArray.joined(separator: keySeparator))', \(description)"
     }
 
     /// 預設雜湊函式。
     /// - Parameter hasher: 目前物件的雜湊碼。
     public func hash(into hasher: inout Hasher) {
+      hasher.combine(keyArray)
       hasher.combine(current)
       hasher.combine(previous)
       hasher.combine(probability)
@@ -62,6 +66,7 @@ extension Homa {
     // MARK: Internal
 
     enum CodingKeys: String, CodingKey {
+      case keyArray = "keys"
       case current = "curr"
       case previous = "prev"
       case probability = "prob"

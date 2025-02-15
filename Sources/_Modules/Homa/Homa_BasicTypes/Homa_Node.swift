@@ -42,8 +42,9 @@ extension Homa {
     ///   - spanLength: 給定幅位長度，一般情況下與給定索引鍵陣列內的索引鍵數量一致。
     ///   - grams: 給定元圖陣列，不得為空。
     public init(keyArray: [String] = [], grams: [Homa.Gram] = []) {
-      self.keyArray = keyArray
+      self.keyArray4Query = keyArray
       self.grams = grams
+      self.allActualKeyArraysCached = Set(grams.map(\.keyArray))
       self.bigramMap = grams.allBigramsMap
       self.currentOverrideType = .none
     }
@@ -54,7 +55,8 @@ extension Homa {
     /// 這在某些情況下會造成意料之外的混亂情況，所以需要引入一個拷貝用的建構子。
     public init(node: Node) {
       self.overridingScore = node.overridingScore
-      self.keyArray = node.keyArray
+      self.keyArray4Query = node.keyArray4Query
+      self.allActualKeyArraysCached = node.allActualKeyArraysCached
       self.grams = node.grams
       self.bigramMap = node.bigramMap
       self.currentOverrideType = node.currentOverrideType
@@ -73,16 +75,21 @@ extension Homa {
     public var overridingScore: Double = 114_514
 
     /// 索引鍵陣列。
-    public private(set) var keyArray: [String]
+    public private(set) var keyArray4Query: [String]
+    /// 所有真實索引鍵陣列的快取。
+    public private(set) var allActualKeyArraysCached: Set<[String]>
     /// 雙元圖快取。
     public private(set) var bigramMap: [String: Homa.Gram]
     /// 該節點目前的覆寫狀態種類。
     public private(set) var currentOverrideType: OverrideType
 
+    public var keyArray: [String] { currentGram?.keyArray ?? keyArray4Query }
+
     /// 元圖陣列。
     public private(set) var grams: [Homa.Gram] {
       didSet {
         bigramMap = grams.allBigramsMap
+        allActualKeyArraysCached = Set(grams.map(\.keyArray))
       }
     }
 
@@ -100,11 +107,12 @@ extension Homa.Node: Hashable {
   /// - Parameter hasher: 目前物件的雜湊碼。
   public func hash(into hasher: inout Hasher) {
     hasher.combine(overridingScore)
-    hasher.combine(keyArray)
+    hasher.combine(keyArray4Query)
     hasher.combine(grams)
     hasher.combine(bigramMap)
     hasher.combine(currentOverrideType)
     hasher.combine(currentGramIndex)
+    hasher.combine(allActualKeyArraysCached)
   }
 }
 
@@ -122,8 +130,8 @@ extension Homa.Node {
 
   /// 該節點當前狀態所展示的鍵值配對。
   public var currentPair: Homa.CandidatePair? {
-    guard let value else { return nil }
-    return (keyArray: keyArray, value: value)
+    guard let currentGram else { return nil }
+    return (keyArray: currentGram.keyArray, value: currentGram.current)
   }
 
   /// 生成自身的拷貝。
@@ -188,10 +196,10 @@ extension Homa.Node {
     currentOverrideType = .none
   }
 
-  /// 將索引鍵按照給定的分隔符銜接成一個字串。
+  /// 將當前單元圖的讀音陣列按照給定的分隔符銜接成一個字串。
   /// - Parameter separator: 給定的分隔符，預設值為 Assembler.theSeparator。
   /// - Returns: 已經銜接完畢的字串。
-  public func joinedKey(by separator: String) -> String {
+  public func joinedCurrentKey(by separator: String) -> String {
     keyArray.joined(separator: separator)
   }
 

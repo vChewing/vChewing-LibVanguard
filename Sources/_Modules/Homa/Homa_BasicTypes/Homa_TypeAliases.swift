@@ -6,6 +6,7 @@ extension Homa {
   public typealias CandidatePair = (keyArray: [String], value: String)
   public typealias CandidatePairWeighted = (pair: CandidatePair, weight: Double)
   public typealias GramQuerier = ([String]) -> [(
+    keyArray: [String],
     value: String,
     probability: Double,
     previous: String?
