@@ -182,12 +182,16 @@ extension Homa.Node {
     let currentScore = unigramScore
     guard let bigram, let bigramScore else { return currentScore }
     guard bigramScore > currentScore else { return currentScore }
-    let overrideSucceeded = selectOverrideGram(
-      value: bigram.current,
-      previous: bigram.previous,
-      type: .withTopGramScore
-    )
-    return overrideSucceeded ? bigramScore : currentScore
+    do {
+      try selectOverrideGram(
+        value: bigram.current,
+        previous: bigram.previous,
+        type: .withTopGramScore
+      )
+      return bigramScore
+    } catch {
+      return currentScore
+    }
   }
 
   /// 重設該節點的覆寫狀態、及其內部的元圖索引位置指向。
@@ -226,17 +230,16 @@ extension Homa.Node {
     value: String,
     previous: String? = nil,
     type: Homa.Node.OverrideType
-  )
-    -> Bool {
-    guard type != .none else { return false }
+  ) throws {
+    guard type != .none else { throw Homa.Exception.nothingOverriddenAtNode }
     for (i, gram) in grams.enumerated() {
       if value != gram.current { continue }
       if let previous, !previous.isEmpty, previous != gram.previous { continue }
       currentGramIndex = i
       currentOverrideType = type
-      return true
+      return
     }
-    return false
+    throw Homa.Exception.nothingOverriddenAtNode
   }
 }
 

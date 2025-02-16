@@ -135,21 +135,21 @@ extension Homa {
 
     /// 在游標位置插入給定的索引鍵。
     /// - Parameter key: 要插入的索引鍵。
-    /// - Returns: 該操作是否成功執行。
-    @discardableResult
-    public func insertKey(_ key: String) -> Bool {
-      guard !key.isEmpty, gramExistenceChecker([key]) else { return false }
+    public func insertKey(_ key: String) throws {
+      guard !key.isEmpty, gramExistenceChecker([key]) else {
+        throw Homa.Exception.givenKeyIsEmpty
+      }
       keys.insert(key, at: cursor)
       let gridBackup = spans
       resizeGrid(at: cursor, do: .expand)
-      let nodesInserted = update()
-      // 用來在 langModel.hasUnigramsFor() 結果不準確的時候防呆、恢復被搞壞的 spans。
-      if nodesInserted == 0 {
+      do {
+        try assignNodes()
+      } catch {
+        // 用來在 langModel.hasUnigramsFor() 結果不準確的時候防呆、恢復被搞壞的 spans。
         spans = gridBackup
-        return false
+        throw error
       }
       cursor += 1 // 游標必須得在執行 update() 之後才可以變動。
-      return true
     }
 
     /// 朝著指定方向砍掉一個與游標相鄰的讀音。
@@ -157,16 +157,15 @@ extension Homa {
     /// 在威注音的術語體系當中，「與文字輸入方向相反的方向」為向後（Rear），反之則為向前（Front）。
     /// 如果是朝著與文字輸入方向相反的方向砍的話，游標位置會自動遞減。
     /// - Parameter direction: 指定方向（相對於文字輸入方向而言）。
-    /// - Returns: 該操作是否成功執行。
-    @discardableResult
-    public func dropKey(direction: TypingDirection) -> Bool {
+    public func dropKey(direction: TypingDirection) throws {
       let isBackSpace: Bool = direction == .rear ? true : false
-      guard cursor != (isBackSpace ? 0 : keys.count) else { return false }
+      guard cursor != (isBackSpace ? 0 : keys.count) else {
+        throw Homa.Exception.deleteKeyAgainstBorder
+      }
       keys.remove(at: cursor - (isBackSpace ? 1 : 0))
       cursor -= isBackSpace ? 1 : 0 // 在縮節之前。
       resizeGrid(at: cursor, do: .shrink)
-      update()
-      return true
+      try? assignNodes() // 此處拋出的異常已無利用之意義，放行即可。
     }
 
     /// 按幅位來前後移動游標。
@@ -178,23 +177,19 @@ extension Homa {
     /// 具體用法可以是這樣：你在標記模式下，
     /// 如果出現了「副游標切了某個字音數量不相等的節點」的情況的話，
     /// 則直接用這個函式將副游標往前推到接下來的正常的位置上。
-    /// // 該特性不適用於小麥注音，除非小麥注音重新設計 InputState 且修改 KeyHandler、
-    /// 將標記游標交給敝引擎來管理。屆時，NSStringUtils 將徹底卸任。
-    /// - Returns: 該操作是否順利完成。
-    @discardableResult
     public func jumpCursorBySpan(
       to direction: TypingDirection,
       isMarker: Bool = false
-    )
-      -> Bool {
+    ) throws {
       var target = isMarker ? marker : cursor
-      switch direction {
-      case .front:
-        if target == length { return false }
-      case .rear:
-        if target == 0 { return false }
+      switch (direction, target) {
+      case (.front, length), (.rear, 0):
+        throw Homa.Exception.cursorAlreadyAtBorder
+      default: break
       }
-      guard let currentRegion = assembledNodes.cursorRegionMap[target] else { return false }
+      guard let currentRegion = assembledNodes.cursorRegionMap[target] else {
+        throw Homa.Exception.cursorRegionMapMatchingFailure
+      }
       let guardedCurrentRegion = min(assembledNodes.count - 1, currentRegion)
       let aRegionForward = max(currentRegion - 1, 0)
       let currentRegionBorderRear: Int = assembledNodes[0 ..< currentRegion].map(\.spanLength)
@@ -227,15 +222,12 @@ extension Homa {
       case false: cursor = target
       case true: marker = target
       }
-      return true
     }
 
     /// 根據當前狀況更新整個組字器的節點文脈。
     /// - Parameter updateExisting: 是否根據目前的語言模型的資料狀態來對既有節點更新其內部的單元圖陣列資料。
     /// 該特性可以用於「在選字窗內屏蔽了某個詞之後，立刻生效」這樣的軟體功能需求的實現。
-    /// - Returns: 新增或影響了多少個節點。如果返回「0」則表示可能發生了錯誤。
-    @discardableResult
-    public func update(updateExisting: Bool = false) -> Int {
+    public func assignNodes(updateExisting: Bool = false) throws {
       let maxSpanLength = maxSpanLength
       let rangeOfPositions: Range<Int>
       if updateExisting {
@@ -271,7 +263,7 @@ extension Homa {
           nodesChanged += 1
         }
       }
-      return nodesChanged
+      guard nodesChanged != 0 else { throw Homa.Exception.noNodesAssigned }
     }
 
     // MARK: Private
@@ -464,13 +456,11 @@ extension Homa.Assembler {
   ///   - location: 游標位置。
   ///   - overrideType: 指定覆寫行為。
   /// - Returns: 該操作是否成功執行。
-  @discardableResult
   public func overrideCandidate(
     _ candidate: Homa.CandidatePair, at location: Int,
     type overrideType: Homa.Node.OverrideType = .withSpecified
-  )
-    -> Bool {
-    overrideCandidateAgainst(
+  ) throws {
+    try overrideCandidateAgainst(
       keyArray: candidate.keyArray,
       at: location,
       value: candidate.value,
@@ -486,13 +476,11 @@ extension Homa.Assembler {
   ///   - location: 游標位置。
   ///   - overrideType: 指定覆寫行為。
   /// - Returns: 該操作是否成功執行。
-  @discardableResult
   public func overrideCandidateLiteral(
     _ candidate: String,
-    at location: Int, overrideType: Homa.Node.OverrideType = .withSpecified
-  )
-    -> Bool {
-    overrideCandidateAgainst(keyArray: nil, at: location, value: candidate, type: overrideType)
+    at location: Int, overrideType type: Homa.Node.OverrideType = .withSpecified
+  ) throws {
+    try overrideCandidateAgainst(keyArray: nil, at: location, value: candidate, type: type)
   }
 
   // MARK: Internal implementations.
@@ -509,24 +497,28 @@ extension Homa.Assembler {
     at location: Int,
     value: String,
     type: Homa.Node.OverrideType
-  )
-    -> Bool {
+  ) throws {
     let location = max(min(location, keys.count), 0) // 防呆
-    var arrOverlappedNodes: [(location: Int, node: Homa.Node)] = fetchOverlappingNodes(at: min(
-      keys.count - 1,
-      location
-    ))
+    var arrOverlappedNodes: [(location: Int, node: Homa.Node)] = fetchOverlappingNodes(
+      at: min(keys.count - 1, location)
+    )
     var overridden: (location: Int, node: Homa.Node)?
+    var lastError: Homa.Exception?
     for anchor in arrOverlappedNodes {
       if let keyArray, !anchor.node.allActualKeyArraysCached.contains(keyArray) {
         continue
       }
-      if !anchor.node.selectOverrideGram(value: value, type: type) { continue }
-      overridden = anchor
-      break
+      do {
+        try anchor.node.selectOverrideGram(value: value, type: type)
+        overridden = anchor
+        break
+      } catch {
+        lastError = error as? Homa.Exception
+        continue
+      }
     }
 
-    guard let overridden else { return false } // 啥也不覆寫。
+    guard let overridden else { throw lastError ?? .nothingOverriddenAtNode } // 啥也不覆寫。
 
     (overridden.location ..< min(spans.count, overridden.location + overridden.node.spanLength))
       .forEach { i in
@@ -549,6 +541,5 @@ extension Homa.Assembler {
           anchor.node.overridingScore /= 4
         }
       }
-    return true
   }
 }
