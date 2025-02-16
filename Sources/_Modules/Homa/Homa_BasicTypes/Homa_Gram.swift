@@ -11,6 +11,26 @@ extension Homa {
     // MARK: Lifecycle
 
     public init(
+      _ rawTuple: (
+        keyArray: [String],
+        value: String,
+        probability: Double,
+        previous: String?
+      ),
+      backoff: Double = 0
+    ) {
+      self.keyArray = rawTuple.keyArray
+      self.current = rawTuple.value
+      if let previous = rawTuple.previous, !previous.isEmpty {
+        self.previous = previous
+      } else {
+        self.previous = nil
+      }
+      self.probability = rawTuple.probability
+      self.backoff = backoff
+    }
+
+    public init(
       keyArray: [String],
       current: String,
       previous: String? = nil,
@@ -43,6 +63,20 @@ extension Homa {
         return "P(\(current))=\(probability), BOW('\(current)')=\(backoff)" // 單元圖
       }
       return "P(\(current)|\(previous))=\(probability)" // 雙元圖
+    }
+
+    public var asTuple: (
+      keyArray: [String],
+      value: String,
+      probability: Double,
+      previous: String?
+    ) {
+      (
+        keyArray: keyArray,
+        value: current,
+        probability: probability,
+        previous: previous
+      )
     }
 
     public static func == (lhs: Homa.Gram, rhs: Homa.Gram) -> Bool {
