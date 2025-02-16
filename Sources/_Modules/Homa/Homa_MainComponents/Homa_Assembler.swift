@@ -15,15 +15,15 @@ extension Homa {
     /// 初期化一個組字器。
     /// - Parameters:
     ///   - gramQuerier: 元圖存取專用 API。
-    ///   - gramExistenceChecker: 元圖在庫檢查器。
+    ///   - gramAvailabilityChecker: 元圖在庫檢查器。
     ///   - config: 組態設定。
     public init(
       gramQuerier: @escaping Homa.GramQuerier,
-      gramExistenceChecker: @escaping Homa.GramExistenceChecker,
+      gramAvailabilityChecker: @escaping Homa.GramAvailabilityChecker,
       config: Config = Config()
     ) {
       self.gramQuerier = gramQuerier
-      self.gramExistenceChecker = gramExistenceChecker
+      self.gramAvailabilityChecker = gramAvailabilityChecker
       self.config = config
     }
 
@@ -34,7 +34,7 @@ extension Homa {
     public init(from target: Assembler) {
       self.config = target.config.hardCopy
       self.gramQuerier = target.gramQuerier
-      self.gramExistenceChecker = target.gramExistenceChecker
+      self.gramAvailabilityChecker = target.gramAvailabilityChecker
     }
 
     // MARK: Public
@@ -47,7 +47,7 @@ extension Homa {
     /// 元圖存取專用 API。
     public var gramQuerier: Homa.GramQuerier
     /// 元圖在庫檢查器。
-    public var gramExistenceChecker: Homa.GramExistenceChecker
+    public var gramAvailabilityChecker: Homa.GramAvailabilityChecker
     /// 組態設定。
     public private(set) var config = Config()
 
@@ -136,7 +136,7 @@ extension Homa {
     /// 在游標位置插入給定的索引鍵。
     /// - Parameter key: 要插入的索引鍵。
     public func insertKey(_ key: String) throws {
-      guard !key.isEmpty, gramExistenceChecker([key]) else {
+      guard !key.isEmpty, gramAvailabilityChecker([key]) else {
         throw Homa.Exception.givenKeyIsEmpty
       }
       keys.insert(key, at: cursor)

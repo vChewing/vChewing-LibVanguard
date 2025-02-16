@@ -11,5 +11,5 @@ extension Homa {
     probability: Double,
     previous: String?
   )]
-  public typealias GramExistenceChecker = ([String]) -> Bool
+  public typealias GramAvailabilityChecker = ([String]) -> Bool
 }
