@@ -136,8 +136,11 @@ extension Homa {
     /// 在游標位置插入給定的索引鍵。
     /// - Parameter key: 要插入的索引鍵。
     public func insertKey(_ key: String) throws {
-      guard !key.isEmpty, gramAvailabilityChecker([key]) else {
+      guard !key.isEmpty else {
         throw Homa.Exception.givenKeyIsEmpty
+      }
+      guard gramAvailabilityChecker([key]) else {
+        throw Homa.Exception.givenKeyHasNoResults
       }
       keys.insert(key, at: cursor)
       let gridBackup = spans
