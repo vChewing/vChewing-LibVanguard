@@ -280,13 +280,8 @@ extension Homa {
     /// - Parameter keyArray: 讀音陣列。
     /// - Returns: 元圖陣列。
     private func queryGrams(using keyArray: [String]) -> [Homa.Gram] {
-      gramQuerier(keyArray).map {
-        Homa.Gram(
-          keyArray: $0.keyArray,
-          current: $0.value,
-          previous: $0.previous,
-          probability: $0.probability
-        )
+      gramQuerier(keyArray).map { Homa.Gram($0) }.sorted {
+        $0.probability > $1.probability
       }
     }
   }
