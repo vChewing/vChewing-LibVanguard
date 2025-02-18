@@ -17,7 +17,7 @@ let package = Package(
     // Targets can depend on other targets in this package and products from dependencies.
     .target(
       name: "LibVanguard",
-      dependencies: ["TekkonNext", "Homa"]
+      dependencies: ["TekkonNext", "Homa", "BrailleSputnik"]
     ),
     .testTarget(
       name: "LibVanguardTests",
@@ -42,6 +42,17 @@ let package = Package(
       name: "HomaTests",
       dependencies: ["Homa"],
       path: "./Tests/_Tests4Components/HomaTests"
+    ),
+    // BrailleSputnik, the Braille module.
+    .target(
+      name: "BrailleSputnik",
+      dependencies: ["TekkonNext"],
+      path: "./Sources/_Modules/BrailleSputnik"
+    ),
+    .testTarget(
+      name: "BrailleSputnikTests",
+      dependencies: ["BrailleSputnik"],
+      path: "./Tests/_Tests4Components/BrailleSputnikTests"
     ),
   ]
 )
