@@ -28,6 +28,13 @@ Unless specifically invited, this repository is not accepting external contribut
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 ```
 
+An exception is that the unit tests of the Homa Sentence Assembler utilizes certain contents extracted from libvchewing-data which is released under BSD-3-Clause.
+```
+// (c) 2022 and onwards The vChewing Project (BSD-3-Clause).
+// ====================
+// This code is released under the SPDX-License-Identifier: `BSD-3-Clause`.
+```
+
 This project adopts a dual-licensing approach. In addition to LGPLv3, we offer different licensing terms for commercial users (such as permitting closed-source usage). For details, please [contact the author via email](shikisuen@yeah.net).
 
 $ EOF.
