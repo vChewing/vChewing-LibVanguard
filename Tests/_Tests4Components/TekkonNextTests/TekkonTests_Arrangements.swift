@@ -115,51 +115,50 @@ struct TekkonTestsKeyboardArrangmentsStatic {
 // MARK: - TekkonTestsKeyboardArrangmentsDynamic
 
 struct TekkonTestsKeyboardArrangmentsDynamic {
-  @Test("[TekkonNext] DynamicKeyLayouts")
-  func testDynamicKeyLayouts() async throws {
-    try await withThrowingTaskGroup(
-      of: Void.self,
-      body: { group in
-        let parsers = Tekkon.MandarinParser.allCases.filter(\.isDynamic)
-        var testCasesMap = [Tekkon.MandarinParser: [SubTestCase?]]()
-        print(" -> [TekkonNext] Preparing tests for dynamic keyboard handling...")
-        var isTitleLine = true
-        testTable4DynamicLayouts.parse(splitee: "\n") { theRange in
-          guard !isTitleLine else {
-            isTitleLine = false
-            return
-          }
-          let cells = testTable4DynamicLayouts[theRange].split(separator: " ")
-          let expected = cells[0]
-          parsers.enumerated().forEach { idxRaw, parser in
-            let idx = idxRaw + 1
-            let typing = cells[idx]
-            let newTestCase = SubTestCase(
-              parser: parser,
-              typing: typing.description,
-              expected: expected.description
-            )
-            testCasesMap[parser, default: []].append(newTestCase)
-          }
-        }
-        print(" -> [TekkonNext] Starting dynamic keyboard handling tests...")
-        print("    // This can be time-consuming on Intel macs unless using Swift through Docker.")
-        testCasesMap.forEach { parser, cases in
-          group.addTask {
-            try await withThrowingTaskGroup(of: Int.self) { innerGroup in
-              cases.compactMap(\.self).forEach { testCase in
-                innerGroup.addTask { testCase.verify() ? 0 : 1 }
-              }
-              let results = try await innerGroup.reduce(0, +)
-              #expect(
-                results == 0,
-                "[Failure] \(parser.nameTag) failed from being handled correctly with \(results) bad results."
-              )
-            }
-          }
-        }
-        try await group.waitForAll()
+  typealias Parser = TekkonNext.Tekkon.MandarinParser
+
+  @Test(
+    "[TekkonNext] DynamicKeyLayouts",
+    arguments: Array(Parser.allCases.filter(\.isDynamic).enumerated())
+  )
+  func testDynamicKeyLayouts(
+    _ parserEnumerated: EnumeratedSequence<[Parser]>
+      .Element
+  ) async throws {
+    let idxRaw = parserEnumerated.offset
+    let parser = parserEnumerated.element
+    var cases = [SubTestCase?]()
+    print(" -> [TekkonNext] Preparing tests for dynamic keyboard handling...")
+    var isTitleLine = true
+    testTable4DynamicLayouts.parse(splitee: "\n") { theRange in
+      guard !isTitleLine else {
+        isTitleLine = false
+        return
       }
+      let cells = testTable4DynamicLayouts[theRange].split(separator: " ")
+      let expected = cells[0]
+      let idx = idxRaw + 1
+      let typing = cells[idx]
+      let newTestCase = SubTestCase(
+        parser: parser,
+        typing: typing.description,
+        expected: expected.description
+      )
+      cases.append(newTestCase)
+    }
+    let timeTag = Date.now
+    print(" -> [TekkonNext][(\(parser.nameTag))] Starting dynamic keyboard handling test ...")
+    let results = cases.compactMap { testCase in
+      (testCase?.verify() ?? true) ? 0 : 1
+    }.reduce(0, +)
+    #expect(
+      results == 0,
+      "[Failure] \(parser.nameTag) failed from being handled correctly with \(results) bad results."
+    )
+    let timeDelta = Date.now.timeIntervalSince1970 - timeTag.timeIntervalSince1970
+    let timeDeltaStr = String(format: "%.4f", timeDelta)
+    print(
+      " -> [TekkonNext][(\(parser.nameTag))] Finished within \(timeDeltaStr) seconds."
     )
   }
 }
