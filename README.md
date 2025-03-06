@@ -30,7 +30,7 @@ Unless specifically invited, this repository is not accepting external contribut
 
 An exception is that the unit tests of the Homa Sentence Assembler utilizes certain contents extracted from libvchewing-data which is released under BSD-3-Clause.
 ```
-// (c) 2022 and onwards The vChewing Project (BSD-3-Clause).
+// (c) 2021 and onwards The vChewing Project (BSD-3-Clause).
 // ====================
 // This code is released under the SPDX-License-Identifier: `BSD-3-Clause`.
 ```
