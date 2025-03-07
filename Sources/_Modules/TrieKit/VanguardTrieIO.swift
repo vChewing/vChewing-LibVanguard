@@ -2,7 +2,6 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-import Compression
 import Foundation
 
 // MARK: - VanguardTrie.TrieIO
@@ -10,24 +9,18 @@ import Foundation
 extension VanguardTrie {
   /// 提供 Trie 資料結構的高效二進位序列化與反序列化功能
   public enum TrieIO {
-    // MARK: Public
-
     // MARK: - 例外型別
 
     /// Trie 輸入輸出操作可能發生的例外狀況
     public enum Exception: Swift.Error, LocalizedError {
       /// 序列化失敗
       case serializationFailed(Swift.Error)
-      /// 解壓縮資料失敗
-      case decompressionFailed(String)
       /// 反序列化失敗
       case deserializationFailed(Swift.Error)
       /// 檔案儲存失敗
       case fileSaveFailed(Swift.Error)
       /// 檔案載入失敗
       case fileLoadFailed(Swift.Error)
-      /// 記憶體分配失敗
-      case memoryAllocationFailed
 
       // MARK: Public
 
@@ -35,54 +28,42 @@ extension VanguardTrie {
         switch self {
         case let .serializationFailed(error):
           return "序列化 Trie 失敗: \(error.localizedDescription)"
-        case let .decompressionFailed(reason):
-          return "解壓縮資料失敗: \(reason)"
         case let .deserializationFailed(error):
           return "反序列化 Trie 失敗: \(error.localizedDescription)"
         case let .fileSaveFailed(error):
           return "儲存 Trie 至檔案失敗: \(error.localizedDescription)"
         case let .fileLoadFailed(error):
           return "從檔案載入 Trie 失敗: \(error.localizedDescription)"
-        case .memoryAllocationFailed:
-          return "記憶體配置失敗"
         }
       }
     }
 
     // MARK: - 公開方法
 
-    /// 將 Trie 序列化為二進位資料並壓縮
+    /// 將 Trie 序列化為二進位資料
     /// - Parameter trie: 要序列化的 Trie 結構
-    /// - Returns: 壓縮後的二進位資料
-    /// - Throws: 序列化或壓縮過程中的例外狀況
+    /// - Returns: 二進位資料
+    /// - Throws: 序列化過程中的例外狀況
     public static func serialize(_ trie: Trie) throws -> Data {
       do {
         // 使用 PropertyListEncoder 序列化為二進位格式
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .binary
-        let data = try encoder.encode(trie)
-
-        // 壓縮資料以減少儲存空間
-        return try compress(data)
+        return try encoder.encode(trie)
       } catch {
         throw Exception.serializationFailed(error)
       }
     }
 
     /// 從二進位資料反序列化 Trie 結構
-    /// - Parameter data: 壓縮的二進位資料
+    /// - Parameter data: 二進位資料
     /// - Returns: 反序列化的 Trie 結構
-    /// - Throws: 解壓縮或反序列化過程中的例外狀況
+    /// - Throws: 反序列化過程中的例外狀況
     public static func deserialize(_ data: Data) throws -> Trie {
       do {
-        // 解壓縮資料
-        let decompressedData = try decompress(data)
-
         // 使用 PropertyListDecoder 反序列化
         let decoder = PropertyListDecoder()
-        return try decoder.decode(Trie.self, from: decompressedData)
-      } catch let error as Exception {
-        throw error
+        return try decoder.decode(Trie.self, from: data)
       } catch {
         throw Exception.deserializationFailed(error)
       }
@@ -158,99 +139,5 @@ extension VanguardTrie {
 
       return (errors.isEmpty, errors)
     }
-
-    // MARK: Private
-
-    // MARK: - 私有輔助方法
-
-    /// 壓縮資料
-    private static func compress(_ data: Data) throws -> Data {
-      let sourceSize = data.count
-      let destinationSize = sourceSize + 1_024 // 為壓縮標頭預留空間
-
-      guard let destination = malloc(destinationSize) else {
-        throw Exception.memoryAllocationFailed
-      }
-      defer { free(destination) }
-
-      let compressedSize = data.withUnsafeBytes { (sourcePtr: UnsafeRawBufferPointer) -> Int in
-        guard let sourceAddress = sourcePtr.baseAddress else { return 0 }
-
-        return compression_encode_buffer(
-          destination.assumingMemoryBound(to: UInt8.self),
-          destinationSize,
-          sourceAddress.assumingMemoryBound(to: UInt8.self),
-          sourceSize,
-          nil,
-          COMPRESSION_LZFSE
-        )
-      }
-
-      guard compressedSize > 0 else {
-        throw Exception.decompressionFailed("壓縮操作失敗")
-      }
-
-      // 建立包含原始大小資訊的標頭
-      var result = Data()
-      result.append(UInt32(sourceSize).bigEndian.data)
-      result.append(UInt32(compressedSize).bigEndian.data)
-
-      // 添加壓縮後的資料
-      result.append(Data(bytes: destination, count: compressedSize))
-
-      return result
-    }
-
-    /// 解壓縮資料
-    private static func decompress(_ data: Data) throws -> Data {
-      guard data.count > 8 else {
-        // 資料太小，無法包含有效的壓縮標頭
-        throw Exception.decompressionFailed("資料格式無效：標頭不完整")
-      }
-
-      // 從標頭讀取原始大小和壓縮大小
-      let originalSize = data.prefix(4).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-      let compressedSize = data.subdata(in: 4 ..< 8)
-        .withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-
-      let compressedData = data.subdata(in: 8 ..< data.count)
-      guard compressedData.count == Int(compressedSize) else {
-        throw Exception.decompressionFailed("壓縮資料大小不符")
-      }
-
-      guard let destination = malloc(Int(originalSize)) else {
-        throw Exception.memoryAllocationFailed
-      }
-      defer { free(destination) }
-
-      let decompressedSize = compressedData
-        .withUnsafeBytes { (sourcePtr: UnsafeRawBufferPointer) -> Int in
-          guard let sourceAddress = sourcePtr.baseAddress else { return 0 }
-
-          return compression_decode_buffer(
-            destination.assumingMemoryBound(to: UInt8.self),
-            Int(originalSize),
-            sourceAddress.assumingMemoryBound(to: UInt8.self),
-            compressedData.count,
-            nil,
-            COMPRESSION_LZFSE
-          )
-        }
-
-      guard decompressedSize == Int(originalSize) else {
-        throw Exception.decompressionFailed("解壓縮後資料大小不符")
-      }
-
-      return Data(bytes: destination, count: decompressedSize)
-    }
-  }
-}
-
-// MARK: - 擴充 UInt32 以支援轉換為 Data
-
-extension UInt32 {
-  var data: Data {
-    var value = self
-    return Data(bytes: &value, count: MemoryLayout<UInt32>.size)
   }
 }
