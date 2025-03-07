@@ -11,6 +11,10 @@ let package = Package(
       name: "LibVanguard",
       targets: ["LibVanguard"]
     ),
+    .library(
+      name: "TrieKit",
+      targets: ["TrieKit"]
+    ),
   ],
   targets: [
     // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -53,6 +57,28 @@ let package = Package(
       name: "BrailleSputnikTests",
       dependencies: ["BrailleSputnik"],
       path: "./Tests/_Tests4Components/BrailleSputnikTests"
+    ),
+    // VanguardTrieSupport, the data structure for factory dictionary files.
+    .target(
+      name: "TrieKit",
+      dependencies: ["CSQLite3"],
+      path: "./Sources/_Modules/TrieKit"
+    ),
+    .testTarget(
+      name: "TrieKitTests",
+      dependencies: [
+        "TrieKit",
+        "Homa",
+      ],
+      path: "./Tests/_Tests4Components/TrieKitTests"
+    ),
+    // CSQLite3 for all platforms.
+    .target(
+      name: "CSQLite3",
+      path: "./Sources/_3rdParty/CSQLite3",
+      cSettings: [
+        .unsafeFlags(["-w"]),
+      ]
     ),
   ]
 )
