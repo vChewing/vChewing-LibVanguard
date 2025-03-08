@@ -135,11 +135,11 @@ extension VanguardTrie {
       into sqlCommands: inout [String]
     ) {
       let batchSize = 500 // 每批插入的節點數量
-      var nodeValues = ["(1, NULL, '')"] // 從根節點開始
+      var nodeValues = ["(0, NULL, '')"] // 從根節點開始，ID 為 0
       var count = 1
 
       // 收集所有非根節點
-      for (id, node) in nodes where id != 1 { // 排除根節點，避免重複插入
+      for (id, node) in nodes where id != 0 { // 排除根節點，避免重複插入
         if let parentID = node.parentID {
           let escapedChar = node.character.replacingOccurrences(of: "'", with: "''")
           nodeValues.append("(\(id), \(parentID), '\(escapedChar)')")
@@ -252,7 +252,7 @@ extension VanguardTrie {
       // 遍歷所有 keychain 和對應的節點 ID
       for (keychain, nodeIDs) in keychainMap {
         let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
-        
+
         // 對每個 keychain，插入與所有對應節點 ID 的映射關係
         for nodeID in nodeIDs {
           keychainValues.append("(\(idCounter), '\(escapedKeychain)', \(nodeID))")
