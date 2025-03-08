@@ -145,14 +145,27 @@ public enum VanguardTrie {
       }
 
       public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeysAlt.self)
-        self.readings = try container.decode(
-          String.self, forKey: .readings
-        ).components(separatedBy: " ")
-        self.value = try container.decode(String.self, forKey: .value)
-        self.typeID = try container.decode(EntryType.self, forKey: .typeID)
-        self.probability = try container.decode(Double.self, forKey: .probability)
-        self.previous = try container.decodeIfPresent(String.self, forKey: .previous)
+        let container = try decoder.singleValueContainer()
+        let stackRawStr = try container.decode(String.self)
+        let stack = stackRawStr.split(separator: "\t")
+        let theException = DecodingError.dataCorrupted(
+          DecodingError.Context(
+            codingPath: container.codingPath,
+            debugDescription: "Can't parse the following contents into an Entry: \(stackRawStr)"
+          )
+        )
+        guard [4, 5].contains(stack.count) else { throw theException }
+        self.readings = stack[0].components(separatedBy: " ")
+        self.value = stack[1].description
+        guard let typeIDRaw = Int32(stack[2]) else { throw theException }
+        guard let probability = Double(stack[3]) else { throw theException }
+        self.typeID = .init(rawValue: typeIDRaw)
+        self.probability = probability
+        if stack.count == 5 {
+          self.previous = stack[4].description
+        } else {
+          self.previous = nil
+        }
       }
 
       // MARK: Public
@@ -164,13 +177,17 @@ public enum VanguardTrie {
       public let previous: String?
 
       public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeysAlt.self)
-        let readingsChain = readings.joined(separator: " ")
-        try container.encode(readingsChain, forKey: .readings)
-        try container.encode(value, forKey: .value)
-        try container.encode(typeID, forKey: .typeID)
-        try container.encode(probability, forKey: .probability)
-        try container.encodeIfPresent(previous, forKey: .previous)
+        var container = encoder.singleValueContainer()
+        /// 第一行是读音串，第二行是资料值，第三行是 typeID，第四行是 probability，第五行是 previous。
+        var stack = [String]()
+        stack.append(readings.joined(separator: " "))
+        stack.append(value)
+        stack.append(typeID.rawValue.description)
+        stack.append(probability.description)
+        if let previous {
+          stack.append(previous)
+        }
+        try container.encode(stack.joined(separator: "\t"))
       }
 
       // MARK: Private
