@@ -12,7 +12,7 @@ extension VanguardTrie {
     /// - Parameters:
     ///   - trie: 要匯出的 Trie 結構
     /// - Returns: SQL 腳本內容。
-    public static func generateSQLScript(_ trie: VanguardTrie.Trie) -> String {
+    public static func generate(_ trie: VanguardTrie.Trie) -> String {
       var sqlCommands = [String]()
 
       // 設置優化參數，提高大量數據導入速度
@@ -36,7 +36,7 @@ extension VanguardTrie {
       CREATE TABLE config (
           key TEXT PRIMARY KEY,
           value TEXT NOT NULL
-      );
+      ) WITHOUT ROWID; -- 使用 WITHOUT ROWID 優化小型表
 
       CREATE TABLE nodes (
           id INTEGER PRIMARY KEY,
@@ -106,16 +106,10 @@ extension VanguardTrie {
 
       -- 創建索引
       CREATE INDEX IF NOT EXISTS idx_keychain_id_map_keychain ON keychain_id_map(keychain);
-      CREATE INDEX IF NOT EXISTS idx_keychain_id_map_node ON keychain_id_map(node_id);
-      CREATE INDEX IF NOT EXISTS idx_nodes_parent ON nodes(parent_id);
-      CREATE INDEX IF NOT EXISTS idx_entries_node ON entries(node_id);
-      CREATE INDEX IF NOT EXISTS idx_entries_type ON entries(type_id);
-      CREATE INDEX IF NOT EXISTS idx_reading_mappings_reading ON reading_mappings(reading);
-
-      -- 專門針對前綴匹配優化的索引
-      CREATE INDEX IF NOT EXISTS idx_reading_prefix ON reading_mappings(substr(reading,1,1));
-      CREATE INDEX IF NOT EXISTS idx_reading_mappings_like ON reading_mappings(reading COLLATE NOCASE);
-      CREATE INDEX IF NOT EXISTS idx_keychain_prefix ON keychain_id_map(substr(keychain,1,3));
+      CREATE INDEX IF NOT EXISTS idx_entries_node_type ON entries(node_id, type_id);
+      CREATE INDEX IF NOT EXISTS idx_reading_mappings_entry_index ON reading_mappings(entry_id, entry_index);
+      CREATE INDEX IF NOT EXISTS idx_reading_mappings_reading_entry ON reading_mappings(reading, entry_id);
+      CREATE INDEX IF NOT EXISTS idx_keychain_prefix ON keychain_id_map(substr(keychain,1,3), keychain);
 
       -- 收集資料庫統計資訊，優化查詢
       ANALYZE;
