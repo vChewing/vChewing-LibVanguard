@@ -61,17 +61,16 @@ extension VanguardTrie {
           entry_id INTEGER NOT NULL,
           reading TEXT NOT NULL,
           entry_index INTEGER NOT NULL DEFAULT 0,
-          FOREIGN KEY (entry_id) REFERENCES entries(id),
-          UNIQUE (entry_id, reading)
+          FOREIGN KEY (entry_id) REFERENCES entries(id)
       );
 
-      -- 新增 keychain_id_map 表，對應原始的 keyChainIDMap 結構
+      -- 創建 keychain_id_map 表，對應原始的 keyChainIDMap 結構
+      -- 一個 keychain 可以對應多個 node_id
       CREATE TABLE keychain_id_map (
           id INTEGER PRIMARY KEY,
           keychain TEXT NOT NULL,
           node_id INTEGER NOT NULL,
-          FOREIGN KEY (node_id) REFERENCES nodes(id),
-          UNIQUE (keychain, node_id)
+          FOREIGN KEY (node_id) REFERENCES nodes(id)
       );
       """)
 
@@ -252,8 +251,10 @@ extension VanguardTrie {
 
       // 遍歷所有 keychain 和對應的節點 ID
       for (keychain, nodeIDs) in keychainMap {
+        let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
+        
+        // 對每個 keychain，插入與所有對應節點 ID 的映射關係
         for nodeID in nodeIDs {
-          let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
           keychainValues.append("(\(idCounter), '\(escapedKeychain)', \(nodeID))")
           idCounter += 1
 
