@@ -7,7 +7,7 @@ import Foundation
 // MARK: - VanguardTrie
 
 public enum VanguardTrie {
-  public class Trie: Codable {
+  public final class Trie: Codable {
     // MARK: Lifecycle
 
     public init(separator: String) {
@@ -45,7 +45,7 @@ public enum VanguardTrie {
 
     // MARK: Public
 
-    public class TNode: Codable, Hashable, Identifiable {
+    public final class TNode: Codable, Hashable, Identifiable {
       // MARK: Lifecycle
 
       public init(

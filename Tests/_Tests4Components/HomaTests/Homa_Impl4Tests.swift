@@ -188,7 +188,7 @@ final class TestLM {
 // MARK: - SimpleTrie
 
 /// Literarily the Vanguard Trie sans EntryType and Codable support.
-public class SimpleTrie {
+public final class SimpleTrie {
   // MARK: Lifecycle
 
   public init(separator: String) {
@@ -205,7 +205,7 @@ public class SimpleTrie {
 
   // MARK: Public
 
-  public class TNode: Hashable, Identifiable {
+  public final class TNode: Hashable, Identifiable {
     // MARK: Lifecycle
 
     public init(

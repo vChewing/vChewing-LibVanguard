@@ -5,7 +5,7 @@
 // MARK: - TrieSQLScriptGenerator
 
 extension VanguardTrie {
-  public class TrieSQLScriptGenerator {
+  public enum TrieSQLScriptGenerator {
     // MARK: Public
 
     /// 將 Trie 結構匯出為 SQL 腳本
