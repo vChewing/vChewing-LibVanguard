@@ -22,21 +22,12 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
 
       // 構建查詢前綴條件
       let firstKeyEscaped = keys[0].replacingOccurrences(of: "'", with: "''")
-      let typeFilter = filterType.rawValue > 0 ?
-        """
-        AND EXISTS (
-          SELECT 1 FROM entries e
-          WHERE e.node_id = k.node_id
-          AND (e.type_id & \(filterType.rawValue) != 0)
-        )
-        """ : ""
 
       // 查詢與前綴匹配的 keychain
       let query = """
         SELECT k.node_id
         FROM keychain_id_map k
         WHERE k.keychain LIKE '\(firstKeyEscaped)%'
-        \(typeFilter)
       """
 
       var statement: OpaquePointer?
@@ -44,7 +35,17 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
         while sqlite3_step(statement) == SQLITE_ROW {
           let nodeID = Int(sqlite3_column_int(statement, 0))
-          nodeIDs.insert(nodeID)
+
+          if filterType.isEmpty {
+            nodeIDs.insert(nodeID)
+          } else {
+            // 需要檢查節點中的詞條是否符合類型
+            if let entriesBlob = getNodeEntriesBlob(nodeID: nodeID),
+               let entries = decodeEntriesFromBase64(entriesBlob),
+               entries.contains(where: { $0.typeID.contains(filterType) }) {
+              nodeIDs.insert(nodeID)
+            }
+          }
         }
       }
 
@@ -60,7 +61,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
   public func getNode(nodeID: Int) -> VanguardTrie.Trie.TNode? {
     // 查詢節點信息
     let query = """
-      SELECT n.id, n.parent_id, n.character
+      SELECT n.id, n.parent_id, n.character, n.reading_key, n.entries_blob
       FROM nodes n
       WHERE n.id = ?
     """
@@ -88,13 +89,29 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
           character = ""
         }
 
+        let readingKey: String
+        if let readingKeyPtr = sqlite3_column_text(statement, 3) {
+          readingKey = String(cString: readingKeyPtr)
+        } else {
+          readingKey = ""
+        }
+
         // 創建節點
         node = VanguardTrie.Trie.TNode(
           id: id,
           entries: [],
           parentID: parentID,
-          character: character
+          character: character,
+          readingKey: readingKey
         )
+
+        // 解碼詞條
+        if let blobPtr = sqlite3_column_text(statement, 4) {
+          let blobString = String(cString: blobPtr)
+          if !blobString.isEmpty, let entries = decodeEntriesFromBase64(blobString) {
+            node?.entries = entries
+          }
+        }
 
         // 獲取子節點信息並更新 children 字典
         let childrenQuery = "SELECT id, character FROM nodes WHERE parent_id = ?"
@@ -117,68 +134,10 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     }
 
     sqlite3_finalize(statement)
-
-    // 如果找到了節點，還需要獲取該節點的所有條目
-    if let foundNode = node {
-      foundNode.entries = getEntries(node: foundNode)
-    }
-
     return node
   }
 
-  public func getEntries(node: VanguardTrie.Trie.TNode) -> [VanguardTrie.Trie.Entry] {
-    let nodeID = node.id
-    guard nodeID <= Int32.max else { return [] }
-
-    var entries: [VanguardTrie.Trie.Entry] = []
-    let query = """
-      SELECT e.id, e.value, e.probability, e.previous, e.type_id
-      FROM entries e
-      WHERE e.node_id = ?
-    """
-
-    var statement: OpaquePointer?
-
-    if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
-      sqlite3_bind_int(statement, 1, Int32(nodeID))
-
-      while sqlite3_step(statement) == SQLITE_ROW {
-        let entryId = sqlite3_column_int(statement, 0)
-
-        guard let valuePtr = sqlite3_column_text(statement, 1) else { continue }
-        let value = String(cString: valuePtr)
-
-        let probability = sqlite3_column_double(statement, 2)
-
-        // 處理可能為空的 previous 欄位
-        let previous: String?
-        if let prevPtr = sqlite3_column_text(statement, 3) {
-          previous = String(cString: prevPtr)
-        } else {
-          previous = nil
-        }
-
-        // 處理 typeID
-        let typeIDRaw = sqlite3_column_int(statement, 4)
-        let typeID = VanguardTrie.Trie.EntryType(rawValue: typeIDRaw)
-
-        // 獲取讀音
-        let readings = getReadingsForEntry(entryId: entryId)
-
-        // 創建並添加 Entry
-        let entry = VanguardTrie.Trie.Entry(
-          readings: readings,
-          value: value,
-          typeID: typeID,
-          probability: probability,
-          previous: previous
-        )
-
-        entries.append(entry)
-      }
-    }
-
-    sqlite3_finalize(statement)
-    return entries
+  public func getEntries(node: VanguardTrie.Trie.TNode) -> [Entry] {
+    node.entries
   }
 }
