@@ -202,7 +202,7 @@ extension VanguardTrie.Trie.Entry {
 extension VanguardTrie.Trie {
   public func insert(_ givenKey: String? = nil, entry: Entry) {
     var currentNode = root
-    var currentNodeID = 1
+    var currentNodeID = 0
 
     let key = givenKey ?? entry.readings.joined(separator: readingSeparator)
 
@@ -217,7 +217,7 @@ extension VanguardTrie.Trie {
         return
       }
       // 創建新的子節點
-      let newNodeID = Int(nodes.count + 1)
+      let newNodeID = nodes.count
       let newNode = TNode(id: newNodeID, parentID: currentNodeID, character: charStr)
 
       // 更新關係
