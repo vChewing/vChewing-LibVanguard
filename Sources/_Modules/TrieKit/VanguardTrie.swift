@@ -115,6 +115,24 @@ public enum VanguardTrie {
     }
 
     public struct Entry: Codable, Hashable, Sendable {
+      // MARK: Lifecycle
+
+      public init(
+        readings: [String],
+        value: String,
+        typeID: EntryType,
+        probability: Double,
+        previous: String?
+      ) {
+        self.readings = readings
+        self.value = value
+        self.typeID = typeID
+        self.probability = probability
+        self.previous = previous
+      }
+
+      // MARK: Public
+
       public let readings: [String]
       public let value: String
       public let typeID: EntryType
@@ -182,9 +200,11 @@ extension VanguardTrie.Trie.Entry {
 // MARK: - Extending Methods (Trie: Insert and Search API).
 
 extension VanguardTrie.Trie {
-  public func insert(_ key: String, entry: Entry) {
+  public func insert(_ givenKey: String? = nil, entry: Entry) {
     var currentNode = root
     var currentNodeID = 1
+
+    let key = givenKey ?? entry.readings.joined(separator: readingSeparator)
 
     // 遍歷關鍵字的每個字符
     key.forEach { char in

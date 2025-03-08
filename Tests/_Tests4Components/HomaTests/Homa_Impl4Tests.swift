@@ -294,7 +294,7 @@ public class SimpleTrie {
 extension SimpleTrie {
   func insert(_ key: String, entry: Entry) {
     var currentNode = root
-    var currentNodeID = 1
+    var currentNodeID = 0
 
     // 遍歷關鍵字的每個字符
     key.forEach { char in
@@ -307,7 +307,7 @@ extension SimpleTrie {
         return
       }
       // 創建新的子節點
-      let newNodeID = Int(nodes.count + 1)
+      let newNodeID = nodes.count
       let newNode = TNode(id: newNodeID, parentID: currentNodeID, character: charStr)
 
       // 更新關係
