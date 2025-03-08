@@ -127,7 +127,8 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
   }
 
   public func getEntries(node: VanguardTrie.Trie.TNode) -> [VanguardTrie.Trie.Entry] {
-    guard let nodeID = node.id else { return [] }
+    let nodeID = node.id
+    guard nodeID <= Int32.max else { return [] }
 
     var entries: [VanguardTrie.Trie.Entry] = []
     let query = """

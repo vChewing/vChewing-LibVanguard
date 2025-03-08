@@ -12,7 +12,7 @@ public enum VanguardTrie {
 
     public init(separator: String) {
       self.readingSeparator = separator
-      self.root = .init()
+      self.root = .init(id: 0)
       self.nodes = [:]
 
       // 初始化時，將根節點加入到節點字典中
@@ -27,7 +27,12 @@ public enum VanguardTrie {
       let container = try decoder.container(keyedBy: CodingKeys.self)
 
       self.readingSeparator = try container.decode(String.self, forKey: .readingSeparator)
-      self.nodes = try container.decode([Int: TNode].self, forKey: .nodes)
+      let nodesExtracted = try container.decode(Set<TNode>.self, forKey: .nodes)
+      var nodesMap = [Int: TNode]()
+      nodesExtracted.forEach {
+        nodesMap[$0.id] = $0
+      }
+      self.nodes = nodesMap
 
       // 從節點字典中獲取根節點
       guard let rootNode = nodes[0] else {
@@ -49,7 +54,7 @@ public enum VanguardTrie {
       // MARK: Lifecycle
 
       public init(
-        id: Int? = nil,
+        id: Int,
         entries: [Entry] = [],
         parentID: Int? = nil,
         character: String = ""
@@ -63,16 +68,20 @@ public enum VanguardTrie {
 
       public required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decodeIfPresent(Int.self, forKey: .id)
-        self.entries = try container.decode([Entry].self, forKey: .entries)
+        self.id = try container.decode(Int.self, forKey: .id)
         self.parentID = try container.decodeIfPresent(Int.self, forKey: .parentID)
         self.character = try container.decode(String.self, forKey: .character)
-        self.children = try container.decode([String: Int].self, forKey: .children)
+        self.children = (
+          try container.decodeIfPresent([String: Int].self, forKey: .children)
+        ) ?? [:]
+        self.entries = (
+          try container.decodeIfPresent([Entry].self, forKey: .entries)
+        ) ?? []
       }
 
       // MARK: Public
 
-      public fileprivate(set) var id: Int?
+      public fileprivate(set) var id: Int = 0
       public var entries: [Entry] = []
       public fileprivate(set) var parentID: Int?
       public fileprivate(set) var character: String = ""
@@ -97,10 +106,14 @@ public enum VanguardTrie {
       public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(id, forKey: .id)
-        try container.encode(entries, forKey: .entries)
+        if !entries.isEmpty {
+          try container.encode(entries, forKey: .entries)
+        }
         try container.encodeIfPresent(parentID, forKey: .parentID)
         try container.encode(character, forKey: .character)
-        try container.encode(children, forKey: .children)
+        if !children.isEmpty {
+          try container.encode(children, forKey: .children)
+        }
       }
 
       // MARK: Private
@@ -131,6 +144,17 @@ public enum VanguardTrie {
         self.previous = previous
       }
 
+      public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeysAlt.self)
+        self.readings = try container.decode(
+          String.self, forKey: .readings
+        ).components(separatedBy: " ")
+        self.value = try container.decode(String.self, forKey: .value)
+        self.typeID = try container.decode(EntryType.self, forKey: .typeID)
+        self.probability = try container.decode(Double.self, forKey: .probability)
+        self.previous = try container.decodeIfPresent(String.self, forKey: .previous)
+      }
+
       // MARK: Public
 
       public let readings: [String]
@@ -138,6 +162,26 @@ public enum VanguardTrie {
       public let typeID: EntryType
       public let probability: Double
       public let previous: String?
+
+      public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeysAlt.self)
+        let readingsChain = readings.joined(separator: " ")
+        try container.encode(readingsChain, forKey: .readings)
+        try container.encode(value, forKey: .value)
+        try container.encode(typeID, forKey: .typeID)
+        try container.encode(probability, forKey: .probability)
+        try container.encodeIfPresent(previous, forKey: .previous)
+      }
+
+      // MARK: Private
+
+      private enum CodingKeysAlt: String, CodingKey {
+        case readings
+        case value
+        case typeID
+        case probability
+        case previous
+      }
     }
 
     public struct EntryType: OptionSet, Sendable, Codable, Hashable {
@@ -163,7 +207,7 @@ public enum VanguardTrie {
       var container = encoder.container(keyedBy: CodingKeys.self)
 
       try container.encode(readingSeparator, forKey: .readingSeparator)
-      try container.encode(nodes, forKey: .nodes)
+      try container.encode(Set(nodes.values), forKey: .nodes)
     }
 
     // MARK: Private
