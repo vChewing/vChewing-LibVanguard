@@ -110,14 +110,12 @@ public struct TrieKitTests: TrieKitTestSuite {
         separator: trie.readingSeparator
       ).map(\.description)
       let entry = VanguardTrie.Trie.Entry(
-        readings: readings,
         value: value,
         typeID: .langNeutral,
         probability: probability,
         previous: previous
       )
-      let key = readings.joined(separator: trie.readingSeparator)
-      trie.insert(key, entry: entry)
+      trie.insert(entry: entry, readings: readings)
     }
     let trieFinal: VanguardTrieProtocol
     switch useSQL {
@@ -125,17 +123,15 @@ public struct TrieKitTests: TrieKitTestSuite {
       let encoded = try VanguardTrie.TrieIO.serialize(trie)
       trieFinal = try VanguardTrie.TrieIO.deserialize(encoded)
     case true:
-      let sqlScript = VanguardTrie.TrieSQLScriptGenerator.generateSQLScript(trie)
+      let sqlScript = VanguardTrie.TrieSQLScriptGenerator.generate(trie)
       let sqlTrie = VanguardTrie.SQLTrie(sqlContent: sqlScript)
       guard let sqlTrie else {
         assertionFailure("SQLTrie initialization failed.")
         exit(1)
       }
       trieFinal = sqlTrie
-      #expect(sqlTrie.getTableRowCount("entries") ?? 0 > 0)
       #expect(sqlTrie.getTableRowCount("config") ?? 0 > 0)
       #expect(sqlTrie.getTableRowCount("nodes") ?? 0 > 0)
-      #expect(sqlTrie.getTableRowCount("reading_mappings") ?? 0 > 0)
       #expect(sqlTrie.getTableRowCount("keychain_id_map") ?? 0 > 0)
     }
     let mockLM = TestLM4Trie(trie: trieFinal)

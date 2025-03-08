@@ -71,7 +71,7 @@ final class TestLM4Trie {
   func hasGrams(
     _ keys: [String],
     partiallyMatch: Bool = false,
-    partiallyMatchedKeysHandler: (([[String]]) -> ())? = nil
+    partiallyMatchedKeysHandler: ((Set<[String]>) -> ())? = nil
   )
     -> Bool {
     guard !keys.isEmpty else { return false }
@@ -86,7 +86,7 @@ final class TestLM4Trie {
   func queryGrams(
     _ keys: [String],
     partiallyMatch: Bool = false,
-    partiallyMatchedKeysPostHandler: (([[String]]) -> ())? = nil
+    partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
   )
     -> [(keyArray: [String], value: String, probability: Double, previous: String?)] {
     guard !keys.isEmpty else { return [] }

@@ -64,12 +64,7 @@ extension VanguardTrie {
         Self.printDebug("無法優化資料庫性能: \(String(cString: sqlite3_errmsg(database)))")
       }
 
-      // 開始事務以提高性能
-      if sqlite3_exec(database, "BEGIN TRANSACTION;", nil, nil, nil) != SQLITE_OK {
-        Self.printDebug("無法開始事務: \(String(cString: sqlite3_errmsg(database)))")
-        sqlite3_close(database)
-        return nil
-      }
+      var transactionBegun = false
 
       // 逐行執行 SQL 腳本，確保每條命令都執行成功
       let commands = sqlContent.components(separatedBy: ";")
@@ -78,9 +73,14 @@ extension VanguardTrie {
         let trimmedCommand = command.trimmingCharacters(in: .whitespacesAndNewlines)
         // 跳過空行和事務控制語句
         if trimmedCommand.isEmpty ||
-          trimmedCommand.uppercased().contains("BEGIN TRANSACTION") ||
-          trimmedCommand.uppercased().contains("COMMIT") {
+          trimmedCommand.uppercased().contains("COMMIT") ||
+          trimmedCommand.uppercased().contains("VACUUM") {
           continue
+        }
+
+        if trimmedCommand.uppercased().contains("BEGIN TRANSACTION") {
+          guard !transactionBegun else { continue }
+          transactionBegun = true
         }
 
         var errorMessage: UnsafeMutablePointer<CChar>?
@@ -143,7 +143,7 @@ extension VanguardTrie {
       }
 
       // 檢查表結構
-      let tables = ["config", "nodes", "entries", "reading_mappings", "keychain_id_map"]
+      let tables = ["config", "nodes", "keychain_id_map"]
 
       Self.printDebug("=== 資料庫診斷 ===")
 
@@ -213,57 +213,44 @@ extension VanguardTrie {
       let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
 
       // 構建查詢
-      let typeFilter = filterType
-        .rawValue > 0 ? "AND (e.type_id & \(filterType.rawValue) != 0)" : ""
-
       let query = """
-        SELECT e.id, e.value, e.probability, e.previous, e.type_id, e.node_id
-        FROM entries e
-        JOIN keychain_id_map k ON e.node_id = k.node_id
+        SELECT n.id, n.reading_key, n.entries_blob
+        FROM nodes n
+        JOIN keychain_id_map k ON n.id = k.node_id
         WHERE k.keychain = '\(escapedKeychain)'
-        \(typeFilter)
       """
 
       var statement: OpaquePointer?
 
       if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
         while sqlite3_step(statement) == SQLITE_ROW {
-          // 獲取基本詞條信息
-          let entryId = sqlite3_column_int(statement, 0)
-          guard let valuePtr = sqlite3_column_text(statement, 1) else { continue }
-          let value = String(cString: valuePtr)
-          let probability = sqlite3_column_double(statement, 2)
-
-          // 處理可能為空的 previous 欄位
-          let previous: String?
-          if let prevPtr = sqlite3_column_text(statement, 3) {
-            previous = String(cString: prevPtr)
-          } else {
-            previous = nil
+          // 讀取 reading_key
+          var readingKey = ""
+          if let readingKeyPtr = sqlite3_column_text(statement, 1) {
+            readingKey = String(cString: readingKeyPtr)
           }
 
-          // 處理 typeID
-          let typeIDRaw = sqlite3_column_int(statement, 4)
-          let typeID = Trie.EntryType(rawValue: typeIDRaw)
+          // 讀取並解碼 entries_blob
+          if let blobPtr = sqlite3_column_text(statement, 2) {
+            let blobString = String(cString: blobPtr)
 
-          // 為每個詞條單獨查詢讀音，確保順序正確
-          let readings = getReadingsForEntry(entryId: entryId)
+            if !blobString.isEmpty, let entries = decodeEntriesFromBase64(blobString) {
+              // 過濾符合類型的條目
+              let filteredEntries = entries.filter {
+                filterType.isEmpty || $0.typeID.contains(filterType)
+              }
 
-          if !readings.isEmpty {
-            Self.printDebug(
-              "DEBUG: 找到結果：value = \(value), probability = \(probability), readings = \(readings)"
-            )
-
-            // 創建 Entry 對象
-            let entry = VanguardTrie.Trie.Entry(
-              readings: readings,
-              value: value,
-              typeID: typeID,
-              probability: probability,
-              previous: previous
-            )
-
-            result.append(entry.asTuple)
+              // 將符合條件的條目添加到結果中
+              let readings = readingKey.components(separatedBy: readingSeparator)
+              for entry in filteredEntries {
+                result.append((
+                  keyArray: readings,
+                  value: entry.value,
+                  probability: entry.probability,
+                  previous: entry.previous
+                ))
+              }
+            }
           }
         }
       } else {
@@ -281,21 +268,24 @@ extension VanguardTrie {
       var nodeIDs = Set<Int>()
       let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
 
-      let typeFilter = filterType.rawValue > 0 ?
-        """
-        JOIN entries e ON k.node_id = e.node_id
-        WHERE k.keychain = '\(escapedKeychain)'
-        AND (e.type_id & \(filterType.rawValue) != 0)
-        """ :
-        "WHERE k.keychain = '\(escapedKeychain)'"
-
-      let query = "SELECT DISTINCT k.node_id FROM keychain_id_map k \(typeFilter)"
+      let query =
+        "SELECT DISTINCT k.node_id FROM keychain_id_map k WHERE k.keychain = '\(escapedKeychain)'"
       var statement: OpaquePointer?
 
       if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
         while sqlite3_step(statement) == SQLITE_ROW {
           let nodeID = Int(sqlite3_column_int(statement, 0))
-          nodeIDs.insert(nodeID)
+
+          if filterType.isEmpty {
+            nodeIDs.insert(nodeID)
+          } else {
+            // 需要額外檢查節點中的詞條是否符合類型
+            if let entriesBlob = getNodeEntriesBlob(nodeID: nodeID),
+               let entries = decodeEntriesFromBase64(entriesBlob),
+               entries.contains(where: { $0.typeID.contains(filterType) }) {
+              nodeIDs.insert(nodeID)
+            }
+          }
         }
       }
 
@@ -303,26 +293,40 @@ extension VanguardTrie {
       return nodeIDs
     }
 
-    /// 獲取詞條的所有讀音，保持原始順序
-    internal func getReadingsForEntry(entryId: Int32) -> [String] {
-      // 使用 entry_index 欄位來獲取原始讀音順序
-      var allReadings = [String]()
-      let query = "SELECT reading FROM reading_mappings WHERE entry_id = ? ORDER BY entry_index"
-      var stmt: OpaquePointer?
+    /// 從節點獲取 entries_blob
+    internal func getNodeEntriesBlob(nodeID: Int) -> String? {
+      var entriesBlob: String?
+      let query = "SELECT entries_blob FROM nodes WHERE id = ?"
+      var statement: OpaquePointer?
 
-      if sqlite3_prepare_v2(database, query, -1, &stmt, nil) == SQLITE_OK {
-        sqlite3_bind_int(stmt, 1, entryId)
+      if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
+        sqlite3_bind_int(statement, 1, Int32(nodeID))
 
-        while sqlite3_step(stmt) == SQLITE_ROW {
-          if let readingPtr = sqlite3_column_text(stmt, 0) {
-            let reading = String(cString: readingPtr)
-            allReadings.append(reading)
+        if sqlite3_step(statement) == SQLITE_ROW {
+          if let blobPtr = sqlite3_column_text(statement, 0) {
+            entriesBlob = String(cString: blobPtr)
           }
         }
       }
-      sqlite3_finalize(stmt)
 
-      return allReadings
+      sqlite3_finalize(statement)
+      return entriesBlob
+    }
+
+    /// 從 base64 字串解碼 entries
+    internal func decodeEntriesFromBase64(_ base64String: String) -> [Trie.Entry]? {
+      guard !base64String.isEmpty,
+            let data = Data(base64Encoded: base64String) else {
+        return nil
+      }
+
+      do {
+        let decoder = PropertyListDecoder()
+        return try decoder.decode([Trie.Entry].self, from: data)
+      } catch {
+        Self.printDebug("Error decoding entries: \(error)")
+        return nil
+      }
     }
 
     // MARK: Private
@@ -343,7 +347,7 @@ extension VanguardTrie {
     /// - Returns: 是否成功初始化
     private func initializeSettings() -> Bool {
       // 檢查必要表是否存在
-      let requiredTables = ["nodes", "entries", "reading_mappings", "keychain_id_map"]
+      let requiredTables = ["nodes", "keychain_id_map"]
       for table in requiredTables {
         if !checkTableExists(table) {
           Self.printDebug("資料庫中不存在 \(table) 表")

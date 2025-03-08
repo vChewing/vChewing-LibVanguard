@@ -20,14 +20,14 @@ extension VanguardTrieProtocol {
     _ keys: [String],
     filterType: VanguardTrie.Trie.EntryType
   )
-    -> [[String]] {
+    -> Set<[String]> {
     guard !keys.isEmpty else { return [] }
 
     // 1. 用 getNodeIDs() 以給定的讀音串找出被牽涉到的 NodeID 陣列
     let nodeIDs = getNodeIDs(keys: keys, filterType: filterType, partiallyMatch: true)
 
     // 2. 準備收集結果與追蹤已處理節點，避免重複處理
-    var result: [[String]] = []
+    var result: Set<[String]> = []
     var processedNodes = Set<Int>()
 
     // 3. 對每個 NodeID 獲取對應節點、詞條和讀音
@@ -41,22 +41,27 @@ extension VanguardTrieProtocol {
       // 5. 提前獲取一次 entries 並重用
       let entries = getEntries(node: node)
 
+      // 確保讀音數量匹配
+      let nodeReadings = node.readingKey.components(separatedBy: readingSeparator)
+      guard nodeReadings.count == keys.count else { continue }
+      // 確保每個讀音都以對應的前綴開頭
+      let allPrefixMatched = zip(keys, nodeReadings).allSatisfy { $1.hasPrefix($0) }
+      guard allPrefixMatched else { continue }
+
       // 6. 過濾出符合條件的詞條
-      let matchedEntries = entries.filter { entry in
-        // 確保讀音數量匹配
-        guard entry.readings.count == keys.count else { return false }
+      let firstMatchedEntry = entries.first { entry in
 
         // 確保類型匹配
         if !filterType.isEmpty, !entry.typeID.contains(filterType) {
           return false
         }
-
-        // 確保每個讀音都以對應的前綴開頭
-        return zip(keys, entry.readings).allSatisfy { $1.hasPrefix($0) }
+        return true
       }
 
+      guard firstMatchedEntry != nil else { continue }
+
       // 7. 收集讀音
-      result.append(contentsOf: matchedEntries.map(\.readings))
+      result.insert(nodeReadings)
     }
 
     return result
@@ -66,7 +71,7 @@ extension VanguardTrieProtocol {
     _ keys: [String],
     filterType: VanguardTrie.Trie.EntryType,
     partiallyMatch: Bool = false,
-    partiallyMatchedKeysHandler: (([[String]]) -> ())? = nil
+    partiallyMatchedKeysHandler: ((Set<[String]>) -> ())? = nil
   )
     -> Bool {
     guard !keys.isEmpty else { return false }
@@ -91,7 +96,7 @@ extension VanguardTrieProtocol {
     _ keys: [String],
     filterType: VanguardTrie.Trie.EntryType,
     partiallyMatch: Bool = false,
-    partiallyMatchedKeysPostHandler: (([[String]]) -> ())? = nil
+    partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
   )
     -> [(keyArray: [String], value: String, probability: Double, previous: String?)] {
     guard !keys.isEmpty else { return [] }
@@ -112,6 +117,8 @@ extension VanguardTrieProtocol {
 
       // 3. 獲取每個節點的詞條
       for nodeID in nodeIDs {
+        guard let node = getNode(nodeID: nodeID) else { continue }
+        let nodeReadings = node.readingKey.components(separatedBy: readingSeparator)
         // 使用緩存避免重複查詢
         let entries: [Entry]
         if let cachedEntries = processedNodeEntries[nodeID] {
@@ -122,20 +129,23 @@ extension VanguardTrieProtocol {
         } else {
           continue
         }
+        guard nodeReadings.count == keys.count else { continue }
+        guard zip(keys, nodeReadings).allSatisfy({ $1.hasPrefix($0) }) else { continue }
 
         // 4. 過濾符合條件的詞條
         let filteredEntries = entries.filter { entry in
-          guard entry.readings.count == keys.count else { return false }
 
           if !filterType.isEmpty, !entry.typeID.contains(filterType) {
             return false
           }
 
-          return zip(keys, entry.readings).allSatisfy { $1.hasPrefix($0) }
+          return zip(keys, nodeReadings).allSatisfy { $1.hasPrefix($0) }
         }
 
         // 5. 將符合條件的詞條添加到結果中
-        results.append(contentsOf: filteredEntries.map(\.asTuple))
+        results.append(contentsOf: filteredEntries.map { entry in
+          entry.asTuple(with: node.readingKey.components(separatedBy: readingSeparator))
+        })
       }
 
       return results
@@ -146,6 +156,8 @@ extension VanguardTrieProtocol {
       var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
 
       for nodeID in nodeIDs {
+        guard let node = getNode(nodeID: nodeID) else { continue }
+
         // 使用緩存避免重複查詢
         let entries: [Entry]
         if let cachedEntries = processedNodeEntries[nodeID] {
@@ -162,7 +174,9 @@ extension VanguardTrieProtocol {
           filterType.isEmpty || entry.typeID.contains(filterType)
         }
 
-        results.append(contentsOf: filteredEntries.map(\.asTuple))
+        results.append(contentsOf: filteredEntries.map { entry in
+          entry.asTuple(with: node.readingKey.components(separatedBy: readingSeparator))
+        })
       }
 
       return results

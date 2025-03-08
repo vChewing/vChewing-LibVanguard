@@ -57,20 +57,23 @@ public enum VanguardTrie {
         id: Int,
         entries: [Entry] = [],
         parentID: Int? = nil,
-        character: String = ""
+        character: String = "",
+        readingKey: String = ""
       ) {
         self.id = id
         self.entries = entries
         self.parentID = parentID
         self.character = character
         self.children = [:]
+        self.readingKey = readingKey
       }
 
       public required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(Int.self, forKey: .id)
         self.parentID = try container.decodeIfPresent(Int.self, forKey: .parentID)
-        self.character = try container.decode(String.self, forKey: .character)
+        self.character = try container.decodeIfPresent(String.self, forKey: .character) ?? ""
+        self.readingKey = try container.decodeIfPresent(String.self, forKey: .readingKey) ?? ""
         self.children = (
           try container.decodeIfPresent([String: Int].self, forKey: .children)
         ) ?? [:]
@@ -85,6 +88,7 @@ public enum VanguardTrie {
       public var entries: [Entry] = []
       public fileprivate(set) var parentID: Int?
       public fileprivate(set) var character: String = ""
+      public fileprivate(set) var readingKey: String = "" // 新增：存儲節點對應的讀音鍵
       public var children: [String: Int] = [:] // 新的結構：字符 -> 子節點ID映射
 
       public static func == (
@@ -100,6 +104,7 @@ public enum VanguardTrie {
         hasher.combine(entries)
         hasher.combine(parentID)
         hasher.combine(character)
+        hasher.combine(readingKey)
         hasher.combine(children)
       }
 
@@ -110,7 +115,12 @@ public enum VanguardTrie {
           try container.encode(entries, forKey: .entries)
         }
         try container.encodeIfPresent(parentID, forKey: .parentID)
-        try container.encode(character, forKey: .character)
+        if !character.isEmpty {
+          try container.encode(character, forKey: .character)
+        }
+        if !readingKey.isEmpty {
+          try container.encode(readingKey, forKey: .readingKey)
+        }
         if !children.isEmpty {
           try container.encode(children, forKey: .children)
         }
@@ -123,6 +133,7 @@ public enum VanguardTrie {
         case entries
         case parentID
         case character
+        case readingKey
         case children
       }
     }
@@ -131,17 +142,38 @@ public enum VanguardTrie {
       // MARK: Lifecycle
 
       public init(
-        readings: [String],
         value: String,
         typeID: EntryType,
         probability: Double,
         previous: String?
       ) {
-        self.readings = readings
         self.value = value
         self.typeID = typeID
         self.probability = probability
         self.previous = previous
+      }
+
+      public init(from decoder: any Decoder, readingKey: String) throws {
+        let container = try decoder.singleValueContainer()
+        let stackRawStr = try container.decode(String.self)
+        let stack = stackRawStr.split(separator: "\t")
+        let theException = DecodingError.dataCorrupted(
+          DecodingError.Context(
+            codingPath: container.codingPath,
+            debugDescription: "Can't parse the following contents into an Entry: \(stackRawStr)"
+          )
+        )
+        guard [3, 4].contains(stack.count) else { throw theException }
+        self.value = stack[0].description
+        guard let typeIDRaw = Int32(stack[1]) else { throw theException }
+        guard let probability = Double(stack[2]) else { throw theException }
+        self.typeID = .init(rawValue: typeIDRaw)
+        self.probability = probability
+        if stack.count == 4 {
+          self.previous = stack[3].description
+        } else {
+          self.previous = nil
+        }
       }
 
       public init(from decoder: any Decoder) throws {
@@ -154,15 +186,14 @@ public enum VanguardTrie {
             debugDescription: "Can't parse the following contents into an Entry: \(stackRawStr)"
           )
         )
-        guard [4, 5].contains(stack.count) else { throw theException }
-        self.readings = stack[0].components(separatedBy: " ")
-        self.value = stack[1].description
-        guard let typeIDRaw = Int32(stack[2]) else { throw theException }
-        guard let probability = Double(stack[3]) else { throw theException }
+        guard [3, 4].contains(stack.count) else { throw theException }
+        self.value = stack[0].description
+        guard let typeIDRaw = Int32(stack[1]) else { throw theException }
+        guard let probability = Double(stack[2]) else { throw theException }
         self.typeID = .init(rawValue: typeIDRaw)
         self.probability = probability
-        if stack.count == 5 {
-          self.previous = stack[4].description
+        if stack.count == 4 {
+          self.previous = stack[3].description
         } else {
           self.previous = nil
         }
@@ -170,7 +201,6 @@ public enum VanguardTrie {
 
       // MARK: Public
 
-      public let readings: [String]
       public let value: String
       public let typeID: EntryType
       public let probability: Double
@@ -178,9 +208,7 @@ public enum VanguardTrie {
 
       public func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
-        /// 第一行是读音串，第二行是资料值，第三行是 typeID，第四行是 probability，第五行是 previous。
         var stack = [String]()
-        stack.append(readings.joined(separator: " "))
         stack.append(value)
         stack.append(typeID.rawValue.description)
         stack.append(probability.description)
@@ -193,7 +221,6 @@ public enum VanguardTrie {
       // MARK: Private
 
       private enum CodingKeysAlt: String, CodingKey {
-        case readings
         case value
         case typeID
         case probability
@@ -239,7 +266,7 @@ public enum VanguardTrie {
 // MARK: - Extending Methods (Entry).
 
 extension VanguardTrie.Trie.Entry {
-  public var asTuple: (
+  public func asTuple(with readings: [String]) -> (
     keyArray: [String],
     value: String,
     probability: Double,
@@ -253,7 +280,7 @@ extension VanguardTrie.Trie.Entry {
     )
   }
 
-  public var isReadingValueLengthMatched: Bool {
+  public func isReadingValueLengthMatched(readings: [String]) -> Bool {
     readings.count == value.count
   }
 }
@@ -261,11 +288,11 @@ extension VanguardTrie.Trie.Entry {
 // MARK: - Extending Methods (Trie: Insert and Search API).
 
 extension VanguardTrie.Trie {
-  public func insert(_ givenKey: String? = nil, entry: Entry) {
+  public func insert(entry: Entry, readings: [String]) {
     var currentNode = root
     var currentNodeID = 0
 
-    let key = givenKey ?? entry.readings.joined(separator: readingSeparator)
+    let key = readings.joined(separator: readingSeparator)
 
     // 遍歷關鍵字的每個字符
     key.forEach { char in
@@ -290,23 +317,29 @@ extension VanguardTrie.Trie {
       currentNodeID = newNodeID
     }
 
-    // 在最終節點添加詞條
+    // 在最終節點設置讀音鍵並添加詞條
+    currentNode.readingKey = key
     currentNode.entries.append(entry)
 
-    // 直接更新 keyChainIDMap - 這裡是需要新增的部分
-    let keyChainStr = entry.readings.joined(separator: readingSeparator)
-    keyChainIDMap[keyChainStr, default: []].insert(currentNodeID)
+    // 更新 keyChainIDMap
+    keyChainIDMap[key, default: []].insert(currentNodeID)
   }
 
-  public func search(_ key: String, partiallyMatch: Bool = false) -> [Entry] {
+  public func search(_ key: String, partiallyMatch: Bool = false) -> [(
+    readings: [String],
+    entry: Entry
+  )] {
     // 使用 keyChainIDMap 優化查詢效能，尤其對於精確匹配的情況
     if !partiallyMatch {
       let nodeIDs = keyChainIDMap[key, default: []]
       if !nodeIDs.isEmpty {
-        var results: [Entry] = []
+        var results: [(readings: [String], entry: Entry)] = []
         for nodeID in nodeIDs {
           if let node = nodes[nodeID] {
-            results.append(contentsOf: node.entries)
+            let readings = node.readingKey.components(separatedBy: readingSeparator)
+            node.entries.forEach { entry in
+              results.append((readings: readings, entry: entry))
+            }
           }
         }
         return results
@@ -324,7 +357,9 @@ extension VanguardTrie.Trie {
       currentNode = childNode
     }
 
-    return partiallyMatch ? collectAllDescendantEntries(from: currentNode) : currentNode.entries
+    return partiallyMatch ?
+      collectAllDescendantEntriesWithReadings(from: currentNode) :
+      collectEntriesWithReadings(from: currentNode)
   }
 
   public func clearAllContents() {
@@ -336,12 +371,23 @@ extension VanguardTrie.Trie {
     updateKeyChainIDMap()
   }
 
-  private func collectAllDescendantEntries(from node: TNode) -> [Entry] {
-    var result = node.entries
+  private func collectEntriesWithReadings(from node: TNode) -> [(
+    readings: [String],
+    entry: Entry
+  )] {
+    let readings = node.readingKey.components(separatedBy: readingSeparator)
+    return node.entries.map { (readings: readings, entry: $0) }
+  }
+
+  private func collectAllDescendantEntriesWithReadings(from node: TNode) -> [(
+    readings: [String],
+    entry: Entry
+  )] {
+    var result = collectEntriesWithReadings(from: node)
     // 遍歷所有子節點
     node.children.values.forEach { childNodeID in
       guard let childNode = nodes[childNodeID] else { return }
-      result.append(contentsOf: collectAllDescendantEntries(from: childNode))
+      result.append(contentsOf: collectAllDescendantEntriesWithReadings(from: childNode))
     }
     return result
   }
@@ -352,8 +398,8 @@ extension VanguardTrie.Trie {
 
     // 遍歷所有節點和條目來重建映射
     nodes.forEach { nodeID, node in
-      node.entries.forEach { entry in
-        let keyChainStr = entry.readings.joined(separator: readingSeparator)
+      node.entries.forEach { _ in
+        let keyChainStr = node.readingKey
         keyChainIDMap[keyChainStr, default: []].insert(nodeID)
       }
     }
