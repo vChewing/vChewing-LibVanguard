@@ -246,6 +246,15 @@ extension VanguardTrie.Trie {
     return partiallyMatch ? collectAllDescendantEntries(from: currentNode) : currentNode.entries
   }
 
+  public func clearAllContents() {
+    root.children.removeAll()
+    root.entries.removeAll()
+    root.id = 0
+    nodes.removeAll()
+    nodes[0] = root
+    updateKeyChainIDMap()
+  }
+
   private func collectAllDescendantEntries(from node: TNode) -> [Entry] {
     var result = node.entries
     // 遍歷所有子節點
