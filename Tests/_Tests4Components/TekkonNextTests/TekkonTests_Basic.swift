@@ -253,4 +253,68 @@ struct TekkonTestsBasic {
     composer.receiveKey(fromPhonabet: "ˋ")
     #expect(composer.value == "ㄐㄩㄢˋ")
   }
+
+  @Test("[TekkonNext] Chopper")
+  func testChoppingRawComplex() async throws {
+    let composerZhuyin = Tekkon.Composer(arrange: .ofDachen)
+    let composerPinyin = Tekkon.Composer(arrange: .ofHanyuPinyin)
+    let choppedZhuyin = composerZhuyin.chop("ㄅㄩㄝㄓㄨㄑㄕㄢㄌㄧㄌㄧㄤ")
+    let choppedPinyin = composerPinyin.chop("byuezqsll")
+    #expect(choppedZhuyin == ["ㄅ", "ㄩㄝ", "ㄓㄨ", "ㄑ", "ㄕㄢ", "ㄌㄧ", "ㄌㄧㄤ"])
+    #expect(choppedPinyin == ["b", "yue", "z", "q", "s", "l", "l"])
+    let choppedZhuyin2 = composerZhuyin.chop("ㄕㄐㄧㄉㄓ")
+    #expect(choppedZhuyin2 == ["ㄕ", "ㄐㄧ", "ㄉ", "ㄓ"])
+  }
+
+  @Test("[TekkonNext] Pinyin Trie Converting Pinyin Chops to Zhuyin")
+  func testPinyinTrieConvertingPinyinChopsToZhuyin() async throws {
+    // 漢語拼音：
+    do {
+      let trie = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
+      let choppedPinyin = ["b", "yue", "z", "q", "s", "l", "l"]
+      let deductedZhuyin = trie.deductChoppedPinyinToZhuyin(choppedPinyin)
+      let expected: [String] = ["ㄅ", "ㄩㄝ", "ㄓ&ㄗ", "ㄑ", "ㄕ&ㄙ", "ㄌ", "ㄌ"]
+      #expect(deductedZhuyin == expected)
+    }
+    // 國音二式：
+    do {
+      let trie = Tekkon.PinyinTrie(parser: .ofSecondaryPinyin)
+      let choppedPinyin = ["ch", "f", "h", "s"]
+      let deductedZhuyin = trie.deductChoppedPinyinToZhuyin(choppedPinyin)
+      let expected: [String] = ["ㄑ&ㄔ", "ㄈ", "ㄏ", "ㄒ&ㄕ&ㄙ"]
+      #expect(deductedZhuyin == expected)
+    }
+    // 耶魯拼音：
+    do {
+      let trie = Tekkon.PinyinTrie(parser: .ofYalePinyin)
+      let choppedPinyin = ["ch", "f", "h", "s"]
+      let deductedZhuyin = trie.deductChoppedPinyinToZhuyin(choppedPinyin)
+      let expected: [String] = ["ㄑ&ㄔ", "ㄈ", "ㄏ", "ㄒ&ㄕ&ㄙ"]
+      #expect(deductedZhuyin == expected)
+    }
+    // 華羅拼音：
+    do {
+      let trie = Tekkon.PinyinTrie(parser: .ofHualuoPinyin)
+      let choppedPinyin = ["ch", "f", "h", "s"]
+      let deductedZhuyin = trie.deductChoppedPinyinToZhuyin(choppedPinyin)
+      let expected: [String] = ["ㄑ&ㄔ", "ㄈ", "ㄏ", "ㄒ&ㄕ&ㄙ"]
+      #expect(deductedZhuyin == expected)
+    }
+    // 通用拼音：
+    do {
+      let trie = Tekkon.PinyinTrie(parser: .ofUniversalPinyin)
+      let choppedPinyin = ["ch", "f", "h", "s"]
+      let deductedZhuyin = trie.deductChoppedPinyinToZhuyin(choppedPinyin)
+      let expected: [String] = ["ㄔ", "ㄈ", "ㄏ", "ㄒ&ㄕ&ㄙ"]
+      #expect(deductedZhuyin == expected)
+    }
+    // 韋氏拼音：
+    do {
+      let trie = Tekkon.PinyinTrie(parser: .ofWadeGilesPinyin)
+      let choppedPinyin = ["ch", "f", "h", "s"]
+      let deductedZhuyin = trie.deductChoppedPinyinToZhuyin(choppedPinyin)
+      let expected: [String] = ["ㄐ&ㄑ&ㄓ&ㄔ", "ㄈ", "ㄏ&ㄒ", "ㄕ&ㄙ"]
+      #expect(deductedZhuyin == expected)
+    }
+  }
 }

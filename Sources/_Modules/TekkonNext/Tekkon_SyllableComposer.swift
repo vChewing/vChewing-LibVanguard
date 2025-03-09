@@ -58,6 +58,8 @@ extension Tekkon {
     /// 是否對錯誤的注音讀音組合做出自動糾正處理。
     public var phonabetCombinationCorrectionEnabled = false
 
+    public internal(set) var allPossibleReadings: [String] = []
+
     /// 內容值，會直接按照正確的順序拼裝自己的聲介韻調內容、再回傳。
     /// 注意：直接取這個參數的內容的話，陰平聲調會成為一個空格。
     /// 如果是要取不帶空格的注音的話，請使用「.getComposition()」而非「.value」。
@@ -345,6 +347,7 @@ extension Tekkon {
     ///   - arrange: 給該注拼槽指定注音排列。
     public mutating func ensureParser(arrange: MandarinParser = .ofDachen) {
       parser = arrange
+      updateAllPossibleReadings()
     }
 
     /// 拿取用來進行索引檢索用的注音字串。
@@ -733,7 +736,7 @@ extension Tekkon {
     /// - Parameters:
     ///   - strOf: 要取代的內容。
     ///   - strWith: 要取代成的內容。
-    mutating func fixValue(_ strOf: String, _ strWith: String = "") {
+    internal mutating func fixValue(_ strOf: String, _ strWith: String = "") {
       guard !strOf.isEmpty, !strWith.isEmpty else { return }
       let theOld = Phonabet(strOf)
       switch theOld {
@@ -744,6 +747,13 @@ extension Tekkon {
       default: return
       }
       receiveKey(fromPhonabet: strWith)
+    }
+
+    /// 更新對當前所有讀音的快取。
+    internal mutating func updateAllPossibleReadings() {
+      allPossibleReadings = parser.allPossibleReadings.sorted {
+        ($0.count, $1) > ($1.count, $0)
+      }
     }
   }
 }

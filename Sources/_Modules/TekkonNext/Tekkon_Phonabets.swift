@@ -38,6 +38,16 @@ extension Tekkon {
 
     // MARK: Public
 
+    public static let allPinyinCases: [Self] = Self.allCases.filter(\.isPinyin)
+
+    public static let allDynamicZhuyinCases: [Self] = Self.allCases.filter(\.isDynamic)
+
+    public static let allStaticZhuyinCases: [Self] = Self.allCases.filter {
+      !$0.isDynamic && !$0.isPinyin
+    }
+
+    public var isPinyin: Bool { rawValue >= 100 }
+
     public var isDynamic: Bool {
       switch self {
       case .ofDachen: false
@@ -58,6 +68,38 @@ extension Tekkon {
       case .ofUniversalPinyin: false
       case .ofWadeGilesPinyin: false
       }
+    }
+
+    public var mapZhuyinPinyin: [String: String]? {
+      switch self {
+      case .ofHanyuPinyin: Tekkon.mapHanyuPinyin
+      case .ofSecondaryPinyin: Tekkon.mapSecondaryPinyin
+      case .ofYalePinyin: Tekkon.mapYalePinyin
+      case .ofHualuoPinyin: Tekkon.mapHualuoPinyin
+      case .ofUniversalPinyin: Tekkon.mapUniversalPinyin
+      case .ofWadeGilesPinyin: Tekkon.mapWadeGilesPinyin
+      default: nil
+      }
+    }
+
+    public var allPossibleReadings: Set<String> {
+      let intonations: String = isPinyin ? " 12345" : " ˊˇˋ˙"
+      let baseReadingStems: [String] = switch self {
+      case .ofHanyuPinyin: Tekkon.mapHanyuPinyin.map(\.key)
+      case .ofSecondaryPinyin: Tekkon.mapSecondaryPinyin.map(\.key)
+      case .ofYalePinyin: Tekkon.mapYalePinyin.map(\.key)
+      case .ofHualuoPinyin: Tekkon.mapHualuoPinyin.map(\.key)
+      case .ofUniversalPinyin: Tekkon.mapUniversalPinyin.map(\.key)
+      case .ofWadeGilesPinyin: Tekkon.mapWadeGilesPinyin.map(\.key)
+      default: Tekkon.mapHanyuPinyin.map(\.value)
+      }
+      var result: [String] = baseReadingStems
+      intonations.forEach { currentIntonation in
+        result.append(
+          contentsOf: baseReadingStems.map { $0 + currentIntonation.description }
+        )
+      }
+      return Set(result)
     }
 
     // MARK: Internal
