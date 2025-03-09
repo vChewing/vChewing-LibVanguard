@@ -67,7 +67,7 @@ extension VanguardTrie {
       var transactionBegun = false
 
       // 逐行執行 SQL 腳本，確保每條命令都執行成功
-      let commands = sqlContent.components(separatedBy: ";")
+      let commands = sqlContent.split(separator: ";")
 
       for command in commands {
         let trimmedCommand = command.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -133,7 +133,7 @@ extension VanguardTrie {
 
     /// 資料庫是否為唯讀模式
     public let isReadOnly: Bool
-    public private(set) var readingSeparator: String = "-"
+    public private(set) var readingSeparator: Character = "-"
 
     /// 輸出資料庫診斷資訊到控制台
     public func printDatabaseDiagnostics() {
@@ -209,7 +209,7 @@ extension VanguardTrie {
       Self.printDebug("DEBUG: 查詢詞條，keys = \(keys), filterType = \(filterType)")
 
       // 使用 keychain_id_map 表進行精確匹配
-      let keychain = keys.joined(separator: readingSeparator)
+      let keychain = keys.joined(separator: readingSeparator.description)
       let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
 
       // 構建查詢
@@ -241,7 +241,7 @@ extension VanguardTrie {
               }
 
               // 將符合條件的條目添加到結果中
-              let readings = readingKey.components(separatedBy: readingSeparator)
+              let readings = readingKey.split(separator: readingSeparator).map(\.description)
               for entry in filteredEntries {
                 result.append((
                   keyArray: readings,
@@ -368,8 +368,8 @@ extension VanguardTrie {
 
     /// 獲取分隔符設定
     /// - Returns: 分隔符字符串，如果獲取失敗則返回預設值 "-"
-    private func fetchSeparator() -> String {
-      var separator = "-"
+    private func fetchSeparator() -> Character {
+      var separator: Character = "-"
       let query = "SELECT value FROM config WHERE key = 'separator'"
       var statement: OpaquePointer?
 
@@ -378,7 +378,11 @@ extension VanguardTrie {
 
         if stepResult == SQLITE_ROW {
           if let cString = sqlite3_column_text(statement, 0) {
-            separator = String(cString: cString)
+            if let newSeparator = Character(pointer: cString) {
+              separator = newSeparator
+            } else {
+              Self.printDebug("警告：分隔符必須僅有一個 ASCII 字元。已讀取的資料值過長，故使用預設值 '-'")
+            }
           }
         } else if stepResult == SQLITE_DONE {
           // 表存在但沒有找到分隔符配置，使用預設值
@@ -496,5 +500,15 @@ extension VanguardTrie {
       }
       sqlite3_finalize(stmt)
     }
+  }
+}
+
+extension Character {
+  fileprivate init?(pointer: UnsafePointer<UInt8>) {
+    let string = String(cString: pointer)
+    guard string.count == 1, let result = string.first else {
+      return nil
+    }
+    self = result
   }
 }

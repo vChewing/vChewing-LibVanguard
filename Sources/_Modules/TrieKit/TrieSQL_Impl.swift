@@ -53,7 +53,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       return nodeIDs
     } else {
       // 精確匹配
-      let keychain = keys.joined(separator: readingSeparator)
+      let keychain = keys.joined(separator: readingSeparator.description)
       return getNodeIDsForKeychain(keychain, filterType: filterType)
     }
   }
