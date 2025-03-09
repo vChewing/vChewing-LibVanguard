@@ -253,4 +253,22 @@ struct TekkonTestsBasic {
     composer.receiveKey(fromPhonabet: "ˋ")
     #expect(composer.value == "ㄐㄩㄢˋ")
   }
+
+  @Test("[TekkonNext] Chopper")
+  func testChoppingRawComplex() async throws {
+    let composerZhuyin = Tekkon.Composer(arrange: .ofDachen)
+    let composerPinyin = Tekkon.Composer(arrange: .ofHanyuPinyin)
+    let choppedZhuyin = composerZhuyin.chop("ㄅㄩㄝㄓㄨㄑㄕㄢㄌㄧㄌㄧㄤ")
+    let choppedPinyin = composerPinyin.chop("byuezqsll")
+    #expect(choppedZhuyin == ["ㄅ", "ㄩㄝ", "ㄓㄨ", "ㄑ", "ㄕㄢ", "ㄌㄧ", "ㄌㄧㄤ"])
+    #expect(choppedPinyin == ["b", "yue", "z", "q", "s", "l", "l"])
+  }
+
+  @Test("[TekkonNext] Pinyin Trie")
+  func testPinyinTrie() async throws {
+    let trie = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
+    let choppedPinyin = ["b", "yue", "z", "q", "s", "l", "l"]
+    let deductedZhuyin = trie.deductChoppedPinyinToZhuyin(chopped: choppedPinyin)
+    print(deductedZhuyin)
+  }
 }
