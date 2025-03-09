@@ -191,8 +191,8 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   }
 
   /// 組字器的組字功能測試（單元圖，完整輸入讀音與聲調，完全匹配）。
-  @Test("[Homa] Assember_WalkerAndOverride_WithUnigramAndCursorJump")
-  func testWalkAndOverrideWithUnigramAndCursorJump() async throws {
+  @Test("[Homa] Assember_AssembleAndOverride_WithUnigramAndCursorJump")
+  func testAssembleAndOverrideWithUnigramAndCursorJump() async throws {
     let readings = "chao1 shang1 da4 qian2 tian1 wei2 zhi3 hai2 zai5 mai4 nai3 ji1"
     let mockLM = TestLM(rawData: strLMSampleDataLitch)
     let assembler = Homa.Assembler(
@@ -271,8 +271,8 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   /// - 組字器的基本組句功能。
   /// - 候選字詞覆寫功能。
   /// - 在有雙元圖（Bigram）與僅有單元圖（Unigram）的情況下的爬軌結果對比測試。
-  @Test("[Homa] Assember_WalkerAndOverride_FullMatch_WithBigram")
-  func testWalkWithBigramAndOverrideWithFullMatch() async throws {
+  @Test("[Homa] Assember_AssembleAndOverride_FullMatch_WithBigram")
+  func testAssembleWithBigramAndOverrideWithFullMatch() async throws {
     let readings: [Substring] = "you1 die2 neng2 liu2 yi4 lv3 fang1".split(separator: " ")
     let mockLM = TestLM(rawData: strLMSampleDataHutao)
     let assembler = Homa.Assembler(
@@ -327,8 +327,8 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   /// - 讀音輸入處理。
   /// - 組字器的基本組句功能。
   /// - 候選字詞覆寫功能。
-  @Test("[Homa] Assember_WalkerAndOverride_PartialMatch_WithBigram")
-  func testWalkWithBigramAndOverrideWithPartialMatch() async throws {
+  @Test("[Homa] Assember_AssembleAndOverride_PartialMatch_WithBigram")
+  func testAssembleWithBigramAndOverrideWithPartialMatch() async throws {
     let readings: [String] = "ydnlylf".map(\.description)
     let mockLM = TestLM(rawData: strLMSampleDataHutao)
     let assembler = Homa.Assembler(
