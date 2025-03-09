@@ -11,9 +11,14 @@ extension Tekkon {
 
     public init(parser: MandarinParser) {
       self.parser = parser
+      // Key 是注音，Value 是拼音，所以要反過來建樹。
       if let table = parser.mapZhuyinPinyin {
-        for (zhuyin, pinyin) in table {
-          insert(pinyin: pinyin, zhuyin: zhuyin)
+        let reversedMap = Dictionary(grouping: table.map { ($0.value, $0.key) }, by: \.0)
+          .mapValues { pairs in pairs.map(\.1) }
+        for (pinyin, zhuyins) in reversedMap {
+          for zhuyin in zhuyins {
+            insert(pinyin: pinyin, zhuyin: zhuyin)
+          }
         }
       }
     }
@@ -56,7 +61,7 @@ extension Tekkon {
 
     /// 插入一組拼音與注音的對應
     private mutating func insert(pinyin: String, zhuyin: String) {
-      guard let firstChar = pinyin.first else { return }
+      guard !pinyin.isEmpty else { return }
       var current = root
 
       // 插入完整拼音
@@ -70,10 +75,11 @@ extension Tekkon {
       current.zhuyinValues.insert(zhuyin)
 
       // 插入簡拼索引（第一個字母）
-      var firstCharNode = root
-      let firstChild = firstCharNode.children[firstChar, default: .init()]
-      firstCharNode = firstChild
-      firstCharNode.zhuyinValues.insert(zhuyin)
+      if let firstChar = pinyin.first {
+        let firstNode = root.children[firstChar] ?? PYNode()
+        firstNode.zhuyinValues.insert(zhuyin)
+        root.children[firstChar] = firstNode
+      }
     }
   }
 }
@@ -98,46 +104,37 @@ extension Tekkon.PinyinTrie {
   /// ```
   public func deductChoppedPinyinToZhuyin(chopped: [String]) -> [[String]] {
     guard parser.isPinyin else { return [chopped] }
-    guard parser.mapZhuyinPinyin != nil else { return [chopped] }
 
-    // 遞迴生成所有可能的注音組合
-    func generateCombinations(index: Int, currentPath: [String], results: inout Set<[String]>) {
+    // 遞迴生成所有可能的組合
+    func generateCombinations(index: Int, currentPath: [String], results: inout [[String]]) {
       if index >= chopped.count {
-        results.insert(currentPath)
+        results.append(currentPath)
         return
       }
 
       let segment = chopped[index]
-      var hasMatches = false
-
-      // 使用 findZhuyin 來尋找所有可能的注音
       let zhuyins = findZhuyin(for: segment)
-      if !zhuyins.isEmpty {
-        hasMatches = true
-        for zhuyin in zhuyins {
+
+      if zhuyins.isEmpty {
+        var newPath = currentPath
+        newPath.append(segment)
+        generateCombinations(index: index + 1, currentPath: newPath, results: &results)
+      } else {
+        for zhuyin in zhuyins.sorted() {  // 確保結果順序穩定
           var newPath = currentPath
           newPath.append(zhuyin)
           generateCombinations(index: index + 1, currentPath: newPath, results: &results)
         }
       }
-
-      // 如果完全沒有匹配到，就保留原始輸入
-      if !hasMatches {
-        var newPath = currentPath
-        newPath.append(segment)
-        generateCombinations(index: index + 1, currentPath: newPath, results: &results)
-      }
     }
 
-    var results = Set<[String]>()
+    var results = [[String]]()
     generateCombinations(index: 0, currentPath: [], results: &results)
-
-    // 確保結果為空時返回原始輸入
+    
     if results.isEmpty {
       return [chopped]
     }
-
-    // 將結果轉換為陣列並按字典序排序以確保穩定性
-    return results.map { $0 }.sorted { $0.joined() < $1.joined() }
+    
+    return results.sorted { $0.joined() < $1.joined() }
   }
 }
