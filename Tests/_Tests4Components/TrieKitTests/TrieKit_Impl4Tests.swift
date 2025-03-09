@@ -66,7 +66,7 @@ final class TestLM4Trie {
 
   // MARK: Internal
 
-  var readingSeparator: String { trie.readingSeparator }
+  var readingSeparator: Character { trie.readingSeparator }
 
   func hasGrams(
     _ keys: [String],
