@@ -13,7 +13,7 @@ import Testing
 public struct TrieKitTests: TrieKitTestSuite {
   // MARK: Internal
 
-  // 這裡重複對護摩引擎的胡桃測試（Full Match）。
+  /// 這裡重複對護摩引擎的胡桃測試（Full Match）。
   @Test("[TrieKit] Trie SQL Structure Test (Full Match)", arguments: [false, true])
   func testTrieSQLStructureWithFullMatch(useSQL: Bool) async throws {
     let mockLM = try await prepareTrieLM(useSQL: useSQL)
@@ -64,7 +64,7 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(dotWithBigram == expectedDOT)
   }
 
-  // 這裡重複對護摩引擎的胡桃測試（Partial Match）。
+  /// 這裡重複對護摩引擎的胡桃測試（Partial Match）。
   @Test("[TrieKit] Trie SQL Structure Test (Partial Match)", arguments: [false, true])
   func testTrieSQLStructureWithPartialMatch(useSQL: Bool) async throws {
     let mockLM = try await prepareTrieLM(useSQL: useSQL)
