@@ -16,15 +16,72 @@ public protocol VanguardTrieProtocol {
 }
 
 extension VanguardTrieProtocol {
+  var chopCaseSeparator: Character { "&" }
+
+  /// 特殊函式，專門用來處理那種單個讀音位置有兩個讀音的情況。
+  ///
+  /// 這只可能是前端打拼音串之後被 TekkonNext.PinyinTrie 分析出了多個結果。
+  /// 比如說敲了漢語拼音 s 的話會被分析成兩個結果「ㄕ」和「ㄙ」。
+  /// 這會以「ㄕ\(chopCaseSeparator)ㄙ」的形式插入注拼引擎、然後再被傳到這個 Trie 內來查詢。
+  func getNodeIDs(
+    keysChopped: [String],
+    filterType: EntryType,
+    partiallyMatch: Bool
+  )
+    -> Set<Int> {
+    // 單個讀音位置的多個可能性以 chopCaseSeparator 區隔。
+    guard keysChopped.joined().contains(chopCaseSeparator) else {
+      return getNodeIDs(
+        keys: keysChopped,
+        filterType: filterType,
+        partiallyMatch: partiallyMatch
+      )
+    }
+
+    var possibleReadings = [[String]]()
+
+    // 遞歸函數生成所有組合可能性
+    func generateCombinations(index: Int, current: [String]) {
+      // 如果已經處理完所有切片，將當前組合加入結果
+      if index >= keysChopped.count {
+        possibleReadings.append(current)
+        return
+      }
+
+      // 取得當前位置的所有候選項
+      let candidates = keysChopped[index].split(separator: chopCaseSeparator)
+
+      // 對每個候選項進行遞歸
+      for candidate in candidates {
+        var newCombination = current
+        newCombination.append(candidate.description)
+        generateCombinations(index: index + 1, current: newCombination)
+      }
+    }
+
+    // 從索引0開始，使用空數組作為初始組合
+    generateCombinations(index: 0, current: [])
+
+    var result = Set<Int>()
+    possibleReadings.forEach { keys in
+      getNodeIDs(
+        keys: keys,
+        filterType: filterType,
+        partiallyMatch: partiallyMatch
+      ).forEach { nodeID in
+        result.insert(nodeID)
+      }
+    }
+    return result
+  }
+
   func partiallyMatchedKeys(
     _ keys: [String],
+    nodeIDs: Set<Int>,
     filterType: VanguardTrie.Trie.EntryType
   )
     -> Set<[String]> {
     guard !keys.isEmpty else { return [] }
-
-    // 1. 用 getNodeIDs() 以給定的讀音串找出被牽涉到的 NodeID 陣列
-    let nodeIDs = getNodeIDs(keys: keys, filterType: filterType, partiallyMatch: true)
 
     // 2. 準備收集結果與追蹤已處理節點，避免重複處理
     var result: Set<[String]> = []
@@ -79,15 +136,20 @@ extension VanguardTrieProtocol {
     if partiallyMatch {
       // 增加快速路徑：如果不需要處理匹配結果，只需檢查是否有匹配節點
       if partiallyMatchedKeysHandler == nil {
-        return !getNodeIDs(keys: keys, filterType: filterType, partiallyMatch: true).isEmpty
+        return !getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: true).isEmpty
       } else {
-        let partiallyMatchedResult = partiallyMatchedKeys(keys, filterType: filterType)
+        let nodeIDs = getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: true)
+        let partiallyMatchedResult = partiallyMatchedKeys(
+          keys,
+          nodeIDs: nodeIDs,
+          filterType: filterType
+        )
         partiallyMatchedKeysHandler?(partiallyMatchedResult)
         return !partiallyMatchedResult.isEmpty
       }
     } else {
       // 對於精確匹配，直接用 getNodeIDs
-      let nodeIDs = getNodeIDs(keys: keys, filterType: filterType, partiallyMatch: false)
+      let nodeIDs = getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: false)
       return !nodeIDs.isEmpty
     }
   }
@@ -102,14 +164,20 @@ extension VanguardTrieProtocol {
     guard !keys.isEmpty else { return [] }
 
     if partiallyMatch {
-      // 1. 獲取匹配的讀音和節點
-      let partiallyMatchedResult = partiallyMatchedKeys(keys, filterType: filterType)
-      defer { partiallyMatchedKeysPostHandler?(partiallyMatchedResult) }
-
-      guard !partiallyMatchedResult.isEmpty else { return [] }
-
-      // 2. 獲取所有節點IDs
-      let nodeIDs = getNodeIDs(keys: keys, filterType: filterType, partiallyMatch: true)
+      // 1. 獲取所有節點IDs
+      let nodeIDs = getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: true)
+      guard !nodeIDs.isEmpty else { return [] }
+      // 2. 獲取匹配的讀音和節點，除非 handler 是 nil。
+      defer {
+        let partiallyMatchedResult = partiallyMatchedKeys(
+          keys,
+          nodeIDs: nodeIDs,
+          filterType: filterType
+        )
+        if !partiallyMatchedResult.isEmpty {
+          partiallyMatchedKeysPostHandler?(partiallyMatchedResult)
+        }
+      }
 
       // 使用緩存避免重複查詢
       var processedNodeEntries = [Int: [Entry]]()
@@ -130,7 +198,13 @@ extension VanguardTrieProtocol {
           continue
         }
         guard nodeReadings.count == keys.count else { continue }
-        guard zip(keys, nodeReadings).allSatisfy({ $1.hasPrefix($0) }) else { continue }
+        guard zip(keys, nodeReadings).allSatisfy({
+          let keyCases = $0.split(separator: chopCaseSeparator)
+          for currentKeyCase in keyCases {
+            if $1.hasPrefix(currentKeyCase) { return true }
+          }
+          return false
+        }) else { continue }
 
         // 4. 過濾符合條件的詞條
         let filteredEntries = entries.filter { entry in
@@ -139,7 +213,7 @@ extension VanguardTrieProtocol {
             return false
           }
 
-          return zip(keys, nodeReadings).allSatisfy { $1.hasPrefix($0) }
+          return true
         }
 
         // 5. 將符合條件的詞條添加到結果中
@@ -153,7 +227,7 @@ extension VanguardTrieProtocol {
       return results
     } else {
       // 精確匹配 - 現在也使用緩存提高效能
-      let nodeIDs = getNodeIDs(keys: keys, filterType: filterType, partiallyMatch: false)
+      let nodeIDs = getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: false)
       var processedNodeEntries = [Int: [Entry]]()
       var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
 
