@@ -91,6 +91,8 @@ public struct TrieKitTests: TrieKitTestSuite {
     )
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
+    let actualkeysJoined = assembler.actualKeys.joined(separator: " ")
+    #expect(actualkeysJoined == "you1 die2 neng2 liu2 yi4 lv3 fang1")
   }
 
   // MARK: Private

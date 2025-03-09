@@ -63,6 +63,13 @@ extension Homa {
       set { config.keys = newValue }
     }
 
+    /// 回傳當前組句結果所對應的真實讀音索引鍵陣列。
+    ///
+    /// 護摩引擎支援對讀音鍵的部分匹配，所以需要這個 API 以返回真實結果。
+    public var actualKeys: [String] {
+      config.assembledNodes.keyArrays.flatMap(\.self)
+    }
+
     /// 該組字器的幅位單元陣列。
     public private(set) var spans: [NodeSpan] {
       get { config.spans }
