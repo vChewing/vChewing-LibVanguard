@@ -69,6 +69,7 @@ let package = Package(
       dependencies: [
         "TrieKit",
         "Homa",
+        "TekkonNext",
       ],
       path: "./Tests/_Tests4Components/TrieKitTests"
     ),
