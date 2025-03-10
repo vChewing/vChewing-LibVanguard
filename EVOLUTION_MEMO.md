@@ -25,6 +25,9 @@
 
 鐵恨注拼引擎的 Swift Concurrency 相容版，多了一些 API 用以滿足先鋒引擎的內部需求。
 
+> [!NOTE]
+> Tekkon Next 內建了一套 PinyinTrie，是 TrieKit 的 VanguardTrie 的簡化版。因為兩者彼此分化過度、且各自的 API 設計有差異，所以用 Generics 讓兩者使用同一個抽象基底 Class 的價值並不大。
+
 ## BrailleSputnik
 
 盲文點字支援模組。
