@@ -23,40 +23,43 @@ extension Tekkon {
       // Key 是注音，Value 是拼音，所以要反過來建樹。
       if let table = parser.mapZhuyinPinyin {
         for (pinyin, zhuyin) in table {
-          insert(pinyin, entry: .init(pinyin: pinyin, zhuyin: zhuyin))
+          insert(pinyin, entry: zhuyin)
         }
       }
     }
 
     // MARK: Public
 
-    public final class PYNode: Hashable, Identifiable {
+    public final class TNode: Hashable, Identifiable {
       // MARK: Lifecycle
 
       public init(
         id: Int? = nil,
-        entries: [Entry] = [],
+        entries: [String] = [],
         parentID: Int? = nil,
-        character: String = ""
+        character: String = "",
+        readingKey: String = ""
       ) {
         self.id = id
         self.entries = entries
         self.parentID = parentID
         self.character = character
         self.children = [:]
+        self.readingKey = readingKey
       }
 
       // MARK: Public
 
-      public var id: Int?
-      public var entries: [Entry] = []
-      public var parentID: Int?
-      public var character: String = ""
-      public var children: [String: Int] = [:] // 新的結構：字符 -> 子節點ID映射
+      public internal(set) var id: Int?
+      public internal(set) var entries: [String] = []
+      public internal(set) var parentID: Int?
+      public internal(set) var character: String = ""
+      public internal(set) var readingKey: String = "" // 新增：存儲節點對應的讀音鍵
+      public internal(set) var children: [String: Int] = [:] // 新的結構：字符 -> 子節點ID映射
 
       public static func == (
-        lhs: PYNode,
-        rhs: PYNode
+        lhs: TNode,
+        rhs: TNode
       )
         -> Bool {
         lhs.hashValue == rhs.hashValue
@@ -67,28 +70,14 @@ extension Tekkon {
         hasher.combine(entries)
         hasher.combine(parentID)
         hasher.combine(character)
+        hasher.combine(readingKey)
         hasher.combine(children)
       }
-
-      // MARK: Private
-
-      private enum CodingKeys: String, CodingKey {
-        case id
-        case entries
-        case parentID
-        case character
-        case children
-      }
-    }
-
-    public struct Entry: Codable, Hashable, Sendable {
-      public let pinyin: String
-      public let zhuyin: String
     }
 
     public let parser: MandarinParser
-    public let root: PYNode
-    public var nodes: [Int: PYNode] // 新增：節點字典，以id為索引
+    public let root: TNode
+    public var nodes: [Int: TNode] // 新增：節點字典，以id為索引
 
     // MARK: Private
 
@@ -99,7 +88,7 @@ extension Tekkon {
 }
 
 extension Tekkon.PinyinTrie {
-  func insert(_ key: String, entry: Entry) {
+  func insert(_ key: String, entry: String) {
     var currentNode = root
     var currentNodeID = 0
 
@@ -115,7 +104,7 @@ extension Tekkon.PinyinTrie {
       }
       // 創建新的子節點
       let newNodeID = nodes.count
-      let newNode = PYNode(id: newNodeID, parentID: currentNodeID, character: charStr)
+      let newNode = TNode(id: newNodeID, parentID: currentNodeID, character: charStr)
 
       // 更新關係
       currentNode.children[charStr] = newNodeID
@@ -127,10 +116,11 @@ extension Tekkon.PinyinTrie {
     }
 
     // 在最終節點添加詞條
+    currentNode.readingKey = key
     currentNode.entries.append(entry)
   }
 
-  func search(_ key: String) -> [Entry] {
+  func search(_ key: String) -> [String] {
     var currentNode = root
     for char in key {
       let charStr = char.description
@@ -142,7 +132,7 @@ extension Tekkon.PinyinTrie {
     return collectAllDescendantEntries(from: currentNode)
   }
 
-  private func collectAllDescendantEntries(from node: PYNode) -> [Entry] {
+  private func collectAllDescendantEntries(from node: TNode) -> [String] {
     var result = node.entries
     // 遍歷所有子節點
     node.children.values.forEach { childNodeID in
@@ -180,10 +170,10 @@ extension Tekkon.PinyinTrie {
       let fetched = search(slice)
       switch fetched.count {
       case 1: choppedZhuyinCandidates.append(
-          fetched.map(\.zhuyin).joined(separator: chopCaseSeparator.description)
+          fetched.joined(separator: chopCaseSeparator.description)
         )
       case 2...:
-        var simplified = fetched.compactMap(\.zhuyin.first?.description)
+        var simplified = fetched.compactMap(\.first?.description)
         simplified = Set(simplified).sorted()
         choppedZhuyinCandidates.append(
           simplified.joined(separator: chopCaseSeparator.description)
