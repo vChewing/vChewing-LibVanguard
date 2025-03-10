@@ -4,6 +4,7 @@
 
 import Foundation
 import Homa
+import TekkonNext
 import Testing
 @testable import TrieKit
 
@@ -17,7 +18,7 @@ public struct TrieKitTests: TrieKitTestSuite {
   @Test("[TrieKit] Trie SQL Structure Test (Full Match)", arguments: [false, true])
   func testTrieSQLStructureWithFullMatch(useSQL: Bool) async throws {
     let mockLM = try await prepareTrieLM(useSQL: useSQL)
-    let readings: [Substring] = "you1 die2 neng2 liu2 yi4 lv3 fang1".split(separator: " ")
+    let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) }, // 會回傳包含 Bigram 的結果。
       gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -30,12 +31,12 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。
     try assembler.overrideCandidate(
-      (["liu2"], "留"), at: 3, type: .withSpecified
+      (["ㄌㄧㄡˊ"], "留"), at: 3, type: .withSpecified
     )
     // 測試覆寫「一縷」以打斷「留意」與「呂方」。這也便於最後一個位置的 Bigram 測試。
     // （因為是有了「一縷」這個前提才會去找對應的 Bigram。）
     try assembler.overrideCandidate(
-      (["yi4", "lv3"], "一縷"), at: 4, type: .withSpecified
+      (["ㄧˋ", "ㄌㄩˇ"], "一縷"), at: 4, type: .withSpecified
     )
     let dotWithBigram = assembler.dumpDOT(verticalGraph: true)
     assembledSentence = assembler.assemble().compactMap(\.value)
@@ -47,7 +48,7 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "方"])
     // 對位置 7 這個最前方的座標位置使用節點覆寫。會在此過程中自動糾正成對位置 6 的覆寫。
     try assembler.overrideCandidate(
-      (["fang1"], "芳"), at: 7, type: .withSpecified
+      (["ㄈㄤ"], "芳"), at: 7, type: .withSpecified
     )
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
@@ -68,9 +69,9 @@ public struct TrieKitTests: TrieKitTestSuite {
   @Test("[TrieKit] Trie SQL Structure Test (Partial Match)", arguments: [false, true])
   func testTrieSQLStructureWithPartialMatch(useSQL: Bool) async throws {
     let mockLM = try await prepareTrieLM(useSQL: useSQL)
-    #expect(mockLM.hasGrams(["y"], partiallyMatch: true))
-    #expect(!mockLM.queryGrams(["y"], partiallyMatch: true).isEmpty)
-    let readings: [String] = "ydnlylf".map(\.description)
+    #expect(mockLM.hasGrams(["ㄧ"], partiallyMatch: true))
+    #expect(!mockLM.queryGrams(["ㄧ"], partiallyMatch: true).isEmpty)
+    let readings: [String] = "ㄧㄉㄋㄌㄧㄌㄈ".map(\.description)
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0, partiallyMatch: true) }, // 會回傳包含 Bigram 的結果。
       gramAvailabilityChecker: { mockLM.hasGrams($0, partiallyMatch: true) }
@@ -82,17 +83,59 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。
     try assembler.overrideCandidate(
-      (["liu2"], "留"), at: 3, type: .withSpecified
+      (["ㄌㄧㄡˊ"], "留"), at: 3, type: .withSpecified
     )
     // 測試覆寫「一縷」以打斷「留意」與「呂方」。這也便於最後一個位置的 Bigram 測試。
     // （因為是有了「一縷」這個前提才會去找對應的 Bigram。）
     try assembler.overrideCandidate(
-      (["yi4", "lv3"], "一縷"), at: 4, type: .withSpecified
+      (["ㄧˋ", "ㄌㄩˇ"], "一縷"), at: 4, type: .withSpecified
     )
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
     let actualkeysJoined = assembler.actualKeys.joined(separator: " ")
-    #expect(actualkeysJoined == "you1 die2 neng2 liu2 yi4 lv3 fang1")
+    #expect(actualkeysJoined == "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ")
+  }
+
+  /// 利用 PinyinTrie 工具處理不完整的拼音輸入串、再藉由護摩組字引擎交給 VanguardTrie 處理。
+  ///
+  /// 這會完整模擬一款簡拼輸入法「僅依賴使用者的不完全拼音輸入字串進行組字」的完整流程、
+  /// 且組字時使用以注音索引的後端辭典資料。
+  @Test("[TrieKit] Test Chopped Pinyin Handling (with PinyinTrie)", arguments: [false, true])
+  func testTekkonPinyinTrieTogetherAgainstChoppedPinyin(useSQL: Bool) async throws {
+    let pinyinTrie = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
+    let composer = Tekkon.Composer(arrange: .ofHanyuPinyin)
+    let rawPinyin = "ydienlylf"
+    let rawPinyinChopped = composer.chop(rawPinyin)
+    #expect(rawPinyinChopped == ["y", "die", "n", "l", "y", "l", "f"])
+    let readingsToInsert = pinyinTrie.deductChoppedPinyinToZhuyin(rawPinyinChopped)
+    #expect(readingsToInsert == ["ㄧ&ㄩ", "ㄉㄧㄝ", "ㄋ", "ㄌ", "ㄧ&ㄩ", "ㄌ", "ㄈ"])
+    let mockLM = try await prepareTrieLM(useSQL: useSQL)
+    let hasResults = mockLM.hasGrams(["ㄧ&ㄩ"], partiallyMatch: true)
+    #expect(hasResults)
+    let queried = mockLM.queryGrams(["ㄧ&ㄩ"], partiallyMatch: true)
+    #expect(!queried.isEmpty)
+    let assembler = Homa.Assembler(
+      gramQuerier: { mockLM.queryGrams($0, partiallyMatch: true) }, // 會回傳包含 Bigram 的結果。
+      gramAvailabilityChecker: { mockLM.hasGrams($0, partiallyMatch: true) }
+    )
+    try readingsToInsert.forEach {
+      try assembler.insertKey($0.description)
+    }
+    var assembledSentence = assembler.assemble().compactMap(\.value)
+    #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
+    // 測試覆寫「留」以試圖打斷「留意」。
+    try assembler.overrideCandidate(
+      (["ㄌㄧㄡˊ"], "留"), at: 3, type: .withSpecified
+    )
+    // 測試覆寫「一縷」以打斷「留意」與「呂方」。這也便於最後一個位置的 Bigram 測試。
+    // （因為是有了「一縷」這個前提才會去找對應的 Bigram。）
+    try assembler.overrideCandidate(
+      (["ㄧˋ", "ㄌㄩˇ"], "一縷"), at: 4, type: .withSpecified
+    )
+    assembledSentence = assembler.assemble().compactMap(\.value)
+    #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
+    let actualkeysJoined = assembler.actualKeys.joined(separator: " ")
+    #expect(actualkeysJoined == "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ")
   }
 
   // MARK: Private
@@ -135,8 +178,8 @@ public struct TrieKitTests: TrieKitTestSuite {
       #expect(sqlTrie.getTableRowCount("keychain_id_map") ?? 0 > 0)
     }
     let mockLM = TestLM4Trie(trie: trieFinal)
-    #expect(trieFinal.hasGrams(["yi4", "lv3"], filterType: .langNeutral))
-    #expect(!mockLM.queryGrams(["yi4", "lv3"]).isEmpty)
+    #expect(trieFinal.hasGrams(["ㄧˋ", "ㄌㄩˇ"], filterType: .langNeutral))
+    #expect(!mockLM.queryGrams(["ㄧˋ", "ㄌㄩˇ"]).isEmpty)
     return mockLM
   }
 }
