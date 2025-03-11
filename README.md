@@ -30,7 +30,7 @@ Unless specifically invited, this repository is not accepting external contribut
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 ```
 
-An exception is that the unit tests of the Homa Sentence Assembler utilizes certain contents extracted from libvchewing-data which is released under BSD-3-Clause.
+An exception is that the unit tests of some components (e.g.: TrieKit, Homa Sentence Assembler, etc.) utilizes certain contents extracted from libvchewing-data which is released under BSD-3-Clause.
 
 ```text
 // (c) 2021 and onwards The vChewing Project (BSD-3-Clause).
