@@ -11,5 +11,10 @@ extension Homa {
     case cursorRegionMapMatchingFailure
     case nothingOverriddenAtNode
     case noNodesAssigned
+    case assemblerIsEmpty
+    case noCandidatesAvailableToRevolve
+    case onlyOneCandidateAvailableToRevolve
+    case cursorOutOfReasonableNodeRegions
+    case nodeHasNoCurrentGram
   }
 }

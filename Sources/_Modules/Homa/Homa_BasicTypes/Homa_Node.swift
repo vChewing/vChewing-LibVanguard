@@ -74,7 +74,7 @@ extension Homa {
     /// 數（比如野獸常數），以讓「c」更容易單獨被選中。
     public var overridingScore: Double = 114_514
 
-    /// 索引鍵陣列。
+    /// 事先假設的索引鍵陣列，可能不完全。
     public private(set) var keyArray4Query: [String]
     /// 所有真實索引鍵陣列的快取。
     public private(set) var allActualKeyArraysCached: Set<[String]>
@@ -83,6 +83,7 @@ extension Homa {
     /// 該節點目前的覆寫狀態種類。
     public private(set) var currentOverrideType: OverrideType
 
+    /// 當前候選字詞的真實完整索引鍵陣列。
     public var keyArray: [String] { currentGram?.keyArray ?? keyArray4Query }
 
     /// 元圖陣列。
