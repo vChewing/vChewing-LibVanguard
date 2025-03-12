@@ -145,19 +145,17 @@ final class TestLM {
         ? value.map(\.description)
         : components[0].split(separator: readingSeparator).map(\.description)
       let entry = SimpleTrie.Entry(
-        readings: readings,
         value: value,
         probability: probability,
         previous: previous
       )
-      let key = readings.joined(separator: readingSeparator)
-      trie.insert(key, entry: entry)
+      trie.insert(entry: entry, readings: readings)
     }
   }
 
   // MARK: Internal
 
-  var readingSeparator: String { trie.readingSeparator }
+  var readingSeparator: String { trie.readingSeparator.description }
 
   func hasGrams(
     _ keys: [String],
@@ -196,7 +194,7 @@ public final class SimpleTrie {
 
   public init(separator: String) {
     self.readingSeparator = separator
-    self.root = .init()
+    self.root = .init(id: 0)
     self.nodes = [:]
 
     // 初始化時，將根節點加入到節點字典中
@@ -204,6 +202,7 @@ public final class SimpleTrie {
     root.parentID = nil
     root.character = ""
     nodes[0] = root
+    self.keyChainIDMap = [:]
   }
 
   // MARK: Public
@@ -212,25 +211,28 @@ public final class SimpleTrie {
     // MARK: Lifecycle
 
     public init(
-      id: Int? = nil,
+      id: Int,
       entries: [Entry] = [],
       parentID: Int? = nil,
-      character: String = ""
+      character: String = "",
+      readingKey: String = ""
     ) {
       self.id = id
       self.entries = entries
       self.parentID = parentID
       self.character = character
       self.children = [:]
+      self.readingKey = readingKey
     }
 
     // MARK: Public
 
-    public var id: Int?
-    public var entries: [Entry] = []
-    public var parentID: Int?
-    public var character: String = ""
-    public var children: [String: Int] = [:] // 新的結構：字符 -> 子節點ID映射
+    public internal(set) var id: Int = 0
+    public internal(set) var entries: [Entry] = []
+    public internal(set) var parentID: Int?
+    public internal(set) var character: String = ""
+    public internal(set) var readingKey: String = "" // 新增：存儲節點對應的讀音鍵
+    public internal(set) var children: [String: Int] = [:] // 新的結構：字符 -> 子節點ID映射
 
     public static func == (
       lhs: TNode,
@@ -245,6 +247,7 @@ public final class SimpleTrie {
       hasher.combine(entries)
       hasher.combine(parentID)
       hasher.combine(character)
+      hasher.combine(readingKey)
       hasher.combine(children)
     }
 
@@ -255,34 +258,54 @@ public final class SimpleTrie {
       case entries
       case parentID
       case character
+      case readingKey
       case children
     }
   }
 
-  public struct Entry: Codable, Hashable, Sendable {
-    public let readings: [String]
-    public let value: String
-    public let probability: Double
-    public let previous: String?
+  public struct Entry: Hashable, Sendable {
+    // MARK: Lifecycle
 
-    public var asTuple: (
-      keyArray: [String],
+    public init(
       value: String,
       probability: Double,
       previous: String?
     ) {
-      (
-        keyArray: readings,
-        value: value,
-        probability: probability,
-        previous: previous
-      )
+      self.value = value
+      self.probability = probability
+      self.previous = previous
+    }
+
+    // MARK: Public
+
+    public let value: String
+    public let probability: Double
+    public let previous: String?
+
+    public func encode(to encoder: any Encoder) throws {
+      var container = encoder.singleValueContainer()
+      var stack = [String]()
+      stack.append(value)
+      stack.append(probability.description)
+      if let previous {
+        stack.append(previous)
+      }
+      try container.encode(stack.joined(separator: "\t"))
+    }
+
+    // MARK: Private
+
+    private enum CodingKeysAlt: String, CodingKey {
+      case value
+      case probability
+      case previous
     }
   }
 
   public let readingSeparator: String
   public let root: TNode
-  public var nodes: [Int: TNode] // 新增：節點字典，以id為索引
+  public internal(set) var nodes: [Int: TNode] // 新增：節點字典，以id為索引
+  public internal(set) var keyChainIDMap: [String: Set<Int>]
 
   // MARK: Private
 
@@ -295,9 +318,11 @@ public final class SimpleTrie {
 // MARK: - Extending Methods (Trie: Insert and Search API).
 
 extension SimpleTrie {
-  func insert(_ key: String, entry: Entry) {
+  public func insert(entry: Entry, readings: [String]) {
     var currentNode = root
     var currentNodeID = 0
+
+    let key = readings.joined(separator: readingSeparator.description)
 
     // 遍歷關鍵字的每個字符
     key.forEach { char in
@@ -322,11 +347,81 @@ extension SimpleTrie {
       currentNodeID = newNodeID
     }
 
-    // 在最終節點添加詞條
+    // 在最終節點設置讀音鍵並添加詞條
+    currentNode.readingKey = key
     currentNode.entries.append(entry)
+
+    // 更新 keyChainIDMap
+    keyChainIDMap[key, default: []].insert(currentNodeID)
   }
 
-  func search(_ key: String, partiallyMatch: Bool = false) -> [Entry] {
+  public func clearAllContents() {
+    root.children.removeAll()
+    root.entries.removeAll()
+    root.id = 0
+    nodes.removeAll()
+    nodes[0] = root
+    updateKeyChainIDMap()
+  }
+
+  internal func updateKeyChainIDMap() {
+    // 清空現有映射以確保資料一致性
+    keyChainIDMap.removeAll()
+
+    // 遍歷所有節點和條目來重建映射
+    nodes.forEach { nodeID, node in
+      node.entries.forEach { _ in
+        let keyChainStr = node.readingKey
+        keyChainIDMap[keyChainStr, default: []].insert(nodeID)
+      }
+    }
+  }
+}
+
+// MARK: - Extending Methods (Entry).
+
+extension SimpleTrie.Entry {
+  public func asTuple(with readings: [String]) -> (
+    keyArray: [String],
+    value: String,
+    probability: Double,
+    previous: String?
+  ) {
+    (
+      keyArray: readings,
+      value: value,
+      probability: probability,
+      previous: previous
+    )
+  }
+
+  public func isReadingValueLengthMatched(readings: [String]) -> Bool {
+    readings.count == value.count
+  }
+}
+
+extension SimpleTrie {
+  public func search(_ key: String, partiallyMatch: Bool = false) -> [(
+    readings: [String],
+    entry: Entry
+  )] {
+    // 使用 keyChainIDMap 優化查詢效能，尤其對於精確匹配的情況
+    if !partiallyMatch {
+      let nodeIDs = keyChainIDMap[key, default: []]
+      if !nodeIDs.isEmpty {
+        var results: [(readings: [String], entry: Entry)] = []
+        for nodeID in nodeIDs {
+          if let node = nodes[nodeID] {
+            let readings = node.readingKey.split(separator: readingSeparator).map(\.description)
+            node.entries.forEach { entry in
+              results.append((readings: readings, entry: entry))
+            }
+          }
+        }
+        return results
+      }
+    }
+
     var currentNode = root
     // 遍歷關鍵字的每個字符
     for char in key {
@@ -338,120 +433,296 @@ extension SimpleTrie {
       currentNode = childNode
     }
 
-    return partiallyMatch ? collectAllDescendantEntries(from: currentNode) : currentNode.entries
+    return partiallyMatch ?
+      collectAllDescendantEntriesWithReadings(from: currentNode) :
+      collectEntriesWithReadings(from: currentNode)
   }
 
-  private func collectAllDescendantEntries(from node: TNode) -> [Entry] {
-    var result = node.entries
+  private func collectEntriesWithReadings(from node: TNode) -> [(
+    readings: [String],
+    entry: Entry
+  )] {
+    let readings = node.readingKey.split(separator: readingSeparator).map(\.description)
+    return node.entries.map { (readings: readings, entry: $0) }
+  }
+
+  private func collectAllDescendantEntriesWithReadings(from node: TNode) -> [(
+    readings: [String],
+    entry: Entry
+  )] {
+    var result = collectEntriesWithReadings(from: node)
     // 遍歷所有子節點
     node.children.values.forEach { childNodeID in
       guard let childNode = nodes[childNodeID] else { return }
-      result.append(contentsOf: collectAllDescendantEntries(from: childNode))
+      result.append(contentsOf: collectAllDescendantEntriesWithReadings(from: childNode))
     }
     return result
   }
 }
 
-// MARK: - Extending Methods (Trie: Public Data Inventory Confirmation API).
+// MARK: - SimpleTrie + VanguardTrieProtocol
 
 extension SimpleTrie {
-  func hasGrams(
-    _ keys: [String],
-    partiallyMatch: Bool = false
-  )
-    -> Bool {
-    guard !keys.isEmpty else { return false }
-    return switch partiallyMatch {
-    case false: !search(keys.joined(separator: readingSeparator)).isEmpty
-    case true: hasPartiallyMatchedKeys(keys)
-    }
-  }
+  public func getNodeIDs(keys: [String], partiallyMatch: Bool) -> Set<Int> {
+    switch partiallyMatch {
+    case false:
+      return keyChainIDMap[keys.joined(separator: readingSeparator.description)] ?? []
+    case true:
+      guard !keys.isEmpty else { return [] }
 
-  private func hasPartiallyMatchedKeys(
-    _ keys: [String]
-  )
-    -> Bool {
-    guard !keys.isEmpty else { return false }
-    let searchKey = keys.joined(separator: ".*?")
-    let regex = try? NSRegularExpression(pattern: "\(searchKey).*?", options: [])
-    guard let regex else { return false }
-    let entries = search(keys[0], partiallyMatch: true)
+      // 使用 keyChainIDMap 來優化查詢
+      var matchedNodeIDs = Set<Int>()
 
-    for entry in entries {
-      // 此處僅檢查是否會有有效內容，所以在發現第一筆有效資料之後就返回 true 即可。
-      let keyChain = entry.readings.joined(separator: readingSeparator)
+      // 從 keyChainIDMap 中查找所有鍵
+      keyChainIDMap.forEach { keyChain, nodeIDs in
+        // 只處理那些至少和首個查詢鍵匹配的鍵鏈
+        let keyComponents = keyChain.split(separator: readingSeparator).map(\.description)
 
-      // 使用 NSRegularExpression 替代 Swift Regex 以提高相容性
-      let firstMatchedResult = regex.firstMatch(
-        in: keyChain, options: [],
-        range: NSRange(location: 0, length: keyChain.utf16.count)
-      )
-      guard firstMatchedResult != nil else { continue }
-      guard entry.readings.count == keys.count else { continue }
+        // 檢查長度是否匹配
+        guard keyComponents.count == keys.count else { return }
 
-      for (currentKey, currentReading) in zip(keys, entry.readings) {
-        guard currentReading.hasPrefix(currentKey) else { continue }
+        // 檢查每個元素是否以對應的前綴開頭
+        guard zip(keys, keyComponents).allSatisfy({ $1.hasPrefix($0) }) else { return }
+
+        // 檢查類型過濾條件
+        matchedNodeIDs.formUnion(nodeIDs)
       }
-      guard !entry.readings.isEmpty else { continue }
-      return true
+      return matchedNodeIDs
     }
-    return false
   }
-}
 
-// MARK: - Extending Methods (Trie: Public Data Query API).
+  public func getNode(nodeID: Int) -> TNode? {
+    nodes[nodeID]
+  }
 
-extension SimpleTrie {
-  func queryGrams(
+  public func getEntries(node: TNode) -> [Entry] {
+    node.entries
+  }
+
+  var chopCaseSeparator: Character { "&" }
+
+  /// 特殊函式，專門用來處理那種單個讀音位置有兩個讀音的情況。
+  ///
+  /// 這只可能是前端打拼音串之後被 TekkonNext.PinyinTrie 分析出了多個結果。
+  /// 比如說敲了漢語拼音 s 的話會被分析成兩個結果「ㄕ」和「ㄙ」。
+  /// 這會以「ㄕ\(chopCaseSeparator)ㄙ」的形式插入注拼引擎、然後再被傳到這個 Trie 內來查詢。
+  func getNodeIDs(
+    keysChopped: [String],
+    partiallyMatch: Bool
+  )
+    -> Set<Int> {
+    // 單個讀音位置的多個可能性以 chopCaseSeparator 區隔。
+    guard keysChopped.joined().contains(chopCaseSeparator) else {
+      return getNodeIDs(
+        keys: keysChopped,
+        partiallyMatch: partiallyMatch
+      )
+    }
+
+    var possibleReadings = [[String]]()
+
+    // 遞歸函數生成所有組合可能性
+    func generateCombinations(index: Int, current: [String]) {
+      // 如果已經處理完所有切片，將當前組合加入結果
+      if index >= keysChopped.count {
+        possibleReadings.append(current)
+        return
+      }
+
+      // 取得當前位置的所有候選項
+      let candidates = keysChopped[index].split(separator: chopCaseSeparator)
+
+      // 對每個候選項進行遞歸
+      for candidate in candidates {
+        var newCombination = current
+        newCombination.append(candidate.description)
+        generateCombinations(index: index + 1, current: newCombination)
+      }
+    }
+
+    // 從索引0開始，使用空數組作為初始組合
+    generateCombinations(index: 0, current: [])
+
+    var result = Set<Int>()
+    possibleReadings.forEach { keys in
+      getNodeIDs(
+        keys: keys,
+        partiallyMatch: partiallyMatch
+      ).forEach { nodeID in
+        result.insert(nodeID)
+      }
+    }
+    return result
+  }
+
+  func partiallyMatchedKeys(
     _ keys: [String],
-    partiallyMatch: Bool = false
+    nodeIDs: Set<Int>
+  )
+    -> Set<[String]> {
+    guard !keys.isEmpty else { return [] }
+
+    // 2. 準備收集結果與追蹤已處理節點，避免重複處理
+    var result: Set<[String]> = []
+    var processedNodes = Set<Int>()
+
+    // 3. 對每個 NodeID 獲取對應節點、詞條和讀音
+    for nodeID in nodeIDs {
+      // 跳過已處理的節點
+      guard !processedNodes.contains(nodeID),
+            let node = getNode(nodeID: nodeID) else { continue }
+
+      processedNodes.insert(nodeID)
+
+      // 5. 提前獲取一次 entries 並重用
+      let entries = getEntries(node: node)
+
+      // 確保讀音數量匹配
+      let nodeReadings = node.readingKey.split(separator: readingSeparator).map(\.description)
+      guard nodeReadings.count == keys.count else { continue }
+      // 確保每個讀音都以對應的前綴開頭
+      let allPrefixMatched = zip(keys, nodeReadings).allSatisfy { $1.hasPrefix($0) }
+      guard allPrefixMatched else { continue }
+
+      // 6. 過濾出符合條件的詞條
+      let firstMatchedEntry = entries.first
+
+      guard firstMatchedEntry != nil else { continue }
+
+      // 7. 收集讀音
+      result.insert(nodeReadings)
+    }
+
+    return result
+  }
+
+  public func hasGrams(
+    _ keys: [String],
+    partiallyMatch: Bool = false,
+    partiallyMatchedKeysHandler: ((Set<[String]>) -> ())? = nil
+  )
+    -> Bool {
+    guard !keys.isEmpty else { return false }
+
+    if partiallyMatch {
+      // 增加快速路徑：如果不需要處理匹配結果，只需檢查是否有匹配節點
+      if partiallyMatchedKeysHandler == nil {
+        return !getNodeIDs(keysChopped: keys, partiallyMatch: true).isEmpty
+      } else {
+        let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: true)
+        let partiallyMatchedResult = partiallyMatchedKeys(
+          keys,
+          nodeIDs: nodeIDs
+        )
+        partiallyMatchedKeysHandler?(partiallyMatchedResult)
+        return !partiallyMatchedResult.isEmpty
+      }
+    } else {
+      // 對於精確匹配，直接用 getNodeIDs
+      let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: false)
+      return !nodeIDs.isEmpty
+    }
+  }
+
+  public func queryGrams(
+    _ keys: [String],
+    partiallyMatch: Bool = false,
+    partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
   )
     -> [(keyArray: [String], value: String, probability: Double, previous: String?)] {
     guard !keys.isEmpty else { return [] }
-    switch partiallyMatch {
-    case false:
-      return search(keys.joined(separator: readingSeparator)).map(\.asTuple)
-    case true:
-      let partiallyMatchedResult = partiallyMatchedKeys(keys)
-      guard !partiallyMatchedResult.isEmpty else { return [] }
-      var inserted = Set<Entry>()
-      return search(keys[0], partiallyMatch: true)
-        .filter { entry in
-          entry.readings.count == keys.count &&
-            zip(keys, entry.readings).allSatisfy { $1.hasPrefix($0) }
+
+    if partiallyMatch {
+      // 1. 獲取所有節點IDs
+      let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: true)
+      guard !nodeIDs.isEmpty else { return [] }
+      // 2. 獲取匹配的讀音和節點，除非 handler 是 nil。
+      defer {
+        let partiallyMatchedResult = partiallyMatchedKeys(
+          keys,
+          nodeIDs: nodeIDs
+        )
+        if !partiallyMatchedResult.isEmpty {
+          partiallyMatchedKeysPostHandler?(partiallyMatchedResult)
         }
-        .filter { inserted.insert($0).inserted }
-        .map(\.asTuple)
-    }
-  }
-
-  private func partiallyMatchedKeys(
-    _ keys: [String]
-  )
-    -> [[String]] {
-    guard !keys.isEmpty else { return [] }
-    let searchKey = keys.joined(separator: ".*?")
-    let entries = search(keys[0], partiallyMatch: true)
-
-    return entries.compactMap { entry in
-      let keyChain = entry.readings.joined(separator: readingSeparator)
-
-      // 使用 NSRegularExpression 替代 Swift Regex 以提高相容性
-      let regex = try? NSRegularExpression(pattern: "\(searchKey).*?", options: [])
-      guard let regex else { return nil }
-      let firstMatchedResult = regex.firstMatch(
-        in: keyChain, options: [],
-        range: NSRange(location: 0, length: keyChain.utf16.count)
-      )
-      guard firstMatchedResult != nil else { return nil }
-      guard entry.readings.count == keys.count else { return nil }
-
-      for (currentKey, currentReading) in zip(keys, entry.readings) {
-        guard currentReading.hasPrefix(currentKey) else { return nil }
       }
 
-      guard !entry.readings.isEmpty else { return nil }
-      return entry.readings
+      // 使用緩存避免重複查詢
+      var processedNodeEntries = [Int: [Entry]]()
+      var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
+
+      // 3. 獲取每個節點的詞條
+      for nodeID in nodeIDs {
+        guard let node = getNode(nodeID: nodeID) else { continue }
+        let nodeReadings = node.readingKey.split(separator: readingSeparator).map(\.description)
+        // 使用緩存避免重複查詢
+        let entries: [Entry]
+        if let cachedEntries = processedNodeEntries[nodeID] {
+          entries = cachedEntries
+        } else if let node = getNode(nodeID: nodeID) {
+          entries = getEntries(node: node)
+          processedNodeEntries[nodeID] = entries // 緩存結果
+        } else {
+          continue
+        }
+        guard nodeReadings.count == keys.count else { continue }
+        guard zip(keys, nodeReadings).allSatisfy({
+          let keyCases = $0.split(separator: chopCaseSeparator)
+          for currentKeyCase in keyCases {
+            if $1.hasPrefix(currentKeyCase) { return true }
+          }
+          return false
+        }) else { continue }
+
+        // 4. 過濾符合條件的詞條
+        var inserted = Set<Entry>()
+        let filteredEntries = entries.filter { entry in
+          inserted.insert(entry).inserted
+        }
+
+        // 5. 將符合條件的詞條添加到結果中
+        results.append(contentsOf: filteredEntries.map { entry in
+          entry.asTuple(
+            with: node.readingKey.split(separator: readingSeparator).map(\.description)
+          )
+        })
+      }
+
+      return results
+    } else {
+      // 精確匹配 - 現在也使用緩存提高效能
+      let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: false)
+      var processedNodeEntries = [Int: [Entry]]()
+      var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
+
+      for nodeID in nodeIDs {
+        guard let node = getNode(nodeID: nodeID) else { continue }
+
+        // 使用緩存避免重複查詢
+        let entries: [Entry]
+        if let cachedEntries = processedNodeEntries[nodeID] {
+          entries = cachedEntries
+        } else if let node = getNode(nodeID: nodeID) {
+          entries = getEntries(node: node)
+          processedNodeEntries[nodeID] = entries
+        } else {
+          continue
+        }
+
+        // 過濾符合類型的詞條
+        var inserted = Set<Entry>()
+        let filteredEntries = entries.filter { entry in
+          inserted.insert(entry).inserted
+        }
+
+        results.append(contentsOf: filteredEntries.map { entry in
+          entry.asTuple(
+            with: node.readingKey.split(separator: readingSeparator).map(\.description)
+          )
+        })
+      }
+
+      return results
     }
   }
 }
