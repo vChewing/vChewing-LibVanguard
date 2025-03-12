@@ -207,13 +207,10 @@ extension VanguardTrieProtocol {
         }) else { continue }
 
         // 4. 過濾符合條件的詞條
+        var inserted = Set<Entry>()
         let filteredEntries = entries.filter { entry in
-
-          if !filterType.isEmpty, !entry.typeID.contains(filterType) {
-            return false
-          }
-
-          return true
+          guard filterType.isEmpty || entry.typeID.contains(filterType) else { return false }
+          return inserted.insert(entry).inserted
         }
 
         // 5. 將符合條件的詞條添加到結果中
@@ -246,8 +243,10 @@ extension VanguardTrieProtocol {
         }
 
         // 過濾符合類型的詞條
+        var inserted = Set<Entry>()
         let filteredEntries = entries.filter { entry in
-          filterType.isEmpty || entry.typeID.contains(filterType)
+          guard filterType.isEmpty || entry.typeID.contains(filterType) else { return false }
+          return inserted.insert(entry).inserted
         }
 
         results.append(contentsOf: filteredEntries.map { entry in
