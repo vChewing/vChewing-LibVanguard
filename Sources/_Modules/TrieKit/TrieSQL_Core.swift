@@ -321,8 +321,7 @@ extension VanguardTrie {
       }
 
       do {
-        let decoder = PropertyListDecoder()
-        return try decoder.decode([Trie.Entry].self, from: data)
+        return try plistDecoder.decode([Trie.Entry].self, from: data)
       } catch {
         Self.printDebug("Error decoding entries: \(error)")
         return nil
@@ -330,6 +329,8 @@ extension VanguardTrie {
     }
 
     // MARK: Private
+
+    private let plistDecoder = PropertyListDecoder()
 
     private static func printDebug(
       _ items: Any...,
