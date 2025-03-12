@@ -88,7 +88,10 @@ extension Homa.Assembler {
         ))
       }
     }
-    return result
+    var seen = Set<String>()
+    return result.filter {
+      seen.insert("\($0)").inserted
+    }
   }
 }
 
