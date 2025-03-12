@@ -411,11 +411,13 @@ extension SimpleTrie {
     case true:
       let partiallyMatchedResult = partiallyMatchedKeys(keys)
       guard !partiallyMatchedResult.isEmpty else { return [] }
+      var inserted = Set<Entry>()
       return search(keys[0], partiallyMatch: true)
         .filter { entry in
           entry.readings.count == keys.count &&
             zip(keys, entry.readings).allSatisfy { $1.hasPrefix($0) }
         }
+        .filter { inserted.insert($0).inserted }
         .map(\.asTuple)
     }
   }
