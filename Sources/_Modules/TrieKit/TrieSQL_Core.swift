@@ -194,9 +194,9 @@ extension VanguardTrie {
 
     // MARK: - 輔助方法
 
-    /// 根據給定的讀音列表查詢完全匹配的詞條
+    /// 根據給定的讀音列表查詢完全比對的詞條
     /// - Parameter keys: 讀音列表
-    /// - Returns: 匹配的詞條
+    /// - Returns: 比對的詞條
     func queryExactMatch(_ keys: [String], filterType: Trie.EntryType) -> [(
       keyArray: [String],
       value: String,
@@ -205,10 +205,10 @@ extension VanguardTrie {
     )] {
       var result: [(keyArray: [String], value: String, probability: Double, previous: String?)] = []
 
-      // 打印調試信息
+      // 列印偵錯資訊
       Self.printDebug("DEBUG: 查詢詞條，keys = \(keys), filterType = \(filterType)")
 
-      // 使用 keychain_id_map 表進行精確匹配
+      // 使用 keychain_id_map 表進行精確比對
       let keychain = keys.joined(separator: readingSeparator.description)
       let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
 
@@ -368,7 +368,7 @@ extension VanguardTrie {
     }
 
     /// 獲取分隔符設定
-    /// - Returns: 分隔符字符串，如果獲取失敗則返回預設值 "-"
+    /// - Returns: 分隔符字串，如果獲取失敗則返回預設值 "-"
     private func fetchSeparator() -> Character {
       var separator: Character = "-"
       let query = "SELECT value FROM config WHERE key = 'separator'"
@@ -422,7 +422,7 @@ extension VanguardTrie {
     /// 顯示表的列資訊
     /// - Parameter tableName: 表名
     private func displayTableColumns(_ tableName: String) {
-      // 這個查詢將返回表的所有列信息
+      // 這個查詢將返回表的所有列資訊
       let query = "PRAGMA table_info(\(tableName))"
       var statement: OpaquePointer?
 
@@ -464,7 +464,7 @@ extension VanguardTrie {
       sqlite3_finalize(statement)
     }
 
-    // 直接查詢表中數據的調試方法
+    // 直接查詢表中數據的偵錯方法
     private func directQueryDebug(keys: [String]) {
       // 1. 檢查 reading_mappings 表中是否有這些 readings
       for key in keys {

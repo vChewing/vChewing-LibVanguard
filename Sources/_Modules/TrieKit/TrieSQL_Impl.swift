@@ -22,7 +22,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       // 構建查詢前綴條件
       let firstKeyEscaped = keys[0].replacingOccurrences(of: "'", with: "''")
 
-      // 查詢與前綴匹配的 keychain
+      // 查詢與前綴比對的 keychain
       let query = """
         SELECT k.node_id
         FROM keychain_id_map k
@@ -51,14 +51,14 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       sqlite3_finalize(statement)
       return nodeIDs
     } else {
-      // 精確匹配
+      // 精確比對
       let keychain = keys.joined(separator: readingSeparator.description)
       return getNodeIDsForKeychain(keychain, filterType: filterType)
     }
   }
 
   public func getNode(nodeID: Int) -> VanguardTrie.Trie.TNode? {
-    // 查詢節點信息
+    // 查詢節點資訊
     let query = """
       SELECT n.id, n.parent_id, n.character, n.reading_key, n.entries_blob
       FROM nodes n
@@ -72,7 +72,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       sqlite3_bind_int(statement, 1, Int32(nodeID))
 
       if sqlite3_step(statement) == SQLITE_ROW {
-        // 獲取節點基本信息
+        // 獲取節點基本資訊
         let id = Int(sqlite3_column_int(statement, 0))
         let parentID: Int?
         if sqlite3_column_type(statement, 1) != SQLITE_NULL {
@@ -112,7 +112,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
           }
         }
 
-        // 獲取子節點信息並更新 children 字典
+        // 獲取子節點資訊並更新 children 辭典
         let childrenQuery = "SELECT id, character FROM nodes WHERE parent_id = ?"
         var childStmt: OpaquePointer?
 

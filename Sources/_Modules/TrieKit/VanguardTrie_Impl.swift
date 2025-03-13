@@ -29,7 +29,7 @@ extension VanguardTrie.Trie {
     readings: [String],
     entry: Entry
   )] {
-    // 使用 keyChainIDMap 優化查詢效能，尤其對於精確匹配的情況
+    // 使用 keyChainIDMap 優化查詢效能，尤其對於精確比對的情況
     if !partiallyMatch {
       let nodeIDs = keyChainIDMap[key, default: []]
       if !nodeIDs.isEmpty {
@@ -99,10 +99,10 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
 
       // 從 keyChainIDMap 中查找所有鍵
       keyChainIDMap.forEach { keyChain, nodeIDs in
-        // 只處理那些至少和首個查詢鍵匹配的鍵鏈
+        // 只處理那些至少和首個查詢鍵相符的鍵鏈
         let keyComponents = keyChain.split(separator: readingSeparator).map(\.description)
 
-        // 檢查長度是否匹配
+        // 檢查長度是否相符
         guard keyComponents.count == keys.count else { return }
 
         // 檢查每個元素是否以對應的前綴開頭

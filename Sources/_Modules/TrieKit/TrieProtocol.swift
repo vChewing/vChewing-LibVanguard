@@ -98,7 +98,7 @@ extension VanguardTrieProtocol {
       // 5. 提前獲取一次 entries 並重用
       let entries = getEntries(node: node)
 
-      // 確保讀音數量匹配
+      // 確保讀音數量相符
       let nodeReadings = node.readingKey.split(separator: readingSeparator).map(\.description)
       guard nodeReadings.count == keys.count else { continue }
       // 確保每個讀音都以對應的前綴開頭
@@ -108,7 +108,7 @@ extension VanguardTrieProtocol {
       // 6. 過濾出符合條件的詞條
       let firstMatchedEntry = entries.first { entry in
 
-        // 確保類型匹配
+        // 確保類型相符
         if !filterType.isEmpty, !entry.typeID.contains(filterType) {
           return false
         }
@@ -134,7 +134,7 @@ extension VanguardTrieProtocol {
     guard !keys.isEmpty else { return false }
 
     if partiallyMatch {
-      // 增加快速路徑：如果不需要處理匹配結果，只需檢查是否有匹配節點
+      // 增加快速路徑：如果不需要處理比對結果，只需檢查是否有相符的節點
       if partiallyMatchedKeysHandler == nil {
         return !getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: true).isEmpty
       } else {
@@ -148,7 +148,7 @@ extension VanguardTrieProtocol {
         return !partiallyMatchedResult.isEmpty
       }
     } else {
-      // 對於精確匹配，直接用 getNodeIDs
+      // 對於精確比對，直接用 getNodeIDs
       let nodeIDs = getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: false)
       return !nodeIDs.isEmpty
     }
@@ -167,7 +167,7 @@ extension VanguardTrieProtocol {
       // 1. 獲取所有節點IDs
       let nodeIDs = getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: true)
       guard !nodeIDs.isEmpty else { return [] }
-      // 2. 獲取匹配的讀音和節點，除非 handler 是 nil。
+      // 2. 獲取比對的讀音和節點，除非 handler 是 nil。
       defer {
         let partiallyMatchedResult = partiallyMatchedKeys(
           keys,
@@ -223,7 +223,7 @@ extension VanguardTrieProtocol {
 
       return results
     } else {
-      // 精確匹配 - 現在也使用緩存提高效能
+      // 精確比對 - 現在也使用緩存提高效能
       let nodeIDs = getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: false)
       var processedNodeEntries = [Int: [Entry]]()
       var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()

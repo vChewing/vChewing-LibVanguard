@@ -103,7 +103,7 @@ extension VanguardTrie {
 
     /// 生成批量插入節點的 SQL 語句
     /// - Parameters:
-    ///   - nodes: 節點字典
+    ///   - nodes: 節點辭典
     ///   - sqlCommands: SQL 命令數組，結果會添加到此數組
     private static func generateBatchNodeInserts(
       _ nodes: [Int: VanguardTrie.Trie.TNode],
@@ -166,7 +166,7 @@ extension VanguardTrie {
 
     /// 生成批量插入 keychain_id_map 的 SQL 語句
     /// - Parameters:
-    ///   - keychainMap: keyChainIDMap 字典
+    ///   - keychainMap: keyChainIDMap 辭典
     ///   - sqlCommands: SQL 命令數組，結果會添加到此數組
     private static func generateBatchKeychainIdMapInserts(
       _ keychainMap: [String: Set<Int>],
