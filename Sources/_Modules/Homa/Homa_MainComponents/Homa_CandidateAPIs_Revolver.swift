@@ -149,21 +149,33 @@ extension Homa.Assembler {
     counterClockwise: Bool
   )
     -> Int {
+    // 如果只有一個候選字，直接返回0
     if candidates.count == 1 { return 0 }
-    var result = 0
-    theLoop: for candidate in candidates {
-      if !isNodeOverridden {
-        if candidates[0] == currentPaired {
-          result = counterClockwise ? candidates.count - 1 : 1
-        }
-        break theLoop
+
+    // 非覆寫節點的情況
+    if !isNodeOverridden {
+      // 如果當前選中的是第一個候選字
+      if candidates.first == currentPaired {
+        // 根據旋轉方向決定返回最後一個或第二個候選字
+        return counterClockwise ? candidates.count - 1 : 1
       }
-      result.revolveAsIndex(
-        with: candidates,
-        clockwise: !(candidate == currentPaired && counterClockwise)
-      )
-      if candidate == currentPaired { break }
+      // 否則返回第一個候選字（重置選擇）
+      return 0
     }
-    return (0 ..< candidates.count).contains(result) ? result : 0
+
+    // 覆寫節點的情況：查找當前候選字的索引
+    let currentIndex = candidates.firstIndex { $0 == currentPaired }
+    guard let currentIndex else {
+      // 如果找不到當前候選字，返回第一個
+      return 0
+    }
+
+    // 根據旋轉方向計算下一個索引
+    return switch counterClockwise {
+    case false: // 順時針：向後移動，到尾則回到頭部
+      currentIndex < candidates.count - 1 ? currentIndex + 1 : 0
+    case true: // 逆時針：向前移動，到頭則回到尾部
+      currentIndex > 0 ? currentIndex - 1 : candidates.count - 1
+    }
   }
 }
