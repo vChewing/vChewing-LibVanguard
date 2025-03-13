@@ -21,7 +21,7 @@ let package = Package(
     // Targets can depend on other targets in this package and products from dependencies.
     .target(
       name: "LibVanguard",
-      dependencies: ["TekkonNext", "Homa", "BrailleSputnik"]
+      dependencies: ["TekkonNext", "Homa", "BrailleSputnik", "TrieKit", "KBEventKit"]
     ),
     .testTarget(
       name: "LibVanguardTests",
@@ -72,6 +72,11 @@ let package = Package(
         "TekkonNext",
       ],
       path: "./Tests/_Tests4Components/TrieKitTests"
+    ),
+    // KBEventKit, the Keyboard Event Management Kit.
+    .target(
+      name: "KBEventKit",
+      path: "./Sources/_Modules/KBEventKit"
     ),
     // CSQLite3 for all platforms.
     .target(
