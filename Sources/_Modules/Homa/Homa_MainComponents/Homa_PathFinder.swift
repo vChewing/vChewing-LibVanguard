@@ -3,12 +3,12 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 extension Homa.Assembler {
-  /// 爬軌函式，會以 Dijkstra 算法更新當前組字器的 assembledNodes。
+  /// 爬軌函式，會以 Dijkstra 演算法更新當前組字器的 assembledNodes。
   ///
-  /// 該算法會在圖中尋找具有最高分數的路徑，即最可能的字詞組合。
+  /// 該演算法會在圖中尋找具有最高分數的路徑，即最可能的字詞組合。
   ///
-  /// 該算法所依賴的 HybridPriorityQueue 針對 Sandy Bridge 經過最佳化處理，
-  /// 使得該算法在 Sandy Bridge CPU 的電腦上比 DAG 算法擁有更優的效能。
+  /// 該演算法所依賴的 HybridPriorityQueue 針對 Sandy Bridge 經過最佳化處理，
+  /// 使得該演算法在 Sandy Bridge CPU 的電腦上比 DAG 演算法擁有更優的效能。
   ///
   /// - Returns: 爬軌結果（已選字詞陣列）。
   @discardableResult
@@ -22,12 +22,12 @@ extension Homa.Assembler {
 
 extension Homa {
   final class PathFinder {
-    /// 爬軌工具，會以 Dijkstra 算法更新當前組字器的 assembledNodes。
+    /// 爬軌工具，會以 Dijkstra 演算法更新當前組字器的 assembledNodes。
     ///
-    /// 該算法會在圖中尋找具有最高分數的路徑，即最可能的字詞組合。
+    /// 該演算法會在圖中尋找具有最高分數的路徑，即最可能的字詞組合。
     ///
-    /// 該算法所依賴的 HybridPriorityQueue 針對 Sandy Bridge 經過最佳化處理，
-    /// 使得該算法在 Sandy Bridge CPU 的電腦上比 DAG 算法擁有更優的效能。
+    /// 該演算法所依賴的 HybridPriorityQueue 針對 Sandy Bridge 經過最佳化處理，
+    /// 使得該演算法在 Sandy Bridge CPU 的電腦上比 DAG 演算法擁有更優的效能。
     @discardableResult
     init(config: Homa.Config, assembledNodes: inout [Homa.Node]) {
       var newassembledNodes = [Homa.Node]()

@@ -3,13 +3,15 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 extension Homa {
-  public typealias CandidatePair = (keyArray: [String], value: String)
-  public typealias CandidatePairWeighted = (pair: CandidatePair, weight: Double)
-  public typealias GramQuerier = ([String]) -> [(
+  public typealias CandidatePairRAW = (keyArray: [String], value: String)
+  public typealias CandidatePairWeightedRAW = (pair: CandidatePairRAW, weight: Double)
+  public typealias GramQuerier = ([String]) -> [GramRAW]
+  public typealias GramAvailabilityChecker = ([String]) -> Bool
+
+  public typealias GramRAW = (
     keyArray: [String],
     value: String,
     probability: Double,
     previous: String?
-  )]
-  public typealias GramAvailabilityChecker = ([String]) -> Bool
+  )
 }

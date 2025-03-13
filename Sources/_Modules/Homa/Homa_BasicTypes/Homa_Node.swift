@@ -132,7 +132,7 @@ extension Homa.Node {
   /// 該節點當前狀態所展示的鍵值配對。
   public var currentPair: Homa.CandidatePair? {
     guard let currentGram else { return nil }
-    return (keyArray: currentGram.keyArray, value: currentGram.current)
+    return .init(keyArray: currentGram.keyArray, value: currentGram.current)
   }
 
   /// 生成自身的拷貝。
@@ -170,8 +170,8 @@ extension Homa.Node {
   }
 
   /// 給出目前的最高權元圖當中的權重值（包括雙元圖）。該結果可能會受節點覆寫狀態所影響。
-  /// - Remarks: 這個函式會根據匹配到的前述節點內容，來查詢可能的雙元圖資料。
-  /// 一旦有匹配到的雙元圖資料，就會比較雙元圖資料的權重與當前節點的權重，並選擇
+  /// - Remarks: 這個函式會根據比對到的前述節點內容，來查詢可能的雙元圖資料。
+  /// 一旦有比對到相符的雙元圖資料，就會比較雙元圖資料的權重與當前節點的權重，並選擇
   /// 權重較高的那個、然後**據此視情況自動修改這個節點的覆寫狀態種類**。
   /// - Parameter previous: 前述節點內容，用以查詢可能的雙元圖資料。
   /// - Returns: 權重。
@@ -185,6 +185,7 @@ extension Homa.Node {
     guard bigramScore > currentScore else { return currentScore }
     do {
       try selectOverrideGram(
+        keyArray: bigram.keyArray,
         value: bigram.current,
         previous: bigram.previous,
         type: .withTopGramScore
@@ -223,17 +224,20 @@ extension Homa.Node {
 
   /// 指定要覆寫的元圖資料值、以及覆寫行為種類。
   /// - Parameters:
+  ///   - keyArray: 給定索引鍵陣列。
   ///   - value: 給定的元圖資料值。
   ///   - previous: 前述資料。
   ///   - type: 覆寫行為種類。
   /// - Returns: 操作是否順利完成。
   public func selectOverrideGram(
+    keyArray: [String]?,
     value: String,
     previous: String? = nil,
     type: Homa.Node.OverrideType
   ) throws {
     guard type != .none else { throw Homa.Exception.nothingOverriddenAtNode }
     for (i, gram) in grams.enumerated() {
+      if let keyArray, keyArray != gram.keyArray { continue }
       if value != gram.current { continue }
       if let previous, !previous.isEmpty, previous != gram.previous { continue }
       currentGramIndex = i
@@ -324,7 +328,7 @@ extension Array where Element == Homa.Node {
     return findNode(at: cursor, target: &useless)
   }
 
-  /// 提供一組逐字的字音配對陣列（不使用 Homa 的 KeyValuePaired 類型），但字音不匹配的節點除外。
+  /// 提供一組逐字的字音配對陣列（不使用 Homa 的 KeyValuePaired 類型），但字音不相符的節點除外。
   public var smashedPairs: [(key: String, value: String)] {
     var arrData = [(key: String, value: String)]()
     forEach { node in

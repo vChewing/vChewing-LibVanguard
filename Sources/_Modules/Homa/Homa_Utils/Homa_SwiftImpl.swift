@@ -20,9 +20,9 @@ extension StringProtocol {
 // MARK: - Index Revolver (only for Array)
 
 extension Int {
-  /// 將整數作為數組索引進行循環位移。
+  /// 將整數作為陣列索引進行循環位移。
   /// - Parameters:
-  ///   - target: 目標數組
+  ///   - target: 目標陣列
   ///   - clockwise: 是否順時針位移（向更大的索引方向）
   ///   - steps: 位移步數
   public mutating func revolveAsIndex<T>(with target: [T], clockwise: Bool = true, steps: Int = 1) {

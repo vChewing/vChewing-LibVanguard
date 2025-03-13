@@ -31,12 +31,12 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。
     try assembler.overrideCandidate(
-      (["ㄌㄧㄡˊ"], "留"), at: 3, type: .withSpecified
+      .init(keyArray: ["ㄌㄧㄡˊ"], value: "留"), at: 3, type: .withSpecified
     )
     // 測試覆寫「一縷」以打斷「留意」與「呂方」。這也便於最後一個位置的 Bigram 測試。
     // （因為是有了「一縷」這個前提才會去找對應的 Bigram。）
     try assembler.overrideCandidate(
-      (["ㄧˋ", "ㄌㄩˇ"], "一縷"), at: 4, type: .withSpecified
+      .init(keyArray: ["ㄧˋ", "ㄌㄩˇ"], value: "一縷"), at: 4, type: .withSpecified
     )
     let dotWithBigram = assembler.dumpDOT(verticalGraph: true)
     assembledSentence = assembler.assemble().compactMap(\.value)
@@ -48,7 +48,7 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "方"])
     // 對位置 7 這個最前方的座標位置使用節點覆寫。會在此過程中自動糾正成對位置 6 的覆寫。
     try assembler.overrideCandidate(
-      (["ㄈㄤ"], "芳"), at: 7, type: .withSpecified
+      .init(keyArray: ["ㄈㄤ"], value: "芳"), at: 7, type: .withSpecified
     )
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
@@ -83,12 +83,12 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。
     try assembler.overrideCandidate(
-      (["ㄌㄧㄡˊ"], "留"), at: 3, type: .withSpecified
+      .init(keyArray: ["ㄌㄧㄡˊ"], value: "留"), at: 3, type: .withSpecified
     )
     // 測試覆寫「一縷」以打斷「留意」與「呂方」。這也便於最後一個位置的 Bigram 測試。
     // （因為是有了「一縷」這個前提才會去找對應的 Bigram。）
     try assembler.overrideCandidate(
-      (["ㄧˋ", "ㄌㄩˇ"], "一縷"), at: 4, type: .withSpecified
+      .init(keyArray: ["ㄧˋ", "ㄌㄩˇ"], value: "一縷"), at: 4, type: .withSpecified
     )
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
@@ -125,12 +125,12 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。
     try assembler.overrideCandidate(
-      (["ㄌㄧㄡˊ"], "留"), at: 3, type: .withSpecified
+      .init(keyArray: ["ㄌㄧㄡˊ"], value: "留"), at: 3, type: .withSpecified
     )
     // 測試覆寫「一縷」以打斷「留意」與「呂方」。這也便於最後一個位置的 Bigram 測試。
     // （因為是有了「一縷」這個前提才會去找對應的 Bigram。）
     try assembler.overrideCandidate(
-      (["ㄧˋ", "ㄌㄩˇ"], "一縷"), at: 4, type: .withSpecified
+      .init(keyArray: ["ㄧˋ", "ㄌㄩˇ"], value: "一縷"), at: 4, type: .withSpecified
     )
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])

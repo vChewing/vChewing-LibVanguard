@@ -82,15 +82,15 @@ extension Homa.Assembler {
         case .endAt:
           if theNode.keyArray.reversed()[0] != keyAtCursor { return }
         }
-        result.append((
-          pair: (keyArray: theNode.keyArray, value: gram.current),
+        result.append(.init(
+          pair: .init(keyArray: theNode.keyArray, value: gram.current),
           weight: gram.probability
         ))
       }
     }
-    var seen = Set<String>()
+    var seen = Set<Homa.CandidatePairWeighted>()
     return result.filter {
-      seen.insert("\($0)").inserted
+      seen.insert($0).inserted
     }
   }
 }
@@ -197,7 +197,7 @@ public final class SimpleTrie {
     self.root = .init(id: 0)
     self.nodes = [:]
 
-    // 初始化時，將根節點加入到節點字典中
+    // 初始化時，將根節點加入到節點辭典中
     root.id = 0
     root.parentID = nil
     root.character = ""
@@ -304,7 +304,7 @@ public final class SimpleTrie {
 
   public let readingSeparator: String
   public let root: TNode
-  public internal(set) var nodes: [Int: TNode] // 新增：節點字典，以id為索引
+  public internal(set) var nodes: [Int: TNode] // 新增：節點辭典，以id為索引
   public internal(set) var keyChainIDMap: [String: Set<Int>]
 
   // MARK: Private
@@ -405,7 +405,7 @@ extension SimpleTrie {
     readings: [String],
     entry: Entry
   )] {
-    // 使用 keyChainIDMap 優化查詢效能，尤其對於精確匹配的情況
+    // 使用 keyChainIDMap 優化查詢效能，尤其對於精確比對的情況
     if !partiallyMatch {
       let nodeIDs = keyChainIDMap[key, default: []]
       if !nodeIDs.isEmpty {
@@ -475,10 +475,10 @@ extension SimpleTrie {
 
       // 從 keyChainIDMap 中查找所有鍵
       keyChainIDMap.forEach { keyChain, nodeIDs in
-        // 只處理那些至少和首個查詢鍵匹配的鍵鏈
+        // 只處理那些至少和首個查詢鍵相符的鍵鏈
         let keyComponents = keyChain.split(separator: readingSeparator).map(\.description)
 
-        // 檢查長度是否匹配
+        // 檢查長度是否相符
         guard keyComponents.count == keys.count else { return }
 
         // 檢查每個元素是否以對應的前綴開頭
@@ -577,7 +577,7 @@ extension SimpleTrie {
       // 5. 提前獲取一次 entries 並重用
       let entries = getEntries(node: node)
 
-      // 確保讀音數量匹配
+      // 確保讀音數量比對
       let nodeReadings = node.readingKey.split(separator: readingSeparator).map(\.description)
       guard nodeReadings.count == keys.count else { continue }
       // 確保每個讀音都以對應的前綴開頭
@@ -605,7 +605,7 @@ extension SimpleTrie {
     guard !keys.isEmpty else { return false }
 
     if partiallyMatch {
-      // 增加快速路徑：如果不需要處理匹配結果，只需檢查是否有匹配節點
+      // 增加快速路徑：如果不需要處理比對結果，只需檢查是否有相符的節點
       if partiallyMatchedKeysHandler == nil {
         return !getNodeIDs(keysChopped: keys, partiallyMatch: true).isEmpty
       } else {
@@ -618,7 +618,7 @@ extension SimpleTrie {
         return !partiallyMatchedResult.isEmpty
       }
     } else {
-      // 對於精確匹配，直接用 getNodeIDs
+      // 對於精確比對，直接用 getNodeIDs
       let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: false)
       return !nodeIDs.isEmpty
     }
@@ -636,7 +636,7 @@ extension SimpleTrie {
       // 1. 獲取所有節點IDs
       let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: true)
       guard !nodeIDs.isEmpty else { return [] }
-      // 2. 獲取匹配的讀音和節點，除非 handler 是 nil。
+      // 2. 獲取相符的讀音和節點，除非 handler 是 nil。
       defer {
         let partiallyMatchedResult = partiallyMatchedKeys(
           keys,
@@ -690,7 +690,7 @@ extension SimpleTrie {
 
       return results
     } else {
-      // 精確匹配 - 現在也使用緩存提高效能
+      // 精確比對 - 現在也使用緩存提高效能
       let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: false)
       var processedNodeEntries = [Int: [Entry]]()
       var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()

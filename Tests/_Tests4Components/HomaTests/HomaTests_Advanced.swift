@@ -190,7 +190,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     }
   }
 
-  /// 組字器的組字功能測試（單元圖，完整輸入讀音與聲調，完全匹配）。
+  /// 組字器的組字功能測試（單元圖，完整輸入讀音與聲調，完全比對）。
   @Test("[Homa] Assember_AssembleAndOverride_WithUnigramAndCursorJump")
   func testAssembleAndOverrideWithUnigramAndCursorJump() async throws {
     let readings = "chao1 shang1 da4 qian2 tian1 wei2 zhi3 hai2 zai5 mai4 nai3 ji1"
@@ -222,12 +222,12 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     // 單獨測試對最前方的讀音的覆寫。
     do {
       let assemberCopy1 = assembler.copy
-      try assemberCopy1.overrideCandidate((keyArray: ["ji1"], value: "雞"), at: 11)
+      try assemberCopy1.overrideCandidate(.init(keyArray: ["ji1"], value: "雞"), at: 11)
       assembledSentence = assemberCopy1.assemble().compactMap(\.value)
       #expect(assembledSentence == ["超商", "大前天", "為止", "還", "在", "賣", "乃", "雞"])
     }
     // 回到先前的測試，測試對整個詞的覆寫。
-    try assembler.overrideCandidate((keyArray: ["nai3", "ji1"], value: "奶雞"), at: 10)
+    try assembler.overrideCandidate(.init(keyArray: ["nai3", "ji1"], value: "奶雞"), at: 10)
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["超商", "大前天", "為止", "還", "在", "賣", "奶雞"])
     // 測試游標跳轉。
@@ -264,7 +264,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     #expect(assembler.cursor == 12)
   }
 
-  /// 組字器的組字功能測試（雙元圖，完整輸入讀音與聲調，完全匹配）。
+  /// 組字器的組字功能測試（雙元圖，完整輸入讀音與聲調，完全比對）。
   ///
   /// 這個測試包含了：
   /// - 讀音輸入處理。
@@ -287,12 +287,12 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。
     try assembler.overrideCandidate(
-      (["liu2"], "留"), at: 3, type: .withSpecified
+      .init(keyArray: ["liu2"], value: "留"), at: 3, type: .withSpecified
     )
     // 測試覆寫「一縷」以打斷「留意」與「呂方」。這也便於最後一個位置的 Bigram 測試。
     // （因為是有了「一縷」這個前提才會去找對應的 Bigram。）
     try assembler.overrideCandidate(
-      (["yi4", "lv3"], "一縷"), at: 4, type: .withSpecified
+      .init(keyArray: ["yi4", "lv3"], value: "一縷"), at: 4, type: .withSpecified
     )
     let dotWithBigram = assembler.dumpDOT(verticalGraph: true)
     assembledSentence = assembler.assemble().compactMap(\.value)
@@ -304,7 +304,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "方"])
     // 對位置 7 這個最前方的座標位置使用節點覆寫。會在此過程中自動糾正成對位置 6 的覆寫。
     try assembler.overrideCandidate(
-      (["fang1"], "芳"), at: 7, type: .withSpecified
+      .init(keyArray: ["fang1"], value: "芳"), at: 7, type: .withSpecified
     )
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
@@ -342,12 +342,12 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。
     try assembler.overrideCandidate(
-      (["liu2"], "留"), at: 3, type: .withSpecified
+      .init(keyArray: ["liu2"], value: "留"), at: 3, type: .withSpecified
     )
     // 測試覆寫「一縷」以打斷「留意」與「呂方」。這也便於最後一個位置的 Bigram 測試。
     // （因為是有了「一縷」這個前提才會去找對應的 Bigram。）
     try assembler.overrideCandidate(
-      (["yi4", "lv3"], "一縷"), at: 4, type: .withSpecified
+      .init(keyArray: ["yi4", "lv3"], value: "一縷"), at: 4, type: .withSpecified
     )
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
@@ -374,7 +374,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     do {
       do {
         #expect(Self.mustDone {
-          try assembler.overrideCandidate((keyArray: ["shui3"], value: "💦"), at: 0)
+          try assembler.overrideCandidate(.init(keyArray: ["shui3"], value: "💦"), at: 0)
         })
         assembledSentence = assembler.assemble().compactMap(\.value)
         #expect(assembledSentence == ["💦", "果汁"])
@@ -382,7 +382,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
       do {
         #expect(Self.mustDone {
           try assembler.overrideCandidate(
-            (keyArray: ["shui3", "guo3", "zhi1"], value: "水果汁"), at: 1
+            .init(keyArray: ["shui3", "guo3", "zhi1"], value: "水果汁"), at: 1
           )
         })
         assembledSentence = assembler.assemble().compactMap(\.value)
@@ -391,7 +391,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
       do {
         #expect(Self.mustDone {
           // 再覆寫回來。
-          try assembler.overrideCandidate((keyArray: ["shui3"], value: "💦"), at: 0)
+          try assembler.overrideCandidate(.init(keyArray: ["shui3"], value: "💦"), at: 0)
         })
         assembledSentence = assembler.assemble().compactMap(\.value)
         #expect(assembledSentence == ["💦", "果汁"])
@@ -402,14 +402,14 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     do {
       do {
         #expect(Self.mustDone {
-          try assembler.overrideCandidate((keyArray: ["guo3"], value: "裹"), at: 1)
+          try assembler.overrideCandidate(.init(keyArray: ["guo3"], value: "裹"), at: 1)
         })
         assembledSentence = assembler.assemble().compactMap(\.value)
         #expect(assembledSentence == ["💦", "裹", "之"])
       }
       do {
         #expect(Self.mustDone {
-          try assembler.overrideCandidate((keyArray: ["zhi1"], value: "知"), at: 2)
+          try assembler.overrideCandidate(.init(keyArray: ["zhi1"], value: "知"), at: 2)
         })
         assembledSentence = assembler.assemble().compactMap(\.value)
         #expect(assembledSentence == ["💦", "裹", "知"])
@@ -418,7 +418,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
         #expect(Self.mustDone {
           // 再覆寫回來。
           try assembler.overrideCandidate(
-            (keyArray: ["shui3", "guo3", "zhi1"], value: "水果汁"), at: 3
+            .init(keyArray: ["shui3", "guo3", "zhi1"], value: "水果汁"), at: 3
           )
         })
         assembledSentence = assembler.assemble().compactMap(\.value)
@@ -444,7 +444,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     do {
       #expect(Self.mustDone {
         try assembler.overrideCandidate(
-          (keyArray: ["ji4", "gong1"], value: "濟公"), at: 1
+          .init(keyArray: ["ji4", "gong1"], value: "濟公"), at: 1
         )
       })
       assembledSentence = assembler.assemble().compactMap(\.value)
@@ -453,7 +453,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     do {
       #expect(Self.mustDone {
         try assembler.overrideCandidate(
-          (keyArray: ["gong1", "yuan2"], value: "公猿"), at: 2
+          .init(keyArray: ["gong1", "yuan2"], value: "公猿"), at: 2
         )
       })
       assembledSentence = assembler.assemble().compactMap(\.value)
@@ -462,7 +462,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     do {
       #expect(Self.mustDone {
         try assembler.overrideCandidate(
-          (keyArray: ["ke1", "ji4"], value: "科際"), at: 0
+          .init(keyArray: ["ke1", "ji4"], value: "科際"), at: 0
         )
       })
       assembledSentence = assembler.assemble().compactMap(\.value)
@@ -489,17 +489,132 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     let pos = 2
     do {
       #expect(Self.mustDone {
-        try assembler.overrideCandidate((keyArray: ["xin1"], value: "🆕"), at: pos)
+        try assembler.overrideCandidate(.init(keyArray: ["xin1"], value: "🆕"), at: pos)
       })
       assembledSentence = assembler.assemble().compactMap(\.value)
       #expect(assembledSentence == ["大樹", "🆕", "的", "蜜蜂"])
     }
     do {
       #expect(Self.mustDone {
-        try assembler.overrideCandidate((keyArray: ["xin1", "de5"], value: "🆕"), at: pos)
+        try assembler.overrideCandidate(.init(keyArray: ["xin1", "de5"], value: "🆕"), at: pos)
       })
       assembledSentence = assembler.assemble().compactMap(\.value)
       #expect(assembledSentence == ["大樹", "🆕", "蜜蜂"])
+    }
+  }
+
+  /// 組字器的候選字輪替測試。
+  @Test("[Homa] Assember_TestCandidateRevolvementWithConsolidation", arguments: [false, true])
+  func testCandidateRevolvementWithConsolidation(partialMatch: Bool) async throws {
+    let rdSimp = "k j g y c s m n j"
+    let rdFull = "ke1 ji4 gong1 yuan2 chao1 shang1 mai4 nai3 ji1"
+    let readings: String = partialMatch ? rdSimp : rdFull
+    let mockLM = TestLM(rawData: strLMSampleDataTechGuarden + "\n" + strLMSampleDataLitch)
+
+    // 此處無須刻意爬軌，因為 revolveCandidate 會在發現沒爬軌的時候自動爬一次軌。
+    // 準備正式測試。
+    let cases: [Homa.Assembler.CandidateCursor] = [.placedFront, .placedRear]
+    try cases.forEach { candidateCursorType in
+      let assembler = Homa.Assembler(
+        gramQuerier: { mockLM.queryGrams($0, partiallyMatch: partialMatch) },
+        gramAvailabilityChecker: { mockLM.hasGrams($0, partiallyMatch: partialMatch) }
+      )
+      try readings.split(separator: " ").forEach {
+        try assembler.insertKey($0.description)
+      }
+      let partialText: String = partialMatch ? "PartialMatch" : "FullMatch"
+      print(
+        "// Testing revolvement (\(partialText)) with CandidateCursorType.\(candidateCursorType)..."
+      )
+      try (0 ... assembler.length).forEach { pos in
+        assembler.cursor = pos
+        var doRevolve = true
+        var revolvedCandidates = [Homa.CandidatePair]()
+        var allCandidates = [Homa.CandidatePairWeighted]() // 記錄所有候選字
+        var previouslyRevolvedCandidate: Homa.CandidatePair?
+        var debugIntelBuilder = [String]()
+        do {
+          revolvementTaskAtThisPos: while doRevolve {
+            var fetchedCandidates: [Homa.CandidatePairWeighted] = []
+            let currentRevolved = try assembler.revolveCandidate(
+              cursorType: candidateCursorType,
+              counterClockwise: false
+            ) { debugIntel in
+              debugIntelBuilder.append(debugIntel)
+            } candidateArrayHandler: { _ in
+              fetchedCandidates = fetchedCandidates
+            }
+
+            // 記錄這次的候選字
+            allCandidates.append(currentRevolved.0)
+
+            let currentRevolvedPair = currentRevolved.0.pair
+            if revolvedCandidates.contains(currentRevolvedPair) {
+              // 若發現重複，檢查詳細情況
+              if revolvedCandidates.count != currentRevolved.total {
+                print("=== 檢測到不一致: 位置 \(pos), 游標類型 \(candidateCursorType) ===")
+                print("已輪替數量: \(revolvedCandidates.count), 報告總數: \(currentRevolved.total)")
+                print("當前候選字: \(currentRevolved.0.pair.value)")
+
+                // 獲取該位置的所有候選字，進行對比分析
+                let filter: Homa.Assembler.CandidateFetchFilter =
+                  candidateCursorType == .placedFront ? .endAt : .beginAt
+                let allAvailableCandidates = assembler.fetchCandidates(at: pos, filter: filter)
+                print("fetchCandidates 結果數量: \(allAvailableCandidates.count)")
+
+                // 檢查是否有重複候選字未被正確過濾
+                var seenValues = Set<String>()
+                var duplicateFound = false
+                for candidate in allAvailableCandidates {
+                  let valueStr = "\(candidate.pair)"
+                  if !seenValues.insert(valueStr).inserted {
+                    print("發現重複候選字值: \(valueStr)")
+                    duplicateFound = true
+                  }
+                }
+                if !duplicateFound {
+                  print("未發現重複候選字值")
+                }
+
+                // 比較已輪替的候選字和所有可用候選字
+                print("已輪替的候選字:")
+                for (idx, candidate) in allCandidates.enumerated() {
+                  print(
+                    "[\(idx)] \(candidate.pair.value) (\(candidate.pair.keyArray.joined(separator: "-"))) \(candidate.weight)"
+                  )
+                }
+
+                print("選字窗的候選字：")
+                for (idx, candidate) in fetchedCandidates.enumerated() {
+                  print(
+                    "[\(idx)] \(candidate.pair.value) (\(candidate.pair.keyArray.joined(separator: "-"))) \(candidate.weight)"
+                  )
+                }
+              }
+              #expect(
+                revolvedCandidates.count == currentRevolved.total,
+                Comment(stringLiteral: """
+                位置:\(pos), 已輪替:\(revolvedCandidates.count), \
+                報告總數:\(currentRevolved.total), 選字游標類型：\(candidateCursorType)
+                """)
+              )
+              doRevolve = false
+            }
+            #expect(
+              previouslyRevolvedCandidate != currentRevolvedPair,
+              Comment(stringLiteral: "\(currentRevolvedPair)")
+            )
+            guard previouslyRevolvedCandidate != currentRevolvedPair else {
+              break revolvementTaskAtThisPos
+            }
+            previouslyRevolvedCandidate = currentRevolvedPair
+            revolvedCandidates.append(currentRevolvedPair)
+          }
+        } catch {
+          print(debugIntelBuilder.joined(separator: "\n"))
+          throw error
+        }
+      }
     }
   }
 }

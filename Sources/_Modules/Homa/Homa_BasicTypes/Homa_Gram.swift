@@ -10,15 +10,7 @@ extension Homa {
   public final class Gram: Codable, CustomStringConvertible, Equatable, Sendable, Hashable {
     // MARK: Lifecycle
 
-    public init(
-      _ rawTuple: (
-        keyArray: [String],
-        value: String,
-        probability: Double,
-        previous: String?
-      ),
-      backoff: Double = 0
-    ) {
+    public init(_ rawTuple: GramRAW, backoff: Double = 0) {
       self.keyArray = rawTuple.keyArray
       self.current = rawTuple.value
       if let previous = rawTuple.previous, !previous.isEmpty {
@@ -65,12 +57,7 @@ extension Homa {
       return "P(\(current)|\(previous))=\(probability)" // 雙元圖
     }
 
-    public var asTuple: (
-      keyArray: [String],
-      value: String,
-      probability: Double,
-      previous: String?
-    ) {
+    public var asTuple: GramRAW {
       (
         keyArray: keyArray,
         value: current,

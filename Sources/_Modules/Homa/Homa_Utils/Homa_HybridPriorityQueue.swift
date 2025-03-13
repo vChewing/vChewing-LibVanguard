@@ -20,7 +20,6 @@ struct HybridPriorityQueue<T: Comparable> {
   // MARK: Internal
 
   var isEmpty: Bool {
-    // 單一資料來源原則。
     usingArray ? sortedArray.isEmpty : heap.isEmpty
   }
 
