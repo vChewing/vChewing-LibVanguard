@@ -13,7 +13,7 @@ extension Tekkon {
       self.root = .init()
       self.nodes = [:]
 
-      // 初始化時，將根節點加入到節點字典中
+      // 初始化時，將根節點加入到節點辭典中
       root.id = 0
       root.parentID = nil
       root.character = ""
@@ -77,7 +77,7 @@ extension Tekkon {
 
     public let parser: MandarinParser
     public let root: TNode
-    public var nodes: [Int: TNode] // 新增：節點字典，以id為索引
+    public var nodes: [Int: TNode] // 新增：節點辭典，以id為索引
 
     // MARK: Private
 

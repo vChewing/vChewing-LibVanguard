@@ -24,7 +24,7 @@ extension Tekkon.Composer {
     while currentPosition < complexLength {
       var foundMatch = false
 
-      // 嘗試從最長的可能前綴開始匹配
+      // 嘗試從最長的可能前綴開始比對
       let longPossibleScopeSize = min(maxScopeSize, complexLength - currentPosition)
       checkPosition: for scopeSize in (1 ... longPossibleScopeSize).reversed() {
         let endPosition = currentPosition + scopeSize
@@ -45,7 +45,7 @@ extension Tekkon.Composer {
         }
       }
 
-      // 如果沒找到匹配項，將當前字符作為單獨的一項
+      // 如果沒找到相符的條目，將當前字符作為單獨的一項
       if !foundMatch {
         result.append(String(givenCharComplex[currentPosition]))
         currentPosition += 1
