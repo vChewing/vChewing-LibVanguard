@@ -160,7 +160,7 @@ extension KBEvent {
     0x1008ff13: (0x48, nil),
   ]
 
-  private struct FCITX5FlagsOfModifier: OptionSet {
+  private struct FCITX5FlagsOfModifier: OptionSet, Codable, Hashable, Sendable {
     static let empty = Self([])
     static let shift = Self(rawValue: 1 << 0)
     static let capsLock = Self(rawValue: 1 << 1)

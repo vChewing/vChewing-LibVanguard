@@ -6,7 +6,7 @@ import Foundation
 
 // MARK: - KBEvent
 
-public struct KBEvent: KBEventProtocol, Hashable {
+public struct KBEvent: KBEventProtocol, Codable, Hashable, Sendable {
   // MARK: Lifecycle
 
   public init(
@@ -75,7 +75,7 @@ public struct KBEvent: KBEventProtocol, Hashable {
 // MARK: - KBEvent Extension - SubTypes
 
 extension KBEvent {
-  public struct ModifierFlags: OptionSet, Hashable, Sendable {
+  public struct ModifierFlags: OptionSet, Codable, Hashable, Sendable {
     // MARK: Lifecycle
 
     public init(rawValue: UInt) {
@@ -101,7 +101,7 @@ extension KBEvent {
     public let rawValue: UInt
   }
 
-  public enum EventType: UInt8 {
+  public enum EventType: UInt8, Codable, Hashable, Sendable {
     case keyDown = 10
     case keyUp = 11
     case flagsChanged = 12
@@ -280,7 +280,7 @@ extension KBEvent {
 // MARK: KBEvent.SpecialKey
 
 extension KBEvent {
-  public enum SpecialKey: UInt16 {
+  public enum SpecialKey: UInt16, Codable, Hashable, Sendable {
     case upArrow = 0xF700
     case downArrow = 0xF701
     case leftArrow = 0xF702
@@ -375,7 +375,7 @@ extension KBEvent {
 // Use KeyCodes as much as possible since its recognition won't be affected by macOS Base Keyboard Layouts.
 // KeyCodes: https://eastmanreference.com/complete-list-of-applescript-key-codes
 // Also: HIToolbox.framework/Versions/A/Headers/Events.h
-public enum KeyCode: UInt16 {
+public enum KeyCode: UInt16, Codable, Hashable, Sendable {
   case kNone = 0
   case kCarriageReturn = 36 // Renamed from "kReturn" to avoid nomenclatural confusions.
   case kTab = 48
@@ -512,7 +512,7 @@ public enum KeyCode: UInt16 {
 
 // MARK: - KeyCodeBlackListed
 
-enum KeyCodeBlackListed: UInt16 {
+enum KeyCodeBlackListed: UInt16, Codable, Hashable, Sendable {
   case kF17 = 64
   case kVolumeUp = 72
   case kVolumeDown = 73
