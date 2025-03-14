@@ -3,7 +3,7 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 import Foundation
-@testable import TekkonNext
+@testable import Tekkon
 import Testing
 
 // MARK: - Something Else
@@ -88,7 +88,7 @@ struct TekkonTestsKeyboardArrangmentsStatic {
     counter += 1
   }
 
-  @Test("[TekkonNext] StaticKeyLayout_Dachen")
+  @Test("[Tekkon] StaticKeyLayout_Dachen")
   func testQwertyDachenKeys() async throws {
     // Testing Dachen Traditional Mapping (QWERTY)
     var c = Tekkon.Composer(arrange: .ofDachen)
@@ -115,10 +115,10 @@ struct TekkonTestsKeyboardArrangmentsStatic {
 // MARK: - TekkonTestsKeyboardArrangmentsDynamic
 
 struct TekkonTestsKeyboardArrangmentsDynamic {
-  typealias Parser = TekkonNext.Tekkon.MandarinParser
+  typealias Parser = Tekkon.MandarinParser
 
   @Test(
-    "[TekkonNext] DynamicKeyLayouts",
+    "[Tekkon] DynamicKeyLayouts",
     arguments: Array(Parser.allCases.filter(\.isDynamic).enumerated())
   )
   func testDynamicKeyLayouts(
@@ -128,7 +128,7 @@ struct TekkonTestsKeyboardArrangmentsDynamic {
     let idxRaw = parserEnumerated.offset
     let parser = parserEnumerated.element
     var cases = [SubTestCase?]()
-    print(" -> [TekkonNext] Preparing tests for dynamic keyboard handling...")
+    print(" -> [Tekkon] Preparing tests for dynamic keyboard handling...")
     var isTitleLine = true
     testTable4DynamicLayouts.parse(splitee: "\n") { theRange in
       guard !isTitleLine else {
@@ -147,7 +147,7 @@ struct TekkonTestsKeyboardArrangmentsDynamic {
       cases.append(newTestCase)
     }
     let timeTag = Date.now
-    print(" -> [TekkonNext][(\(parser.nameTag))] Starting dynamic keyboard handling test ...")
+    print(" -> [Tekkon][(\(parser.nameTag))] Starting dynamic keyboard handling test ...")
     let results = cases.compactMap { testCase in
       (testCase?.verify() ?? true) ? 0 : 1
     }.reduce(0, +)
@@ -158,7 +158,7 @@ struct TekkonTestsKeyboardArrangmentsDynamic {
     let timeDelta = Date.now.timeIntervalSince1970 - timeTag.timeIntervalSince1970
     let timeDeltaStr = String(format: "%.4f", timeDelta)
     print(
-      " -> [TekkonNext][(\(parser.nameTag))] Finished within \(timeDeltaStr) seconds."
+      " -> [Tekkon][(\(parser.nameTag))] Finished within \(timeDeltaStr) seconds."
     )
   }
 }

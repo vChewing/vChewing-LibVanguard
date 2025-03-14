@@ -4,7 +4,7 @@
 
 import Foundation
 import Homa
-import TekkonNext
+import Tekkon
 import Testing
 @testable import TrieKit
 

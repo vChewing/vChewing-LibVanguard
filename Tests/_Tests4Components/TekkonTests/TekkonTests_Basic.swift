@@ -2,14 +2,14 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-@testable import TekkonNext
+@testable import Tekkon
 import Testing
 
 // MARK: - TekkonTestsBasic
 
 @Suite(.serialized)
 struct TekkonTestsBasic {
-  @Test("[TekkonNext] TestCoverage")
+  @Test("[Tekkon] TestCoverage")
   func testMandarinParser() async throws {
     // This is only for filling the testing coverage.
     var composer = Tekkon.Composer(arrange: .ofDachen)
@@ -30,7 +30,7 @@ struct TekkonTestsBasic {
     }
   }
 
-  @Test("[TekkonNext] Phonabet_Init")
+  @Test("[Tekkon] Phonabet_Init")
   func testInitializingPhonabet() async throws {
     let thePhonabetNull = Tekkon.Phonabet("0")
     let thePhonabetA = Tekkon.Phonabet("ㄉ")
@@ -50,7 +50,7 @@ struct TekkonTestsBasic {
     #expect(thePhonabetE.type == .null)
   }
 
-  @Test("[TekkonNext] Composer_InputValidityCheck")
+  @Test("[Tekkon] Composer_InputValidityCheck")
   func testIsValidKeyWithKeys() async throws {
     var result = true
     var composer = Tekkon.Composer(arrange: .ofDachen)
@@ -79,7 +79,7 @@ struct TekkonTestsBasic {
     #expect(result == true)
   }
 
-  @Test("[TekkonNext] Composer_Zhuyin_InputAndComposition")
+  @Test("[Tekkon] Composer_Zhuyin_InputAndComposition")
   func testPhonabetKeyReceivingAndCompositions() async throws {
     var composer = Tekkon.Composer(arrange: .ofDachen)
     var toneMarkerIndicator = true
@@ -211,7 +211,7 @@ struct TekkonTestsBasic {
     #expect(Tekkon.cnvHanyuPinyinToPhona(targetJoined: "ㄅㄧㄢˋ-˙ㄌㄜ-ㄊㄧㄢ") == "ㄅㄧㄢˋ-˙ㄌㄜ-ㄊㄧㄢ")
   }
 
-  @Test("[TekkonNext] Composer_Zhuyin_AutoCorrect")
+  @Test("[Tekkon] Composer_Zhuyin_AutoCorrect")
   func testPhonabetCombinationCorrection() async throws {
     var composer = Tekkon.Composer(arrange: .ofDachen, correction: true)
     composer.receiveKey(fromPhonabet: "ㄓ")
@@ -252,7 +252,7 @@ struct TekkonTestsBasic {
     #expect(composer.value == "ㄐㄩㄢˋ")
   }
 
-  @Test("[TekkonNext] Chopper")
+  @Test("[Tekkon] Chopper")
   func testChoppingRawComplex() async throws {
     let composerZhuyin = Tekkon.PinyinTrie(parser: .ofDachen)
     let composerPinyin = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
@@ -264,7 +264,7 @@ struct TekkonTestsBasic {
     #expect(choppedZhuyin2 == ["ㄕ", "ㄐㄧ", "ㄉ", "ㄓ"])
   }
 
-  @Test("[TekkonNext] Pinyin Trie Converting Pinyin Chops to Zhuyin")
+  @Test("[Tekkon] Pinyin Trie Converting Pinyin Chops to Zhuyin")
   func testPinyinTrieConvertingPinyinChopsToZhuyin() async throws {
     // 漢語拼音：
     do {

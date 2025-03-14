@@ -2,14 +2,14 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-@testable import TekkonNext
+@testable import Tekkon
 import Testing
 
 // MARK: - TekkonTestsPinyin
 
 @Suite(.serialized)
 struct TekkonTestsPinyin {
-  @Test("[TekkonNext] Composer_InputAndComposition_HanyuPinyin")
+  @Test("[Tekkon] Composer_InputAndComposition_HanyuPinyin")
   func testHanyuPinyinKeyReceivingAndCompositions() async throws {
     var composer = Tekkon.Composer(arrange: .ofHanyuPinyin)
     var toneMarkerIndicator = true
@@ -56,7 +56,7 @@ struct TekkonTestsPinyin {
     #expect(toneMarkerIndicator)
   }
 
-  @Test("[TekkonNext] Composer_InputAndComposition_SecondaryPinyin")
+  @Test("[Tekkon] Composer_InputAndComposition_SecondaryPinyin")
   func testSecondaryPinyinKeyReceivingAndCompositions() async throws {
     var composer = Tekkon.Composer(arrange: .ofSecondaryPinyin)
     var toneMarkerIndicator = true
@@ -105,7 +105,7 @@ struct TekkonTestsPinyin {
     #expect(toneMarkerIndicator)
   }
 
-  @Test("[TekkonNext] Composer_InputAndComposition_YalePinyin")
+  @Test("[Tekkon] Composer_InputAndComposition_YalePinyin")
   func testYalePinyinKeyReceivingAndCompositions() async throws {
     var composer = Tekkon.Composer(arrange: .ofYalePinyin)
     var toneMarkerIndicator = true
@@ -154,7 +154,7 @@ struct TekkonTestsPinyin {
     #expect(toneMarkerIndicator)
   }
 
-  @Test("[TekkonNext] Composer_InputAndComposition_HualuoPinyin")
+  @Test("[Tekkon] Composer_InputAndComposition_HualuoPinyin")
   func testHualuoPinyinKeyReceivingAndCompositions() async throws {
     var composer = Tekkon.Composer(arrange: .ofHualuoPinyin)
     var toneMarkerIndicator = true
@@ -203,7 +203,7 @@ struct TekkonTestsPinyin {
     #expect(toneMarkerIndicator)
   }
 
-  @Test("[TekkonNext] Composer_InputAndComposition_UniversalPinyin")
+  @Test("[Tekkon] Composer_InputAndComposition_UniversalPinyin")
   func testUniversalPinyinKeyReceivingAndCompositions() async throws {
     var composer = Tekkon.Composer(arrange: .ofUniversalPinyin)
     var toneMarkerIndicator = true
@@ -251,7 +251,7 @@ struct TekkonTestsPinyin {
     #expect(toneMarkerIndicator)
   }
 
-  @Test("[TekkonNext] Composer_InputAndComposition_WadeGiles")
+  @Test("[Tekkon] Composer_InputAndComposition_WadeGiles")
   func testWadeGilesPinyinKeyReceivingAndCompositions() async throws {
     var composer = Tekkon.Composer(arrange: .ofWadeGilesPinyin)
     var toneMarkerIndicator = true

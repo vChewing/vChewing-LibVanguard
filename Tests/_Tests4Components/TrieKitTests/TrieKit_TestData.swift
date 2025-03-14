@@ -2,7 +2,7 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `BSD-3-Clause`.
 
-/// 針對 Vanguard Trie 以及 TekkonNext PinyinTrie 專用的測試資料，故意使用注音索引鍵。
+/// 針對 Vanguard Trie 以及 Tekkon PinyinTrie 專用的測試資料，故意使用注音索引鍵。
 let strLMSampleDataHutao = """
 ㄧㄡ 優 -5.321
 ㄧㄡ 憂 -5.363

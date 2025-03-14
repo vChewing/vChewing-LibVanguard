@@ -16,8 +16,8 @@ let package = Package(
       targets: ["TrieKit"]
     ),
     .library(
-      name: "TekkonNext",
-      targets: ["TekkonNext"]
+      name: "Tekkon",
+      targets: ["Tekkon"]
     ),
     .library(
       name: "Homa",
@@ -29,7 +29,7 @@ let package = Package(
     // Targets can depend on other targets in this package and products from dependencies.
     .target(
       name: "LibVanguard",
-      dependencies: ["TekkonNext", "Homa", "BrailleSputnik", "TrieKit", "KBEventKit"]
+      dependencies: ["Tekkon", "Homa", "BrailleSputnik", "TrieKit", "KBEventKit"]
     ),
     .testTarget(
       name: "LibVanguardTests",
@@ -37,13 +37,13 @@ let package = Package(
     ),
     // Tekkon, the phonabet composer.
     .target(
-      name: "TekkonNext",
-      path: "./Sources/_Modules/TekkonNext"
+      name: "Tekkon",
+      path: "./Sources/_Modules/Tekkon"
     ),
     .testTarget(
-      name: "TekkonNextTests",
-      dependencies: ["TekkonNext"],
-      path: "./Tests/_Tests4Components/TekkonNextTests"
+      name: "TekkonTests",
+      dependencies: ["Tekkon"],
+      path: "./Tests/_Tests4Components/TekkonTests"
     ),
     // Homa, the sentence Assembler.
     .target(
@@ -58,7 +58,7 @@ let package = Package(
     // BrailleSputnik, the Braille module.
     .target(
       name: "BrailleSputnik",
-      dependencies: ["TekkonNext"],
+      dependencies: ["Tekkon"],
       path: "./Sources/_Modules/BrailleSputnik"
     ),
     .testTarget(
@@ -77,7 +77,7 @@ let package = Package(
       dependencies: [
         "TrieKit",
         "Homa",
-        "TekkonNext",
+        "Tekkon",
       ],
       path: "./Tests/_Tests4Components/TrieKitTests"
     ),

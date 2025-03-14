@@ -20,7 +20,7 @@ extension VanguardTrieProtocol {
 
   /// 特殊函式，專門用來處理那種單個讀音位置有兩個讀音的情況。
   ///
-  /// 這只可能是前端打拼音串之後被 TekkonNext.PinyinTrie 分析出了多個結果。
+  /// 這只可能是前端打拼音串之後被 Tekkon.PinyinTrie 分析出了多個結果。
   /// 比如說敲了漢語拼音 s 的話會被分析成兩個結果「ㄕ」和「ㄙ」。
   /// 這會以「ㄕ\(chopCaseSeparator)ㄙ」的形式插入注拼引擎、然後再被傳到這個 Trie 內來查詢。
   func getNodeIDs(
