@@ -2,8 +2,6 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-import TekkonNext
-
 let testTable4DynamicLayouts = """
 $READING Dachen26 ETen26 Hsu Starlight AlvinLiu
 ㄅㄚ qquu ba by ba ba
