@@ -99,15 +99,13 @@ extension BrailleSputnik {
     else { return resultStack }
     sharedComposer.clear()
     rawReading.forEach { char in
-      sharedComposer.receiveKey(fromPhonabet: char.description)
+      sharedComposer.receiveKey(fromPhonabet: char.unicodeScalars.first)
     }
-    let consonant = sharedComposer.consonant.value
-    let semivowel = sharedComposer.semivowel.value
-    let vowel = sharedComposer.vowel.value
-    let intonation = sharedComposer.intonation.value
-    if !consonant.isEmpty {
-      resultStack.append(staticData.mapConsonants[consonant] ?? "")
-    }
+    let consonant = sharedComposer.consonant.scalarValue
+    let semivowel = sharedComposer.semivowel.scalarValue
+    let vowel = sharedComposer.vowel.scalarValue
+    let intonation = sharedComposer.intonation.scalarValue
+    resultStack.append(staticData.mapConsonants[consonant] ?? "")
     let combinedVowels = sharedComposer.semivowel.value + sharedComposer.vowel.value
     if combinedVowels.count == 2 {
       resultStack.append(staticData.mapCombinedVowels[combinedVowels] ?? "")
@@ -117,7 +115,7 @@ extension BrailleSputnik {
     }
     // 聲調處理。
     if let intonationSpecialCaseMetResult = staticData
-      .mapIntonationSpecialCases[vowel + intonation] {
+      .mapIntonationSpecialCases[sharedComposer.vowel + sharedComposer.intonation] {
       resultStack.append(intonationSpecialCaseMetResult.last?.description ?? "")
     } else {
       resultStack.append(staticData.mapIntonations[intonation] ?? "")

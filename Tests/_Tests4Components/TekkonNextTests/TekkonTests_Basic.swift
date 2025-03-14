@@ -37,13 +37,11 @@ struct TekkonTestsBasic {
     let thePhonabetB = Tekkon.Phonabet("ㄧ")
     let thePhonabetC = Tekkon.Phonabet("ㄠ")
     let thePhonabetD = Tekkon.Phonabet("ˇ")
-    #expect(
-      thePhonabetNull.type.rawValue == 0
-        && thePhonabetA.type.rawValue == 1
-        && thePhonabetB.type.rawValue == 2
-        && thePhonabetC.type.rawValue == 3
-        && thePhonabetD.type.rawValue == 4
-    )
+    #expect(thePhonabetNull.type.rawValue == 0)
+    #expect(thePhonabetA.type.rawValue == 1)
+    #expect(thePhonabetB.type.rawValue == 2)
+    #expect(thePhonabetC.type.rawValue == 3)
+    #expect(thePhonabetD.type.rawValue == 4)
     var thePhonabetE = thePhonabetA
     thePhonabetE.selfReplace("ㄉ", "ㄋ")
     #expect(thePhonabetE.value == "ㄋ")

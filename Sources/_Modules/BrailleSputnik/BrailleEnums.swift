@@ -79,10 +79,10 @@ extension BrailleSputnik {
 // MARK: - BrailleProcessingUnit
 
 protocol BrailleProcessingUnit: Sendable {
-  var mapConsonants: [String: String] { get }
-  var mapSemivowels: [String: String] { get }
-  var mapVowels: [String: String] { get }
-  var mapIntonations: [String: String] { get }
+  var mapConsonants: [Unicode.Scalar: String] { get }
+  var mapSemivowels: [Unicode.Scalar: String] { get }
+  var mapVowels: [Unicode.Scalar: String] { get }
+  var mapIntonations: [Unicode.Scalar: String] { get }
   var mapIntonationSpecialCases: [String: String] { get }
   var mapCombinedVowels: [String: String] { get }
   var mapPunctuations: [String: String] { get }
@@ -94,7 +94,7 @@ protocol BrailleProcessingUnit: Sendable {
 
 extension BrailleSputnik {
   final class BrailleProcessingUnit1947: BrailleProcessingUnit {
-    let mapConsonants: [String: String] = [
+    let mapConsonants: [Unicode.Scalar: String] = [
       "ㄎ": "⠇", "ㄋ": "⠝", "ㄕ": "⠊",
       "ㄌ": "⠉", "ㄆ": "⠏", "ㄇ": "⠍",
       "ㄓ": "⠁", "ㄏ": "⠗", "ㄖ": "⠛",
@@ -104,18 +104,18 @@ extension BrailleSputnik {
       "ㄒ": "⠑", "ㄊ": "⠋", "ㄍ": "⠅",
     ]
 
-    let mapSemivowels: [String: String] = [
+    let mapSemivowels: [Unicode.Scalar: String] = [
       "ㄧ": "⠡", "ㄩ": "⠳", "ㄨ": "⠌",
     ]
 
-    let mapVowels: [String: String] = [
+    let mapVowels: [Unicode.Scalar: String] = [
       "ㄤ": "⠭", "ㄛ": "⠣", "ㄠ": "⠩",
       "ㄞ": "⠺", "ㄜ": "⠮", "ㄡ": "⠷",
       "ㄟ": "⠴", "ㄣ": "⠥", "ㄥ": "⠵",
       "ㄢ": "⠧", "ㄚ": "⠜", "ㄦ": "⠱",
     ]
 
-    let mapIntonations: [String: String] = [
+    let mapIntonations: [Unicode.Scalar: String] = [
       "˙": "⠱⠁", "ˇ": "⠈", "ˊ": "⠂", " ": "⠄", "ˋ": "⠐",
     ]
 
@@ -155,7 +155,7 @@ extension BrailleSputnik {
 
 extension BrailleSputnik {
   final class BrailleProcessingUnit2018: BrailleProcessingUnit {
-    let mapConsonants: [String: String] = [
+    let mapConsonants: [Unicode.Scalar: String] = [
       "ㄅ": Braille.d12.rawValue,
       "ㄆ": Braille.d1234.rawValue,
       "ㄇ": Braille.d134.rawValue,
@@ -179,13 +179,13 @@ extension BrailleSputnik {
       "ㄙ": Braille.d234.rawValue,
     ]
 
-    let mapSemivowels: [String: String] = [
+    let mapSemivowels: [Unicode.Scalar: String] = [
       "ㄧ": Braille.d24.rawValue,
       "ㄨ": Braille.d136.rawValue,
       "ㄩ": Braille.d346.rawValue,
     ]
 
-    let mapVowels: [String: String] = [
+    let mapVowels: [Unicode.Scalar: String] = [
       "ㄚ": Braille.d35.rawValue,
       "ㄛ": Braille.d26.rawValue,
       "ㄜ": Braille.d26.rawValue,
@@ -200,7 +200,7 @@ extension BrailleSputnik {
       "ㄦ": Braille.d1235.rawValue,
     ]
 
-    let mapIntonations: [String: String] = [
+    let mapIntonations: [Unicode.Scalar: String] = [
       " ": Braille.d1.rawValue,
       "ˊ": Braille.d2.rawValue,
       "ˇ": Braille.d3.rawValue,

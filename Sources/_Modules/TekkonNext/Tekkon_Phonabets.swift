@@ -157,8 +157,17 @@ extension Tekkon {
 
     /// 初期化，會根據傳入的 input 字串參數來自動判定自身的 PhoneType 類型屬性值。
     public init(_ input: String = "") {
-      if let lastChar = input.last?.description, allowedPhonabets.contains(lastChar) {
-        self.valueStorage = lastChar
+      if let lastChar = input.unicodeScalars.last, allowedPhonabets
+        .contains(lastChar) {
+        self.scalarValue = lastChar
+      }
+      ensureType()
+    }
+
+    /// 初期化，會根據傳入的 input 字串參數來自動判定自身的 PhoneType 類型屬性值。
+    public init(_ input: Unicode.Scalar) {
+      if allowedPhonabets.contains(input) {
+        self.scalarValue = input
       }
       ensureType()
     }
@@ -167,17 +176,27 @@ extension Tekkon {
 
     public var type: PhoneType = .null
 
-    public var value: String { valueStorage }
-    public var isEmpty: Bool { value.isEmpty }
+    public private(set) var scalarValue: Unicode.Scalar = .init(unicodeScalarLiteral: "~")
+
+    public var value: String {
+      guard isValid else { return "" }
+      return String(Character(scalarValue))
+    }
+
+    public var isEmpty: Bool { type == .null }
     public var isValid: Bool { type != .null }
 
-    public static func <~ (_ lhs: inout Tekkon.Phonabet, _ newValue: String) {
+    public static func <~ (_ lhs: inout Tekkon.Phonabet, _ newValue: Unicode.Scalar) {
       lhs.setValue(newValue)
+    }
+
+    public static func + (lhs: Self, rhs: Self) -> String {
+      lhs.value + rhs.value
     }
 
     /// 自我清空內容。
     public mutating func clear() {
-      valueStorage = ""
+      scalarValue = .nullPhonabet
       type = .null
     }
 
@@ -185,34 +204,61 @@ extension Tekkon {
     /// - Parameters:
     ///   - strOf: 要取代的內容。
     ///   - strWith: 要取代成的內容。
-    public mutating func selfReplace(_ strOf: String, _ strWith: String = "") {
-      if valueStorage == strOf { valueStorage = strWith }
+    public mutating func selfReplace(
+      _ strOf: Unicode.Scalar,
+      _ strWith: Unicode.Scalar? = nil
+    ) {
+      if scalarValue == strOf { scalarValue = strWith ?? .nullPhonabet }
       ensureType()
     }
 
-    public mutating func setValue(_ newValue: String) {
-      valueStorage = newValue
+    public mutating func setValue(_ newValue: Unicode.Scalar) {
+      scalarValue = newValue
       ensureType()
     }
 
     // MARK: Private
 
-    private var valueStorage = ""
-
     /// 用來自動更新自身的屬性值的函式。
     private mutating func ensureType() {
-      if Tekkon.allowedConsonants.contains(value) {
+      if Tekkon.allowedConsonants.contains(scalarValue) {
         type = .consonant
-      } else if Tekkon.allowedSemivowels.contains(value) {
+      } else if Tekkon.allowedSemivowels.contains(scalarValue) {
         type = .semivowel
-      } else if Tekkon.allowedVowels.contains(value) {
+      } else if Tekkon.allowedVowels.contains(scalarValue) {
         type = .vowel
-      } else if Tekkon.allowedIntonations.contains(value) {
+      } else if Tekkon.allowedIntonations.contains(scalarValue) {
         type = .intonation
       } else {
         type = .null
-        valueStorage = ""
+        scalarValue = .nullPhonabet
       }
     }
   }
+}
+
+// MARK: - Unicode.Scalar + Codable
+
+extension Unicode.Scalar: Codable {
+  public func encode(to encoder: any Encoder) throws {
+    var container = encoder.singleValueContainer()
+    try container.encode(value)
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let scalarRawValue = try container.decode(UInt32.self)
+    let newScalar = Unicode.Scalar(scalarRawValue)
+    guard let newScalar else {
+      throw DecodingError.dataCorrupted(
+        DecodingError.Context(
+          codingPath: container.codingPath,
+          debugDescription: "Can't parse the following UInt32 into a Unicode Scalar: \(scalarRawValue)"
+        )
+      )
+    }
+    self = newScalar
+  }
+
+  fileprivate static let nullPhonabet = Unicode.Scalar("~")
 }
