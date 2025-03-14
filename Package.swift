@@ -15,6 +15,14 @@ let package = Package(
       name: "TrieKit",
       targets: ["TrieKit"]
     ),
+    .library(
+      name: "TekkonNext",
+      targets: ["TekkonNext"]
+    ),
+    .library(
+      name: "Homa",
+      targets: ["Homa"]
+    ),
   ],
   targets: [
     // Targets are the basic building blocks of a package, defining a module or a test suite.
