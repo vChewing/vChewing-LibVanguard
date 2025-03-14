@@ -103,9 +103,8 @@ public struct TrieKitTests: TrieKitTestSuite {
   @Test("[TrieKit] Test Chopped Pinyin Handling (with PinyinTrie)", arguments: [false, true])
   func testTekkonPinyinTrieTogetherAgainstChoppedPinyin(useSQL: Bool) async throws {
     let pinyinTrie = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
-    let composer = Tekkon.Composer(arrange: .ofHanyuPinyin)
     let rawPinyin = "ydienlylf"
-    let rawPinyinChopped = composer.chop(rawPinyin)
+    let rawPinyinChopped = pinyinTrie.chop(rawPinyin)
     #expect(rawPinyinChopped == ["y", "die", "n", "l", "y", "l", "f"])
     let readingsToInsert = pinyinTrie.deductChoppedPinyinToZhuyin(rawPinyinChopped)
     #expect(readingsToInsert == ["ㄧ&ㄩ", "ㄉㄧㄝ", "ㄋ", "ㄌ", "ㄧ&ㄩ", "ㄌ", "ㄈ"])

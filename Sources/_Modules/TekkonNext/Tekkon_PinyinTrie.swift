@@ -20,6 +20,9 @@ extension Tekkon {
       nodes[0] = root
 
       self.parser = parser
+      self.allPossibleReadings = parser.allPossibleReadings.sorted {
+        ($0.count, $1) > ($1.count, $0)
+      }
       // Key 是注音，Value 是拼音，所以要反過來建樹。
       if let table = parser.mapZhuyinPinyin {
         for (pinyin, zhuyin) in table {
@@ -78,6 +81,7 @@ extension Tekkon {
     public let parser: MandarinParser
     public let root: TNode
     public var nodes: [Int: TNode] // 新增：節點辭典，以id為索引
+    public internal(set) var allPossibleReadings: [String]
 
     // MARK: Private
 

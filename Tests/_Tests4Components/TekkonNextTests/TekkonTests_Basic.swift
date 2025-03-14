@@ -256,8 +256,8 @@ struct TekkonTestsBasic {
 
   @Test("[TekkonNext] Chopper")
   func testChoppingRawComplex() async throws {
-    let composerZhuyin = Tekkon.Composer(arrange: .ofDachen)
-    let composerPinyin = Tekkon.Composer(arrange: .ofHanyuPinyin)
+    let composerZhuyin = Tekkon.PinyinTrie(parser: .ofDachen)
+    let composerPinyin = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
     let choppedZhuyin = composerZhuyin.chop("ㄅㄩㄝㄓㄨㄑㄕㄢㄌㄧㄌㄧㄤ")
     let choppedPinyin = composerPinyin.chop("byuezqsll")
     #expect(choppedZhuyin == ["ㄅ", "ㄩㄝ", "ㄓㄨ", "ㄑ", "ㄕㄢ", "ㄌㄧ", "ㄌㄧㄤ"])

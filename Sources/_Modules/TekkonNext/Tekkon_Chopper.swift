@@ -2,7 +2,7 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-extension Tekkon.Composer {
+extension Tekkon.PinyinTrie {
   /// 用來像智能狂拼/搜狗拼音那樣處理一個連續的簡拼字串、切割成多個可能的合理讀音前綴。
   ///
   /// - 比如說全拼「shi4jie4da4zhan4」可能會簡拼成「shjdaz」。
