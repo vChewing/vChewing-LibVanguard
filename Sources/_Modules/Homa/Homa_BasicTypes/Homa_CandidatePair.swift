@@ -3,6 +3,7 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 extension Homa {
+  @frozen
   public struct CandidatePair: Codable, Hashable, Sendable, Equatable {
     // MARK: Lifecycle
 
@@ -34,6 +35,7 @@ extension Homa {
     }
   }
 
+  @frozen
   public struct CandidatePairWeighted: Codable, Hashable, Sendable, Equatable {
     // MARK: Lifecycle
 

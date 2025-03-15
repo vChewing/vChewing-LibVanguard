@@ -50,7 +50,10 @@ extension Homa.Assembler {
     debugIntelHandler?("[HOMA_DEBUG] \(debugIntelToPrint.joined())")
 
     // 應用節點鞏固
-    applyNodeConsolidation(from: rearBoundary, to: frontBoundary)
+    guard frontBoundary >= rearBoundary else {
+      throw Homa.Exception.upperboundSmallerThanLowerbound
+    }
+    applyNodeConsolidation(at: rearBoundary ... frontBoundary)
   }
 
   /// 計算實際的上下文邊界
@@ -82,16 +85,14 @@ extension Homa.Assembler {
 
   /// 應用節點鞏固
   /// - Parameters:
-  ///   - rearBoundary: 後邊界
-  ///   - frontBoundary: 前邊界
+  ///   - range: 邊界。
   private func applyNodeConsolidation(
-    from rearBoundary: Int,
-    to frontBoundary: Int
+    at range: ClosedRange<Int>
   ) {
     var nodeIndices = [Int]() // 僅作統計用
-    var position = rearBoundary
+    var position = range.lowerBound
 
-    while position < frontBoundary {
+    while position < range.upperBound {
       guard let regionIndex = assembledNodes.cursorRegionMap[position] else {
         position += 1
         continue

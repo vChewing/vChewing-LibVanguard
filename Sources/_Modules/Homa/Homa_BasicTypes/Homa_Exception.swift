@@ -16,5 +16,6 @@ extension Homa {
     case onlyOneCandidateAvailableToRevolve
     case cursorOutOfReasonableNodeRegions
     case nodeHasNoCurrentGram
+    case upperboundSmallerThanLowerbound
   }
 }
