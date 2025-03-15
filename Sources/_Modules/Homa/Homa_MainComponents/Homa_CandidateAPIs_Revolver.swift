@@ -73,35 +73,32 @@ extension Homa.Assembler {
     }
 
     // 確保有組裝好的節點串資料
-    var assembledNodes: [Homa.Node] = assembledNodes
-    if assembledNodes.isEmpty { assembledNodes = assemble() }
+    var assembledSentence: [Homa.GramInPath] = assembledSentence
+    if assembledSentence.isEmpty { assembledSentence = assemble() }
 
     // 獲取當前游標位置和區域資訊
-    let regionMap = assembledNodes.cursorRegionMap
+    let regionMap = assembledSentence.cursorRegionMap
     let candidateCursorPos = getLogicalCandidateCursorPosition(forCursor: cursorType)
-    guard let regionID = regionMap[candidateCursorPos], assembledNodes.count > regionID else {
+    guard let regionID = regionMap[candidateCursorPos], assembledSentence.count > regionID else {
       throw Homa.Exception.cursorOutOfReasonableNodeRegions
     }
 
     // 獲取當前節點和其詞組資訊
-    let currentNode = assembledNodes[regionID]
-    guard let currentNodeGram = currentNode.currentGram else {
-      throw Homa.Exception.nodeHasNoCurrentGram
-    }
+    let currentGramInPath = assembledSentence[regionID]
 
     let currentPaired = Homa.CandidatePairWeighted(
       pair: .init(
-        keyArray: currentNodeGram.keyArray,
-        value: currentNodeGram.current
+        keyArray: currentGramInPath.keyArray,
+        value: currentGramInPath.value
       ),
-      weight: currentNodeGram.probability
+      weight: currentGramInPath.score
     )
 
     // 計算新的候選字索引
     let newIndex = calculateNextCandidateIndex(
       candidates: candidates,
       currentPaired: currentPaired,
-      isNodeOverridden: currentNode.isOverridden,
+      isNodeOverridden: currentGramInPath.isOverridden,
       counterClockwise: counterClockwise
     )
 
@@ -128,7 +125,7 @@ extension Homa.Assembler {
       debugIntel.append("\(cursorType)")
       debugIntel.append("ENC: \(cursor)") // Encoded Cursor
       debugIntel.append("LCC: \(candidateCursorPos)") // Logical Candidate Cursor
-      debugIntel.append(assembledNodes.compactMap(\.value).joined())
+      debugIntel.append(assembledSentence.compactMap(\.value).joined())
       debugIntelHandler(debugIntel.joined(separator: " | "))
     }
 
@@ -152,23 +149,18 @@ extension Homa.Assembler {
     // 如果只有一個候選字，直接返回0
     if candidates.count == 1 { return 0 }
 
-    // 非覆寫節點的情況
-    if !isNodeOverridden {
-      // 如果當前選中的是第一個候選字
-      if candidates.first == currentPaired {
-        // 根據旋轉方向決定返回最後一個或第二個候選字
-        return counterClockwise ? candidates.count - 1 : 1
-      }
-      // 否則返回第一個候選字（重置選擇）
-      return 0
+    // 遇到非覆寫節點的情況，可簡便處理。
+    guard isNodeOverridden else {
+      // 如果當前遇到的不是第一個候選字的話，則返回 0 以重設選擇。
+      guard candidates.first == currentPaired else { return 0 }
+      // 根據旋轉方向決定返回最後一個或第二個候選字
+      return counterClockwise ? candidates.count - 1 : 1
     }
 
     // 覆寫節點的情況：查找當前候選字的索引
     let currentIndex = candidates.firstIndex { $0 == currentPaired }
-    guard let currentIndex else {
-      // 如果找不到當前候選字，返回第一個
-      return 0
-    }
+    // 如果找不到當前候選字，返回第一個
+    guard let currentIndex else { return 0 }
 
     // 根據旋轉方向計算下一個索引
     return switch counterClockwise {

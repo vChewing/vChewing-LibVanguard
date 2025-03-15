@@ -52,9 +52,9 @@ extension Homa {
     public private(set) var config = Config()
 
     /// 最近一次爬軌結果。
-    public var assembledNodes: [Node] {
-      get { config.assembledNodes }
-      set { config.assembledNodes = newValue }
+    public var assembledSentence: [GramInPath] {
+      get { config.assembledSentence }
+      set { config.assembledSentence = newValue }
     }
 
     /// 該組字器已經插入的的索引鍵，以陣列的形式存放。
@@ -67,7 +67,7 @@ extension Homa {
     ///
     /// 護摩引擎支援對讀音鍵的部分比對，所以需要這個 API 以返回真實結果。
     public var actualKeys: [String] {
-      config.assembledNodes.keyArrays.flatMap(\.self)
+      config.assembledSentence.keyArrays.flatMap(\.self)
     }
 
     /// 該組字器的幅位單元陣列。
@@ -197,12 +197,12 @@ extension Homa {
         throw Homa.Exception.cursorAlreadyAtBorder
       default: break
       }
-      guard let currentRegion = assembledNodes.cursorRegionMap[target] else {
+      guard let currentRegion = assembledSentence.cursorRegionMap[target] else {
         throw Homa.Exception.cursorRegionMapMatchingFailure
       }
-      let guardedCurrentRegion = min(assembledNodes.count - 1, currentRegion)
+      let guardedCurrentRegion = min(assembledSentence.count - 1, currentRegion)
       let aRegionForward = max(currentRegion - 1, 0)
-      let currentRegionBorderRear: Int = assembledNodes[0 ..< currentRegion].map(\.spanLength)
+      let currentRegionBorderRear: Int = assembledSentence[0 ..< currentRegion].map(\.spanLength)
         .reduce(
           0,
           +
@@ -212,18 +212,18 @@ extension Homa {
         switch direction {
         case .front:
           target =
-            (currentRegion > assembledNodes.count)
-              ? keys.count : assembledNodes[0 ... guardedCurrentRegion].map(\.spanLength).reduce(
+            (currentRegion > assembledSentence.count)
+              ? keys.count : assembledSentence[0 ... guardedCurrentRegion].map(\.spanLength).reduce(
                 0,
                 +
               )
         case .rear:
-          target = assembledNodes[0 ..< aRegionForward].map(\.spanLength).reduce(0, +)
+          target = assembledSentence[0 ..< aRegionForward].map(\.spanLength).reduce(0, +)
         }
       default:
         switch direction {
         case .front:
-          target = currentRegionBorderRear + assembledNodes[guardedCurrentRegion].spanLength
+          target = currentRegionBorderRear + assembledSentence[guardedCurrentRegion].spanLength
         case .rear:
           target = currentRegionBorderRear
         }

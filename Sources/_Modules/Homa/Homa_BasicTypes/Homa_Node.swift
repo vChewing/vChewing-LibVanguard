@@ -37,6 +37,9 @@ extension Homa {
     /// 的詞，組字器會將多個讀音索引鍵合併為一個讀音索引鍵、據此向語言模組請求對應的
     /// 元圖結果陣列。舉例說，如果一個詞有兩個漢字組成的話，那麼讀音也是有兩個、其
     /// 索引鍵也是由兩個讀音組成的，那麼這個節點的幅位長度就是 2。
+    ///
+    /// - Remark: 除非有必要，否則請盡量不要在 Assembler 外部直接與 Node 互動。
+    /// GramInPath 是您理想的可互動物件。
     /// - Parameters:
     ///   - keyArray: 給定索引鍵陣列，不得為空。
     ///   - spanLength: 給定幅位長度，一般情況下與給定索引鍵陣列內的索引鍵數量一致。
@@ -202,13 +205,6 @@ extension Homa.Node {
     currentOverrideType = .none
   }
 
-  /// 將當前單元圖的讀音陣列按照給定的分隔符銜接成一個字串。
-  /// - Parameter separator: 給定的分隔符，預設值為 Assembler.theSeparator。
-  /// - Returns: 已經銜接完畢的字串。
-  public func joinedCurrentKey(by separator: String) -> String {
-    keyArray.joined(separator: separator)
-  }
-
   /// 置換掉該節點內的元圖陣列資料。
   /// 如果此時影響到了 currentUnigramIndex 所指的內容的話，則將其重設為 0。
   /// - Parameter source: 新的元圖陣列資料，必須不能為空（否則必定崩潰）。
@@ -251,99 +247,10 @@ extension Homa.Node {
 // MARK: - Array Extensions.
 
 extension Array where Element == Homa.Node {
-  /// 從一個節點陣列當中取出目前的選字字串陣列。
-  public var values: [String] { compactMap(\.value) }
-
-  /// 從一個節點陣列當中取出目前的索引鍵陣列。
-  public func joinedKeys(by separator: String) -> [String] {
-    map { $0.keyArray.lazy.joined(separator: separator) }
-  }
-
-  /// 從一個節點陣列當中取出目前的索引鍵陣列。
-  public var keyArrays: [[String]] { map(\.keyArray) }
-
-  /// 返回一連串的節點起點。結果為 (Result A, Result B) 辭典陣列。
-  /// Result A 以索引查座標，Result B 以座標查索引。
-  private var nodeBorderPointDictPair: (regionCursorMap: [Int: Int], cursorRegionMap: [Int: Int]) {
-    // Result A 以索引查座標，Result B 以座標查索引。
-    var resultA = [Int: Int]()
-    var resultB: [Int: Int] = [-1: 0] // 防呆
-    var cursorCounter = 0
-    enumerated().forEach { nodeCounter, neta in
-      resultA[nodeCounter] = cursorCounter
-      neta.keyArray.forEach { _ in
-        resultB[cursorCounter] = nodeCounter
-        cursorCounter += 1
-      }
+  var asGramChain: [Homa.GramInPath] {
+    compactMap { node in
+      guard let gram = node.currentGram else { return nil }
+      return .init(gram: gram, isOverridden: node.isOverridden)
     }
-    resultA[count] = cursorCounter
-    resultB[cursorCounter] = count
-    return (resultA, resultB)
-  }
-
-  /// 返回一個辭典，以座標查索引。允許以游標位置查詢其屬於第幾個幅位座標（從 0 開始算）。
-  public var cursorRegionMap: [Int: Int] { nodeBorderPointDictPair.cursorRegionMap }
-
-  /// 總讀音單元數量。在絕大多數情況下，可視為總幅位長度。
-  public var totalKeyCount: Int { map(\.keyArray.count).reduce(0, +) }
-
-  /// 根據給定的游標，返回其前後最近的節點邊界。
-  /// - Parameter cursor: 給定的游標。
-  public func contextRange(ofGivenCursor cursor: Int) -> Range<Int> {
-    guard !isEmpty else { return 0 ..< 0 }
-    let lastSpanningLength = reversed()[0].keyArray.count
-    var nilReturn = (totalKeyCount - lastSpanningLength) ..< totalKeyCount
-    if cursor >= totalKeyCount { return nilReturn } // 防呆
-    let cursor = Swift.max(0, cursor) // 防呆
-    nilReturn = cursor ..< cursor
-    // 下文按道理來講不應該會出現 nilReturn。
-    let mapPair = nodeBorderPointDictPair
-    guard let rearNodeID = mapPair.cursorRegionMap[cursor] else { return nilReturn }
-    guard let rearIndex = mapPair.regionCursorMap[rearNodeID]
-    else { return nilReturn }
-    guard let frontIndex = mapPair.regionCursorMap[rearNodeID + 1]
-    else { return nilReturn }
-    return rearIndex ..< frontIndex
-  }
-
-  /// 在陣列內以給定游標位置找出對應的節點。
-  /// - Parameters:
-  ///   - cursor: 給定游標位置。
-  ///   - outCursorPastNode: 找出的節點的前端位置。
-  /// - Returns: 查找結果。
-  public func findNode(at cursor: Int, target outCursorPastNode: inout Int) -> Homa.Node? {
-    guard !isEmpty else { return nil }
-    let cursor = Swift.max(0, Swift.min(cursor, totalKeyCount - 1)) // 防呆
-    let range = contextRange(ofGivenCursor: cursor)
-    outCursorPastNode = range.upperBound
-    guard let rearNodeID = nodeBorderPointDictPair.1[cursor] else { return nil }
-    return count - 1 >= rearNodeID ? self[rearNodeID] : nil
-  }
-
-  /// 在陣列內以給定游標位置找出對應的節點。
-  /// - Parameter cursor: 給定游標位置。
-  /// - Returns: 查找結果。
-  public func findNode(at cursor: Int) -> Homa.Node? {
-    var useless = 0
-    return findNode(at: cursor, target: &useless)
-  }
-
-  /// 提供一組逐字的字音配對陣列（不使用 Homa 的 KeyValuePaired 類型），但字音不相符的節點除外。
-  public var smashedPairs: [(key: String, value: String)] {
-    var arrData = [(key: String, value: String)]()
-    forEach { node in
-      guard let nodeValue = node.value else { return }
-      if node.isReadingMismatched, !node.keyArray.joined().isEmpty {
-        arrData.append(
-          (key: node.keyArray.joined(separator: "\t"), value: nodeValue)
-        )
-        return
-      }
-      let arrValueChars = nodeValue.map(\.description)
-      node.keyArray.enumerated().forEach { i, key in
-        arrData.append((key: key, value: arrValueChars[i]))
-      }
-    }
-    return arrData
   }
 }

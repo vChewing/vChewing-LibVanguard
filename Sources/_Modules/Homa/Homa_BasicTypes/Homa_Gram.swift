@@ -66,6 +66,16 @@ extension Homa {
       )
     }
 
+    /// 檢查是否「讀音字長與候選字字長不一致」。
+    public var isReadingMismatched: Bool {
+      keyArray.count != current.count
+    }
+
+    /// 幅長。
+    public var spanLength: Int {
+      keyArray.count
+    }
+
     public static func == (lhs: Homa.Gram, rhs: Homa.Gram) -> Bool {
       lhs.hashValue == rhs.hashValue
     }

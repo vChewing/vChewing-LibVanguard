@@ -33,13 +33,13 @@ extension Homa.Assembler {
     grid.assemble()
 
     // 獲取預期的邊界範圍
-    let rangeTemp = grid.assembledNodes.contextRange(ofGivenCursor: actualNodeCursorPosition)
+    let rangeTemp = grid.assembledSentence.contextRange(ofGivenCursor: actualNodeCursorPosition)
     let rearBoundaryEX = rangeTemp.lowerBound
     let frontBoundaryEX = rangeTemp.upperBound
     debugIntelToPrint.append("EX: \(rearBoundaryEX)..<\(frontBoundaryEX), ")
 
     // 獲取當前的邊界範圍
-    let range = assembledNodes.contextRange(ofGivenCursor: actualNodeCursorPosition)
+    let range = assembledSentence.contextRange(ofGivenCursor: actualNodeCursorPosition)
     var rearBoundary = min(range.lowerBound, rearBoundaryEX)
     var frontBoundary = max(range.upperBound, frontBoundaryEX)
     debugIntelToPrint.append("INI: \(rearBoundary)..<\(frontBoundary), ")
@@ -93,7 +93,7 @@ extension Homa.Assembler {
     var position = range.lowerBound
 
     while position < range.upperBound {
-      guard let regionIndex = assembledNodes.cursorRegionMap[position] else {
+      guard let regionIndex = assembledSentence.cursorRegionMap[position] else {
         position += 1
         continue
       }
@@ -103,16 +103,15 @@ extension Homa.Assembler {
         nodeIndices.append(regionIndex)
 
         // 防止索引越界
-        guard assembledNodes.count > regionIndex else { break }
+        guard assembledSentence.count > regionIndex else { break }
 
-        let currentNode = assembledNodes[regionIndex]
-        guard let currentNodeGramPair = currentNode.currentPair else { break }
+        let currentGramInPath = assembledSentence[regionIndex]
 
         // 處理整個節點或按字元個別處理
-        if currentNodeGramPair.keyArray.count == currentNodeGramPair.value.count {
+        if currentGramInPath.keyArray.count == currentGramInPath.value.count {
           // 按字元個別處理
-          let values = currentNodeGramPair.value.map(\.description)
-          for (subPosition, key) in currentNode.keyArray.enumerated() {
+          let values = currentGramInPath.value.map(\.description)
+          for (subPosition, key) in currentGramInPath.keyArray.enumerated() {
             guard values.count > subPosition else { break }
             let thePair = Homa.CandidatePair(
               keyArray: [key], value: values[subPosition]
@@ -122,8 +121,11 @@ extension Homa.Assembler {
           }
         } else {
           // 整個節點處理
-          try? overrideCandidate(currentNodeGramPair, at: position)
-          position += currentNode.keyArray.count
+          try? overrideCandidate(
+            .init(keyArray: currentGramInPath.keyArray, value: currentGramInPath.value),
+            at: position
+          )
+          position += currentGramInPath.keyArray.count
         }
         continue
       }

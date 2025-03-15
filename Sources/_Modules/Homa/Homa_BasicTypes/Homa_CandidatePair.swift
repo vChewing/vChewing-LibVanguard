@@ -49,6 +49,11 @@ extension Homa {
       self.weight = weight
     }
 
+    public init(gram: Gram) {
+      self.pair = .init(keyArray: gram.keyArray, value: gram.current)
+      self.weight = gram.probability
+    }
+
     // MARK: Public
 
     public let pair: CandidatePair
