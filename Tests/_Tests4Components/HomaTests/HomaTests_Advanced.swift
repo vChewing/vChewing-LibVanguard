@@ -470,8 +470,8 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     }
   }
 
-  @Test("[Homa] Assembler_CandidateDisambiguation")
-  func testCandidateDisambiguation() async throws {
+  @Test("[Homa] Assembler_CandidateDisambiguationAndCursorStepwiseMovement")
+  func testCandidateDisambiguationAndCursorStepwiseMovement() async throws {
     let readings: [Substring] = "da4 shu4 xin1 de5 mi4 feng1".split(separator: " ")
     let regexToFilter = try Regex("\nshu4-xin1 .*")
     let mockLM = TestLM(
@@ -500,6 +500,48 @@ public struct HomaTestsAdvanced: HomaTestSuite {
       })
       assembledSentence = assembler.assemble().compactMap(\.value)
       #expect(assembledSentence == ["大樹", "🆕", "蜜蜂"])
+    }
+    // 測試游標按步移動（往前方）。
+    do {
+      try assembler.overrideCandidate(.init(keyArray: ["mi4", "feng1"], value: "🐝"), at: 4)
+      assembledSentence = assembler.assemble().compactMap(\.value)
+      #expect(assembledSentence == ["大樹", "🆕", "🐝"])
+      assembler.cursor = 3
+      #expect(assembler.isCursorCuttingChar(isMarker: false))
+      #expect(Self.mustDone {
+        try assembler.moveCursorStepwise(to: .front)
+      })
+      #expect(!assembler.isCursorCuttingChar(isMarker: false))
+      #expect(Self.mustDone {
+        try assembler.moveCursorStepwise(to: .front)
+      })
+      #expect(assembler.cursor == 6)
+      #expect(!assembler.isCursorCuttingChar(isMarker: false))
+      #expect(assembler.isCursorAtEdge(direction: .front))
+      #expect(Self.mustFail {
+        try assembler.moveCursorStepwise(to: .front)
+      })
+    }
+    // 測試游標按步移動（往後方）。
+    do {
+      try assembler.overrideCandidate(.init(keyArray: ["da4", "shu4"], value: "🌳"), at: 0)
+      assembledSentence = assembler.assemble().compactMap(\.value)
+      #expect(assembledSentence == ["🌳", "🆕", "🐝"])
+      assembler.cursor = 3
+      #expect(assembler.isCursorCuttingChar(isMarker: false))
+      #expect(Self.mustDone {
+        try assembler.moveCursorStepwise(to: .rear)
+      })
+      #expect(!assembler.isCursorCuttingChar(isMarker: false))
+      #expect(Self.mustDone {
+        try assembler.moveCursorStepwise(to: .rear)
+      })
+      #expect(assembler.cursor == 0)
+      #expect(!assembler.isCursorCuttingChar(isMarker: false))
+      #expect(assembler.isCursorAtEdge(direction: .rear))
+      #expect(Self.mustFail {
+        try assembler.moveCursorStepwise(to: .rear)
+      })
     }
   }
 

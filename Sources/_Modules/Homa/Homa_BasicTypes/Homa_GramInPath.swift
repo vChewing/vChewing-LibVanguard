@@ -83,8 +83,8 @@ extension Array where Element == Homa.GramInPath {
   /// - Parameter cursor: 給定的游標。
   public func contextRange(ofGivenCursor cursor: Int) -> Range<Int> {
     guard !isEmpty else { return 0 ..< 0 }
-    let lastSpanningLength = reversed()[0].keyArray.count
-    var nilReturn = (totalKeyCount - lastSpanningLength) ..< totalKeyCount
+    let frontestSpanLength = reversed()[0].keyArray.count
+    var nilReturn = (totalKeyCount - frontestSpanLength) ..< totalKeyCount
     if cursor >= totalKeyCount { return nilReturn } // 防呆
     let cursor = Swift.max(0, cursor) // 防呆
     nilReturn = cursor ..< cursor
@@ -118,6 +118,24 @@ extension Array where Element == Homa.GramInPath {
   public func findGram(at cursor: Int) -> Element? {
     var useless = 0
     return findGram(at: cursor, target: &useless)
+  }
+
+  /// 檢測是否出現游標切斷組字區內字符的情況。
+  ///
+  /// 此處不需要針對 cursor 做邊界檢查。
+  public func isCursorCuttingChar(cursor: Int) -> Bool {
+    let index = cursor
+    var isBound = (index == contextRange(ofGivenCursor: index).lowerBound)
+    if index == totalKeyCount { isBound = true }
+    let rawResult = findGram(at: index)?.isReadingMismatched ?? false
+    return !isBound && rawResult
+  }
+
+  public func isCursorCuttingRegion(cursor: Int) -> Bool {
+    let index = cursor
+    var isBound = (index == contextRange(ofGivenCursor: index).lowerBound)
+    if index == totalKeyCount { isBound = true }
+    return !isBound
   }
 
   /// 提供一組逐字的字音配對陣列（不使用 Homa 的 KeyValuePaired 類型），但字音不相符的節點除外。
