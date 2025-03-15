@@ -44,7 +44,7 @@ extension Homa {
     ///   - keyArray: 給定索引鍵陣列，不得為空。
     ///   - spanLength: 給定幅位長度，一般情況下與給定索引鍵陣列內的索引鍵數量一致。
     ///   - grams: 給定元圖陣列，不得為空。
-    public init(keyArray: [String] = [], grams: [Homa.Gram] = []) {
+    internal init(keyArray: [String] = [], grams: [Homa.Gram] = []) {
       self.keyArray4Query = keyArray
       self.grams = grams
       self.allActualKeyArraysCached = Set(grams.map(\.keyArray))
@@ -56,7 +56,7 @@ extension Homa {
     /// - Remark: 因為 Node 不是 Struct，所以會在 Assembler 被拷貝的時候無法被真實複製。
     /// 這樣一來，Assembler 複製品當中的 Node 的變化會被反應到原先的 Assembler 身上。
     /// 這在某些情況下會造成意料之外的混亂情況，所以需要引入一個拷貝用的建構子。
-    public init(node: Node) {
+    internal init(node: Node) {
       self.overridingScore = node.overridingScore
       self.keyArray4Query = node.keyArray4Query
       self.allActualKeyArraysCached = node.allActualKeyArraysCached
@@ -75,7 +75,7 @@ extension Homa {
     /// 找出「A->bc」的爬軌途徑（尤其是當 A 和 B 使用「0」作為複寫數值的情況下）。這樣
     /// 一來，「A-B」就不一定始終會是爬軌函式的青睞結果了。所以，這裡一定要用大於 0 的
     /// 數（比如野獸常數），以讓「c」更容易單獨被選中。
-    public var overridingScore: Double = 114_514
+    public internal(set) var overridingScore: Double = 114_514
 
     /// 事先假設的索引鍵陣列，可能不完全。
     public private(set) var keyArray4Query: [String]
@@ -178,7 +178,7 @@ extension Homa.Node {
   /// 權重較高的那個、然後**據此視情況自動修改這個節點的覆寫狀態種類**。
   /// - Parameter previous: 前述節點內容，用以查詢可能的雙元圖資料。
   /// - Returns: 權重。
-  public func getScore(previous: String?) -> Double {
+  internal func getScore(previous: String?) -> Double {
     guard !grams.isEmpty else { return 0 }
     guard let previous, !previous.isEmpty else { return unigramScore }
     let bigram = bigramMap[previous]
@@ -200,7 +200,7 @@ extension Homa.Node {
   }
 
   /// 重設該節點的覆寫狀態、及其內部的元圖索引位置指向。
-  public func reset() {
+  internal func reset() {
     currentGramIndex = 0
     currentOverrideType = .none
   }
@@ -208,7 +208,7 @@ extension Homa.Node {
   /// 置換掉該節點內的元圖陣列資料。
   /// 如果此時影響到了 currentUnigramIndex 所指的內容的話，則將其重設為 0。
   /// - Parameter source: 新的元圖陣列資料，必須不能為空（否則必定崩潰）。
-  public func syncingGrams(from source: [Homa.Gram]) {
+  internal func syncingGrams(from source: [Homa.Gram]) {
     let oldCurrentValue = grams[currentGramIndex].current
     grams = source
     // 保險，請按需啟用。
@@ -225,7 +225,7 @@ extension Homa.Node {
   ///   - previous: 前述資料。
   ///   - type: 覆寫行為種類。
   /// - Returns: 操作是否順利完成。
-  public func selectOverrideGram(
+  internal func selectOverrideGram(
     keyArray: [String]?,
     value: String,
     previous: String? = nil,
