@@ -7,14 +7,7 @@
 extension Homa.Node {
   /// 三種不同的針對一個節點的覆寫行為。
   /// - none: 無覆寫行為。
-  /// - withTopGramScore: 使用指定的元圖資料值來覆寫該節點，
-  /// 但卻使用當前狀態下權重最高的元圖的權重數值。
-  /// 例：如果該節點內的元圖陣列是 `[("a", -114), ("b", -514), ("c", -1919)]`
-  /// 的話，指定該覆寫行為則會導致該節點返回的結果為 `("c", -114)`。
-  /// 該覆寫行為多用於諸如使用者半衰記憶模組的建議行為。
-  /// 被覆寫的這個節點的狀態可能不會再被爬軌行為擅自改回。
-  /// 該覆寫行為無法防止其它節點被爬軌函式所支配。
-  /// 這種情況下就需要用到 overridingScore。
+  /// - withTopGramScore: 僅用於 Bigram 的自動選取，但不如 withSpecified 那樣強效。
   /// - withSpecified: 將該節點權重覆寫為 overridingScore，
   /// 使其被爬軌函式所青睞、不受其他節點的影響。
   public enum OverrideType: Int, Codable {
