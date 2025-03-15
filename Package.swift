@@ -66,6 +66,17 @@ let package = Package(
       dependencies: ["PerceptionKit"],
       path: "./Tests/_Tests4Components/PerceptionKitTests"
     ),
+    // LexiconKit, the hub for all subsidiary language models.
+    .target(
+      name: "LexiconKit",
+      dependencies: ["TrieKit", "PerceptionKit"],
+      path: "./Sources/_Modules/LexiconKit"
+    ),
+    .testTarget(
+      name: "LexiconKitTests",
+      dependencies: ["LexiconKit"],
+      path: "./Tests/_Tests4Components/LexiconKitTests"
+    ),
     // BrailleSputnik, the Braille module.
     .target(
       name: "BrailleSputnik",
