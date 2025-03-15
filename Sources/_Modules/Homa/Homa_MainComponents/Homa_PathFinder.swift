@@ -40,14 +40,15 @@ extension Homa {
       var bestScore = [Int: Double]() // 追蹤每個位置的最佳分數
 
       // 初期化起始狀態。
-      let leadingNode = Homa.Node(keyArray: ["$LEADING"])
-      let start = SearchState(
-        node: leadingNode,
+      let leadingGram = Homa.Gram(keyArray: ["$LEADING"], current: "")
+      let leadingState = SearchState(
+        gram: leadingGram,
         position: 0,
         prev: nil,
-        distance: 0
+        distance: 0,
+        isOverridden: false
       )
-      openSet.enqueue(PrioritizedState(state: start))
+      openSet.enqueue(PrioritizedState(state: leadingState))
       bestScore[0] = 0
 
       // 追蹤最佳結果。
@@ -56,36 +57,40 @@ extension Homa {
 
       // 主要 Dijkstra 迴圈。
       while !openSet.isEmpty {
-        guard let current = openSet.dequeue()?.state else { break }
+        guard let currentState = openSet.dequeue()?.state else { break }
 
         // 如果已經造訪過具有更好分數的狀態，則跳過。
-        if visited.contains(current) { continue }
-        visited.insert(current)
+        if visited.contains(currentState) { continue }
+        visited.insert(currentState)
 
         // 檢查是否已到達終點。
-        if current.position >= config.keys.count {
-          if current.distance > bestFinalScore {
-            bestFinalScore = current.distance
-            bestFinalState = current
+        if currentState.position >= config.keys.count {
+          if currentState.distance > bestFinalScore {
+            bestFinalScore = currentState.distance
+            bestFinalState = currentState
           }
           continue
         }
 
         // 處理下一個可能的節點。
-        for (length, nextNode) in config.spans[current.position] {
-          let nextPos = current.position + length
+        for (length, nextNode) in config.spans[currentState.position] {
+          guard let nextGram = nextNode.currentGram else { continue }
+          let nextPos = currentState.position + length
 
           // 計算新的權重分數。
-          let newScore = current.distance + nextNode.getScore(previous: current.node.value)
+          let newScore = currentState.distance + nextNode.getScore(
+            previous: currentState.gram.current
+          )
 
           // 如果該位置已有更優的權重分數，則跳過。
           guard (bestScore[nextPos] ?? .init(Int32.min)) < newScore else { continue }
 
           let nextState = SearchState(
-            node: nextNode,
+            gram: nextGram,
             position: nextPos,
-            prev: current,
-            distance: newScore
+            prev: currentState,
+            distance: newScore,
+            isOverridden: nextNode.isOverridden
           )
 
           bestScore[nextPos] = newScore
@@ -95,18 +100,21 @@ extension Homa {
 
       // 從最佳終止狀態重建路徑。
       guard let finalState = bestFinalState else { return }
-      var pathNodes: [Homa.Node] = []
+      var pathGrams: [Homa.GramInPath] = []
       var current: SearchState? = finalState
 
       while let state = current {
         // 排除起始和結束的虛擬節點。
-        if state.node !== leadingNode {
-          pathNodes.insert(state.node, at: 0)
+        if state.gram !== leadingGram {
+          pathGrams.insert(
+            .init(gram: state.gram, isOverridden: state.isOverridden),
+            at: 0
+          )
         }
         current = state.prev
         // 備註：此處不需要手動 ASAN，因為沒有參據循環（Retain Cycle）。
       }
-      newassembledSentence = pathNodes.asGramChain
+      newassembledSentence = pathGrams
     }
   }
 }
@@ -120,37 +128,40 @@ extension Homa.PathFinder {
 
     /// 初期化搜尋狀態。
     /// - Parameters:
-    ///   - node: 當前節點。
+    ///   - gram: 當前節點。
     ///   - position: 在輸入串中的位置。
     ///   - prev: 前一個狀態。
     ///   - distance: 到達此狀態的累計分數。
     init(
-      node: Homa.Node,
+      gram: Homa.Gram,
       position: Int,
       prev: SearchState?,
-      distance: Double = Double(Int.min)
+      distance: Double = Double(Int.min),
+      isOverridden: Bool
     ) {
-      self.node = node
+      self.gram = gram
       self.position = position
       self.prev = prev
       self.distance = distance
+      self.isOverridden = isOverridden
     }
 
     // MARK: Internal
 
-    unowned let node: Homa.Node // 當前節點
+    unowned let gram: Homa.Gram // 當前節點
     let position: Int // 在輸入串中的位置
     unowned let prev: SearchState? // 前一個狀態
     var distance: Double // 累計分數
+    let isOverridden: Bool
 
     // MARK: - Hashable 協定實作
 
     static func == (lhs: SearchState, rhs: SearchState) -> Bool {
-      lhs.node === rhs.node && lhs.position == rhs.position
+      lhs.gram === rhs.gram && lhs.position == rhs.position
     }
 
     func hash(into hasher: inout Hasher) {
-      hasher.combine(node)
+      hasher.combine(gram)
       hasher.combine(position)
     }
   }
