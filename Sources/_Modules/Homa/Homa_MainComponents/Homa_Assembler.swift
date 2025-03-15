@@ -202,21 +202,16 @@ extension Homa {
       }
       let guardedCurrentRegion = min(assembledSentence.count - 1, currentRegion)
       let aRegionForward = max(currentRegion - 1, 0)
-      let currentRegionBorderRear: Int = assembledSentence[0 ..< currentRegion].map(\.spanLength)
-        .reduce(
-          0,
-          +
-        )
+      let currentRegionBorderRear: Int = assembledSentence[
+        0 ..< currentRegion
+      ].map(\.spanLength).reduce(0, +)
       switch target {
       case currentRegionBorderRear:
         switch direction {
         case .front:
-          target =
-            (currentRegion > assembledSentence.count)
-              ? keys.count : assembledSentence[0 ... guardedCurrentRegion].map(\.spanLength).reduce(
-                0,
-                +
-              )
+          target = (currentRegion > assembledSentence.count)
+            ? keys.count
+            : assembledSentence[0 ... guardedCurrentRegion].map(\.spanLength).reduce(0, +)
         case .rear:
           target = assembledSentence[0 ..< aRegionForward].map(\.spanLength).reduce(0, +)
         }
