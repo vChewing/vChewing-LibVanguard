@@ -28,6 +28,11 @@ extension Homa {
     public var keyArray: [String] { gram.keyArray }
     public var isReadingMismatched: Bool { gram.isReadingMismatched }
 
+    /// 該節點當前狀態所展示的鍵值配對。
+    public var asCandidatePair: Homa.CandidatePair {
+      .init(keyArray: keyArray, value: value)
+    }
+
     /// 將當前單元圖的讀音陣列按照給定的分隔符銜接成一個字串。
     /// - Parameter separator: 給定的分隔符，預設值為 Assembler.theSeparator。
     /// - Returns: 已經銜接完畢的字串。

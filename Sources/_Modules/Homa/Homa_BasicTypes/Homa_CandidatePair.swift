@@ -30,6 +30,11 @@ extension Homa {
       keyArray.count
     }
 
+    /// 檢查是否「讀音字長與候選字字長不一致」。
+    public var isReadingMismatched: Bool {
+      keyArray.count != value.count
+    }
+
     public static func == (lhs: Self, rhs: Self) -> Bool {
       lhs.raw == rhs.raw
     }
@@ -61,10 +66,6 @@ extension Homa {
 
     public var raw: CandidatePairWeightedRAW {
       (pair.raw, weight)
-    }
-
-    public var weightStr4Ref: String {
-      weight.description.prefix(8).description
     }
 
     public static func == (lhs: Self, rhs: Self) -> Bool {
