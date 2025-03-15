@@ -178,6 +178,51 @@ extension Homa {
       try? assignNodes() // 此處拋出的異常已無利用之意義，放行即可。
     }
 
+    /// 獲取當前標記得範圍。這個函式只能是函式、而非只讀變數。
+    /// - Returns: 當前標記範圍。
+    public func currentMarkedRange() -> Range<Int> {
+      min(cursor, marker) ..< max(cursor, marker)
+    }
+
+    /// 檢測是否出現游標切斷組字區內字符的情況。
+    public func isCursorCuttingChar(isMarker: Bool = false) -> Bool {
+      let index = isMarker ? marker : cursor
+      return assembledSentence.isCursorCuttingChar(cursor: index)
+    }
+
+    /// 判斷游標是否可以繼續沿著給定方向移動。
+    /// - Parameters:
+    ///   - direction: 指定方向（相對於文字輸入方向而言）。
+    ///   - isMarker: 是否為標記游標。
+    public func isCursorAtEdge(direction: TypingDirection, isMarker: Bool = false) -> Bool {
+      switch direction {
+      case .front: cursor == length
+      case .rear: cursor == 0
+      }
+    }
+
+    /// 按步移動游標。如果遇到游標切斷組字區內字符的情況，則繼續移動行為、直至該情況消失為止。
+    /// - Parameters:
+    ///   - direction: 指定方向（相對於文字輸入方向而言）。
+    ///   - isMarker: 是否為標記游標。
+    public func moveCursorStepwise(to direction: TypingDirection, isMarker: Bool = false) throws {
+      let delta: Int = switch direction {
+      case .front: 1
+      case .rear: -1
+      }
+      var pos: Int {
+        get { isMarker ? marker : cursor }
+        set { isMarker ? { marker = newValue }() : { cursor = newValue }() }
+      }
+      guard !isCursorAtEdge(direction: direction, isMarker: isMarker) else {
+        throw Exception.cursorAlreadyAtBorder
+      }
+      pos += delta
+      if isCursorCuttingChar(isMarker: true) {
+        try jumpCursorBySpan(to: direction, isMarker: isMarker)
+      }
+    }
+
     /// 按幅位來前後移動游標。
     ///
     /// 在護摩引擎所遵循的術語體系當中，「與文字輸入方向相反的方向」為向後（Rear），反之則為向前（Front）。
