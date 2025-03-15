@@ -82,7 +82,7 @@ extension Homa {
     /// 所有真實索引鍵陣列的快取。
     public private(set) var allActualKeyArraysCached: Set<[String]>
     /// 雙元圖快取。
-    public private(set) var bigramMap: [String: Homa.Gram]
+    public private(set) var bigramMap: [String: [Homa.Gram]]
     /// 該節點目前的覆寫狀態種類。
     public private(set) var currentOverrideType: OverrideType
 
@@ -181,9 +181,13 @@ extension Homa.Node {
   internal func getScore(previous: String?) -> Double {
     guard !grams.isEmpty else { return 0 }
     guard let previous, !previous.isEmpty else { return unigramScore }
-    let bigram = bigramMap[previous]
-    let bigramScore = bigram?.probability
+    let bigram = bigramMap[previous]?.sorted {
+      $0.probability > $1.probability
+    }.first {
+      $0.current == currentGram?.current
+    }
     let currentScore = unigramScore
+    let bigramScore = bigram?.probability
     guard let bigram, let bigramScore else { return currentScore }
     guard bigramScore > currentScore else { return currentScore }
     do {
