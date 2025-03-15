@@ -40,6 +40,15 @@ extension Homa {
       self.backoff = backoff
     }
 
+    public init(from decoder: any Decoder) throws {
+      let container = try decoder.container(keyedBy: CodingKeys.self)
+      self.keyArray = try container.decode([String].self, forKey: .keyArray)
+      self.current = try container.decode(String.self, forKey: .current)
+      self.previous = try container.decodeIfPresent(String.self, forKey: .previous)
+      self.probability = try container.decode(Double.self, forKey: .probability)
+      self.backoff = try container.decode(Double.self, forKey: .backoff)
+    }
+
     // MARK: Public
 
     public let keyArray: [String]
@@ -92,6 +101,15 @@ extension Homa {
       hasher.combine(previous)
       hasher.combine(probability)
       hasher.combine(backoff)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+      var container = encoder.container(keyedBy: CodingKeys.self)
+      try container.encode(keyArray, forKey: .keyArray)
+      try container.encode(current, forKey: .current)
+      try container.encodeIfPresent(previous, forKey: .previous)
+      try container.encode(probability, forKey: .probability)
+      try container.encode(backoff, forKey: .backoff)
     }
 
     // MARK: Internal
