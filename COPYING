@@ -1,0 +1,22 @@
+The LibVanguard is provided under:
+
+  SPDX-License-Identifier: LGPL-3.0-or-later
+
+Being under the terms of the LGPL v3.0 License or Later,
+according with:
+
+  LICENSES/preferred/LGPL-3.0-or-later
+
+With some exceptions, as stated at:
+
+  LICENSES/exceptions/CUSTOM_LGPLv3_EXCEPTION
+
+for more details.
+
+All contributions to the LibVanguard are subject to this COPYING file.
+
+------------------
+
+Also, some components have extra credit annotations. Please see their file headers.
+
+$ EOF.
