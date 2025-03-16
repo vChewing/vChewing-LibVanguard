@@ -60,6 +60,10 @@ extension Homa {
     public var isUnigram: Bool { previous == nil }
 
     public var description: String {
+      describe(keySeparator: "-")
+    }
+
+    public var descriptionSansReading: String {
       guard let previous else {
         return "P(\(current))=\(probability), BOW('\(current)')=\(backoff)" // 單元圖
       }
@@ -90,7 +94,9 @@ extension Homa {
     }
 
     public func describe(keySeparator: String) -> String {
-      "[\(isUnigram ? "Unigram" : "Bigram")] '\(keyArray.joined(separator: keySeparator))', \(description)"
+      let header = "[\(isUnigram ? "Unigram" : "Bigram")]"
+      let body = "'\(keyArray.joined(separator: keySeparator))', \(descriptionSansReading)"
+      return "\(header) \(body)"
     }
 
     /// 預設雜湊函式。
