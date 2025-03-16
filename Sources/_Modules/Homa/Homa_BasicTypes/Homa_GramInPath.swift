@@ -147,4 +147,50 @@ extension Array where Element == Homa.GramInPath {
     }
     return arrData
   }
+
+  /// 生成用以洞察使用者覆寫行為的複元圖索引鍵，最多支援 3-gram。
+  ///
+  /// - Remark: 除非有專門指定游標，否則身為 `[GramInPath]` 自身的
+  /// 「陣列最尾端」（也就是打字方向上最前方）的那個 Gram 會被當成 Head。
+  public func generateKeyForPerception(
+    cursor: Int? = nil
+  )
+    -> (ngramKey: String, candidate: String, headReading: String)? {
+    let perceptedGIP: Homa.GramInPath?
+    if let cursor, (0 ..< self.totalKeyCount).contains(cursor) {
+      perceptedGIP = findGram(at: cursor)?.gram
+    } else {
+      perceptedGIP = last
+    }
+    guard let perceptedGIP else { return nil }
+    var arrGIPs = self
+    while arrGIPs.last?.gram !== perceptedGIP.gram { arrGIPs.removeLast() }
+    var isHead = true
+    var outputCells = [String]()
+    loopProc: while !arrGIPs.isEmpty, let frontendPair = arrGIPs.last {
+      defer { arrGIPs = arrGIPs.dropLast() }
+
+      func makeNGramKeyCell(isHead: Bool) -> String? {
+        // 字音數與字數不一致的內容會被拋棄。
+        guard !frontendPair.isReadingMismatched else { return nil }
+        guard !frontendPair.value.isEmpty else { return nil }
+        guard !frontendPair.keyArray.joined().isEmpty else { return nil }
+        let keyChain = frontendPair.keyArray.joined(separator: "-")
+        guard !keyChain.contains("_") else { return nil }
+        // 前置單元只記錄讀音，在其後的單元則同時記錄讀音與字詞
+        return isHead ? keyChain : "(\(keyChain):\(frontendPair.value))"
+      }
+
+      guard let keyCellStr = makeNGramKeyCell(isHead: isHead) else { break loopProc }
+      outputCells.insert(keyCellStr, at: 0)
+      if outputCells.count >= 3 { break loopProc }
+      if isHead { isHead = false }
+    }
+    guard !outputCells.isEmpty else { return nil }
+    return (
+      "(\(outputCells.joined(separator: ",")))",
+      perceptedGIP.gram.current,
+      perceptedGIP.joinedCurrentKey(by: "-")
+    )
+  }
 }

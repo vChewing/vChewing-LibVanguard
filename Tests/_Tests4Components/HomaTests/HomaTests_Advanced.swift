@@ -195,10 +195,15 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   func testAssembleAndOverrideWithUnigramAndCursorJump() async throws {
     let readings = "chao1 shang1 da4 qian2 tian1 wei2 zhi3 hai2 zai5 mai4 nai3 ji1"
     let mockLM = TestLM(rawData: strLMSampleDataLitch)
+    var perceptions: [(ngramKey: String, candidate: String, headReading: String)] = []
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) },
       gramAvailabilityChecker: { mockLM.hasGrams($0) }
-    )
+    ) { gramsToObserve in
+      if let percepted = gramsToObserve.generateKeyForPerception() {
+        perceptions.append(percepted)
+      }
+    }
     try readings.split(separator: " ").forEach {
       try assembler.insertKey($0.description)
     }
@@ -225,11 +230,15 @@ public struct HomaTestsAdvanced: HomaTestSuite {
       try assemberCopy1.overrideCandidate(.init(keyArray: ["ji1"], value: "雞"), at: 11)
       assembledSentence = assemberCopy1.assemble().compactMap(\.value)
       #expect(assembledSentence == ["超商", "大前天", "為止", "還", "在", "賣", "乃", "雞"])
+      #expect(perceptions.last?.ngramKey == "((mai4:賣),(nai3:乃),ji1)")
+      #expect(perceptions.last?.candidate == "雞")
     }
     // 回到先前的測試，測試對整個詞的覆寫。
     try assembler.overrideCandidate(.init(keyArray: ["nai3", "ji1"], value: "奶雞"), at: 10)
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["超商", "大前天", "為止", "還", "在", "賣", "奶雞"])
+    #expect(perceptions.last?.ngramKey == "((zai5:在),(mai4:賣),nai3-ji1)")
+    #expect(perceptions.last?.candidate == "奶雞")
     // 測試游標跳轉。
     assembler.cursor = 10 // 向後
     #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .rear) })

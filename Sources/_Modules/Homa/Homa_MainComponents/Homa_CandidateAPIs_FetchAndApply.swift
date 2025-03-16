@@ -131,6 +131,7 @@ extension Homa.Assembler {
 
     // 尋找相符的節點
     var overridden: (location: Int, node: Homa.Node)?
+    var overriddenGram: Homa.Gram?
     var lastError: Homa.Exception?
 
     for anchor in arrOverlappedNodes {
@@ -140,7 +141,7 @@ extension Homa.Assembler {
       }
 
       do {
-        try anchor.node.selectOverrideGram(
+        overriddenGram = try anchor.node.selectOverrideGram(
           keyArray: keyArray,
           value: value,
           type: type
@@ -156,11 +157,17 @@ extension Homa.Assembler {
     }
 
     // 如果沒有找到相符的節點，拋出錯誤
-    guard let overridden else {
+    guard let overridden, let overriddenGram else {
       throw lastError ?? .nothingOverriddenAtNode
     }
 
-    defer { assemble() }
+    defer {
+      var assembledSentence = assemble()
+      while assembledSentence.last?.gram !== overriddenGram {
+        assembledSentence.removeLast()
+      }
+      perceptor?(assembledSentence.suffix(3))
+    }
 
     // 更新重疊節點的覆寫權重
     let overriddenRange = overridden.location ..< min(

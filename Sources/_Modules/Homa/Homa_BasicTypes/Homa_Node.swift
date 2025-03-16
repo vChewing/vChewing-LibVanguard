@@ -221,13 +221,15 @@ extension Homa.Node {
   ///   - value: 給定的元圖資料值。
   ///   - previous: 前述資料。
   ///   - type: 覆寫行為種類。
-  /// - Returns: 操作是否順利完成。
+  /// - Returns: 複寫成功的 Gram。
+  @discardableResult
   internal func selectOverrideGram(
     keyArray: [String]?,
     value: String,
     previous: String? = nil,
     type: Homa.Node.OverrideType
-  ) throws {
+  ) throws
+    -> Homa.Gram {
     guard type != .none else { throw Homa.Exception.nothingOverriddenAtNode }
     for (i, gram) in grams.enumerated() {
       if let keyArray, keyArray != gram.keyArray { continue }
@@ -235,7 +237,7 @@ extension Homa.Node {
       if let previous, !previous.isEmpty, previous != gram.previous { continue }
       currentGramIndex = i
       currentOverrideType = type
-      return
+      return gram
     }
     throw Homa.Exception.nothingOverriddenAtNode
   }

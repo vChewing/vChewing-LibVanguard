@@ -20,11 +20,13 @@ extension Homa {
     public init(
       gramQuerier: @escaping Homa.GramQuerier,
       gramAvailabilityChecker: @escaping Homa.GramAvailabilityChecker,
+      perceptor: Homa.UserOverridePerceptor? = nil,
       config: Config = Config()
     ) {
       self.gramQuerier = gramQuerier
       self.gramAvailabilityChecker = gramAvailabilityChecker
       self.config = config
+      self.perceptor = perceptor
     }
 
     /// 以指定組字器生成拷貝。
@@ -35,6 +37,7 @@ extension Homa {
       self.config = target.config.hardCopy
       self.gramQuerier = target.gramQuerier
       self.gramAvailabilityChecker = target.gramAvailabilityChecker
+      self.perceptor = target.perceptor
     }
 
     // MARK: Public
@@ -48,6 +51,8 @@ extension Homa {
     public var gramQuerier: Homa.GramQuerier
     /// 元圖在庫檢查器。
     public var gramAvailabilityChecker: Homa.GramAvailabilityChecker
+    /// 用以洞察使用者字詞節點覆寫行為的 API。
+    public var perceptor: UserOverridePerceptor?
     /// 組態設定。
     public private(set) var config = Config()
 
@@ -320,6 +325,9 @@ extension Homa {
     // MARK: Private
 
     /// 從元圖存取專用 API 將獲取的結果轉為元圖、以供 Nodes 使用。
+    ///
+    /// 此處故意針對不同的 Nodes 單獨建立 Gram 實例，是為了確保它們的記憶體位置不同。
+    /// 便於其他函式直接比對記憶體位置（也就是用「===」與「!==」來比對）。
     /// - Parameter keyArray: 讀音陣列。
     /// - Returns: 元圖陣列。
     private func queryGrams(using keyArray: [String]) -> [Homa.Gram] {
