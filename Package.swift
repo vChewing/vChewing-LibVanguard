@@ -55,6 +55,16 @@ let package = Package(
       dependencies: ["Homa"],
       path: "./Tests/_Tests4Components/HomaTests"
     ),
+    // PerceptionKit, a companion for Homa Assembler.
+    .target(
+      name: "PerceptionKit",
+      path: "./Sources/_Modules/PerceptionKit"
+    ),
+    .testTarget(
+      name: "PerceptionKitTests",
+      dependencies: ["PerceptionKit"],
+      path: "./Tests/_Tests4Components/PerceptionKitTests"
+    ),
     // BrailleSputnik, the Braille module.
     .target(
       name: "BrailleSputnik",
