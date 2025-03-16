@@ -159,7 +159,7 @@ extension Homa {
         spans = gridBackup
         throw error
       }
-      cursor += 1 // 游標必須得在執行 update() 之後才可以變動。
+      cursor += 1 // 游標必須得在執行 assignNodes() 之後才可以變動。
     }
 
     /// 朝著指定方向砍掉一個與游標相鄰的讀音。
@@ -314,6 +314,7 @@ extension Homa {
         }
       }
       guard nodesChanged != 0 else { throw Homa.Exception.noNodesAssigned }
+      assemble()
     }
 
     // MARK: Private

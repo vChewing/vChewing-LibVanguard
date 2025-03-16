@@ -160,6 +160,8 @@ extension Homa.Assembler {
       throw lastError ?? .nothingOverriddenAtNode
     }
 
+    defer { assemble() }
+
     // 更新重疊節點的覆寫權重
     let overriddenRange = overridden.location ..< min(
       spans.count,

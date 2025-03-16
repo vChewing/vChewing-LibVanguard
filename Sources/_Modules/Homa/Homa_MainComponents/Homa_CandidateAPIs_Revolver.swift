@@ -118,7 +118,6 @@ extension Homa.Assembler {
 
     // 覆寫候選字並重新組裝
     try overrideCandidate(theCandidateNow.pair, at: candidateCursorPos)
-    assemble()
 
     // 處理偵錯資訊
     if let debugIntelHandler {
