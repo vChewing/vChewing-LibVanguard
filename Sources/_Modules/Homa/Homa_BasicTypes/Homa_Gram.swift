@@ -6,7 +6,7 @@
 
 extension Homa {
   /// 護摩組字引擎專用的元圖類型，可以是單元圖、也可以是雙元圖。
-  /// - Remarks: 護摩組字引擎所利用的雙元圖資料不包含讀音。
+  /// - Remark: 護摩組字引擎所利用的雙元圖資料不包含讀音。此處故意使用 class 而非 struct 是因為其記憶體位址有特殊之用途。
   public final class Gram: Codable, CustomStringConvertible, Equatable, Sendable, Hashable {
     // MARK: Lifecycle
 
