@@ -464,7 +464,7 @@ extension VanguardTrie {
       sqlite3_finalize(statement)
     }
 
-    // 直接查詢表中數據的偵錯方法
+    // 直接查詢表中資料的偵錯方法
     private func directQueryDebug(keys: [String]) {
       // 1. 檢查 reading_mappings 表中是否有這些 readings
       for key in keys {
