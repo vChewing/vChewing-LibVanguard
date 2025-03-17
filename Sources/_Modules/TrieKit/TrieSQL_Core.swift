@@ -66,35 +66,37 @@ extension VanguardTrie {
 
       var transactionBegun = false
 
-      // 逐行執行 SQL 腳本，確保每條命令都執行成功
-      let commands = sqlContent.split(separator: ";")
+      // 使用更智能的方式分割 SQL 語句，避免將字串內的分號誤認為語句結束
+      let sqlStatements = parseSQLScript(sqlContent)
 
-      for command in commands {
-        let trimmedCommand = command.trimmingCharacters(in: .whitespacesAndNewlines)
-        // 跳過空行和事務控制語句
-        if trimmedCommand.isEmpty ||
-          trimmedCommand.uppercased().contains("COMMIT") ||
-          trimmedCommand.uppercased().contains("VACUUM") {
+      for statement in sqlStatements {
+        let trimmedStatement = statement.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 跳過空行和特定的事務控制語句
+        if trimmedStatement.isEmpty ||
+          trimmedStatement.uppercased().contains("PRAGMA SYNCHRONOUS") ||
+          trimmedStatement.uppercased().contains("PRAGMA JOURNAL_MODE") ||
+          trimmedStatement.uppercased().contains("COMMIT") ||
+          trimmedStatement.uppercased().contains("VACUUM") {
           continue
         }
 
-        if trimmedCommand.uppercased().contains("BEGIN TRANSACTION") {
+        if trimmedStatement.uppercased().contains("BEGIN TRANSACTION") {
           guard !transactionBegun else { continue }
           transactionBegun = true
         }
 
         var errorMessage: UnsafeMutablePointer<CChar>?
-        let result = sqlite3_exec(database, "\(trimmedCommand);", nil, nil, &errorMessage)
+        let result = sqlite3_exec(database, "\(trimmedStatement);", nil, nil, &errorMessage)
 
         if result != SQLITE_OK {
           if let errorMsg = errorMessage {
             let errorString = String(cString: errorMsg)
             Self.printDebug("執行 SQL 命令時發生錯誤: \(errorString)")
-            Self.printDebug("問題命令: \(trimmedCommand)")
+            Self.printDebug("問題命令: \(trimmedStatement)")
             sqlite3_free(errorMessage)
           } else {
             Self.printDebug("執行 SQL 命令時發生錯誤，代碼: \(result)")
-            Self.printDebug("問題命令: \(trimmedCommand)")
+            Self.printDebug("問題命令: \(trimmedStatement)")
           }
           sqlite3_exec(database, "ROLLBACK;", nil, nil, nil)
           sqlite3_close(database)
@@ -500,6 +502,57 @@ extension VanguardTrie {
         }
       }
       sqlite3_finalize(stmt)
+    }
+
+    /// 智能地解析 SQL 腳本，正確處理字串內的分號
+    private func parseSQLScript(_ script: String) -> [String] {
+      var statements = [String]()
+      var currentStatement = ""
+      var inSingleQuote = false
+      var inDoubleQuote = false
+      var roundBracketLevel = 0
+      var squareBracketLevel = 0
+      var curvedBracketLevel = 0
+      var lastChar: Character?
+
+      for char in script {
+        // 處理引號狀態
+        checkCharPair: switch char {
+        case #"'"# where lastChar != #"\"#: inSingleQuote.toggle()
+        case #"""# where lastChar != #"\"#: inDoubleQuote.toggle()
+        case #"("#: roundBracketLevel += 1
+        case #")"#: roundBracketLevel -= 1
+        case #"["#: squareBracketLevel += 1
+        case #"]"#: squareBracketLevel -= 1
+        case #"{"#: curvedBracketLevel += 1
+        case #"}"#: curvedBracketLevel -= 1
+        default: break checkCharPair
+        }
+
+        var notInBrackets: Bool {
+          roundBracketLevel == 0 && squareBracketLevel == 0 && curvedBracketLevel == 0
+        }
+
+        // 如果遇到分號且不在引號內，則表示語句結束
+        if char == ";", !inSingleQuote, !inDoubleQuote, notInBrackets {
+          currentStatement += String(char)
+          if !currentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            statements.append(currentStatement)
+          }
+          currentStatement = ""
+        } else {
+          currentStatement += String(char)
+        }
+
+        lastChar = char
+      }
+
+      // 添加最後一個語句（如果有）
+      if !currentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        statements.append(currentStatement)
+      }
+
+      return statements
     }
   }
 }
