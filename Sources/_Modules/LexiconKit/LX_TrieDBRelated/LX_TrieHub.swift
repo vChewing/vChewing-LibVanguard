@@ -1,0 +1,195 @@
+// (c) 2025 and onwards The vChewing Project (LGPL v3.0 License or later).
+// ====================
+// This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
+
+import Foundation
+import TrieKit
+
+// MARK: - VanguardTrie.TrieHub
+
+extension VanguardTrie {
+  public typealias HomaGramTuple = (
+    keyArray: [String],
+    value: String,
+    probability: Double,
+    previous: String?
+  )
+
+  internal class TrieHub {
+    // MARK: Lifecycle
+
+    init() {}
+
+    // MARK: Internal
+
+    internal var sqlTrieMap: [FactoryTrieDBType: VanguardTrie.SQLTrie] = [:]
+    internal var plistTrieMap: [FactoryTrieDBType: VanguardTrie.Trie] = [:]
+    internal var userTrie: VanguardTrie.Trie = .init(separator: "-")
+    internal var cinTrie: VanguardTrie.Trie = .init(separator: "-")
+  }
+}
+
+extension VanguardTrie.TrieHub {
+  /// - Warning: 如果新指派的 Trie 有創建失敗的話，其對應的類型的原始 Trie 會變成 nil。
+  public func updateTrieFromSQLFile(
+    _ trieMapProvider: @escaping ()
+      -> [FactoryTrieDBType: String]
+  ) {
+    let map = trieMapProvider()
+    map.forEach { trieDataType, urlStr in
+      let newTrie = VanguardTrie.SQLTrie(dbPath: urlStr, readOnly: true) // 必須得是唯讀。
+      sqlTrieMap[trieDataType]?.closeAndNullifyConnection()
+      sqlTrieMap[trieDataType] = newTrie
+    }
+  }
+
+  /// - Warning: 如果新指派的 Trie 有創建失敗的話，其對應的類型的原始 Trie 會變成 nil。
+  public func updateTrieFromSQLScript(
+    _ trieMapProvider: @escaping () -> [FactoryTrieDBType: String]
+  ) {
+    let map = trieMapProvider()
+    map.forEach { trieDataType, sqlScript in
+      let newTrie = VanguardTrie.SQLTrie(sqlContent: sqlScript) // 必須得是唯讀。
+      sqlTrieMap[trieDataType]?.closeAndNullifyConnection()
+      sqlTrieMap[trieDataType] = newTrie
+    }
+  }
+
+  /// - Warning: 如果新指派的 Trie 有創建失敗的話，其對應的類型的原始 Trie 會變成 nil。
+  public func updateTrieFromPlistFile(_ trieMapProvider: @escaping () -> [FactoryTrieDBType: URL]) {
+    let map = trieMapProvider()
+    map.forEach { trieDataType, url in
+      let newTriePlist = try? VanguardTrie.TrieIO.load(from: url)
+      plistTrieMap[trieDataType] = newTriePlist
+    }
+  }
+}
+
+extension VanguardTrie.TrieHub {
+  public func hasGrams(
+    _ keys: [String],
+    filterType: VanguardTrie.Trie.EntryType,
+    partiallyMatch: Bool = false,
+    partiallyMatchedKeysHandler: ((Set<[String]>) -> ())? = nil
+  )
+    -> Bool {
+    guard !keys.isEmpty else { return false }
+    let isRevLookup = filterType == .revLookup
+    let keys = isRevLookup ? keys : keys.map(VanguardTrie.encryptReadingKey)
+    var partiallyMatchedKeys: Set<[String]> = []
+    defer { partiallyMatchedKeysHandler?(partiallyMatchedKeys) }
+    for dataType in FactoryTrieDBType.allCases {
+      dataTypeCheck: switch dataType {
+      case .revLookup where !isRevLookup: continue
+      default: break dataTypeCheck
+      }
+      var hasGrams = userTrie.hasGrams(
+        keys, filterType: filterType, partiallyMatch: partiallyMatch
+      ) { retrievedKeys in
+        partiallyMatchedKeys.formUnion(retrievedKeys)
+      }
+      hasGrams = hasGrams || plistTrieMap[dataType]?.hasGrams(
+        keys, filterType: filterType, partiallyMatch: partiallyMatch
+      ) { retrievedKeys in
+        partiallyMatchedKeys.formUnion(retrievedKeys)
+      } ?? false
+      hasGrams = hasGrams || sqlTrieMap[dataType]?.hasGrams(
+        keys, filterType: filterType, partiallyMatch: partiallyMatch
+      ) { retrievedKeys in
+        partiallyMatchedKeys.formUnion(retrievedKeys)
+      } ?? false
+      if filterType.contains(.cinCassette) {
+        hasGrams = hasGrams || cinTrie.hasGrams(
+          keys, filterType: filterType, partiallyMatch: partiallyMatch
+        ) { retrievedKeys in
+          partiallyMatchedKeys.formUnion(retrievedKeys)
+        }
+      }
+      if hasGrams { return true }
+    }
+    return false
+  }
+
+  public func queryGrams(
+    _ keys: [String],
+    filterType: VanguardTrie.Trie.EntryType,
+    partiallyMatch: Bool = false,
+    partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
+  )
+    -> [VanguardTrie.HomaGramTuple] {
+    guard !keys.isEmpty else { return [] }
+    let isRevLookup = filterType == .revLookup
+    let keys = isRevLookup ? keys : keys.map(VanguardTrie.encryptReadingKey)
+    var result = [VanguardTrie.HomaGramTuple]()
+    var partiallyMatchedKeys: Set<[String]> = []
+    var insertedThings: Set<String> = []
+    for dataType in FactoryTrieDBType.allCases {
+      dataTypeCheck: switch dataType {
+      case .revLookup where !isRevLookup: continue
+      default: break dataTypeCheck
+      }
+      var fetched: [VanguardTrie.HomaGramTuple] = userTrie.queryGrams(
+        keys, filterType: filterType, partiallyMatch: partiallyMatch
+      ) { retrievedKeys in
+        partiallyMatchedKeys.formUnion(retrievedKeys)
+      }
+      fetched += plistTrieMap[dataType]?.queryGrams(
+        keys, filterType: filterType, partiallyMatch: partiallyMatch
+      ) { retrievedKeys in
+        partiallyMatchedKeys.formUnion(retrievedKeys)
+      } ?? []
+      fetched += sqlTrieMap[dataType]?.queryGrams(
+        keys, filterType: filterType, partiallyMatch: partiallyMatch
+      ) { retrievedKeys in
+        partiallyMatchedKeys.formUnion(retrievedKeys)
+      } ?? []
+      if filterType.contains(.cinCassette) {
+        fetched += cinTrie.queryGrams(
+          keys, filterType: filterType, partiallyMatch: partiallyMatch
+        ) { retrievedKeys in
+          partiallyMatchedKeys.formUnion(retrievedKeys)
+        }
+      }
+      if fetched.isEmpty { continue }
+      fetched.forEach { currentTuple in
+        let currentTupleStringified = "\(currentTuple)"
+        guard !insertedThings.contains(currentTupleStringified) else { return }
+        insertedThings.insert(currentTupleStringified)
+        let newKeyArray: [String] = isRevLookup
+          ? currentTuple.keyArray
+          : currentTuple.keyArray.map(VanguardTrie.decryptReadingKey)
+        let newValue: String = isRevLookup
+          ? VanguardTrie.decryptReadingKey(currentTuple.value)
+          : currentTuple.value
+        result.append(
+          (
+            keyArray: newKeyArray,
+            value: newValue,
+            probability: currentTuple.probability,
+            previous: currentTuple.previous
+          )
+        )
+      }
+    }
+    return result
+  }
+}
+
+extension VanguardTrie.TrieHub {
+  public static func sortAndDeduplicateQueryResults(_ target: inout [VanguardTrie.HomaGramTuple]) {
+    var insertedIntel = Set<String>()
+    target = target.sorted {
+      (
+        $1.keyArray.split(separator: "-").count, "\($0.keyArray)", $1.probability
+      ) < (
+        $0.keyArray.split(separator: "-").count, "\($1.keyArray)", $0.probability
+      )
+    }.compactMap {
+      let intel = "\($0.keyArray) \($0.value) \($0.previous ?? "")"
+      if !insertedIntel.contains(intel) {}
+      guard !insertedIntel.contains(intel) else { return nil }
+      insertedIntel.insert(intel)
+      return $0
+    }
+  }
+}

@@ -29,7 +29,14 @@ let package = Package(
     // Targets can depend on other targets in this package and products from dependencies.
     .target(
       name: "LibVanguard",
-      dependencies: ["Tekkon", "Homa", "BrailleSputnik", "TrieKit", "KBEventKit"]
+      dependencies: [
+        "Tekkon",
+        "Homa",
+        "BrailleSputnik",
+        "TrieKit",
+        "KBEventKit",
+        "LexiconKit",
+      ]
     ),
     .testTarget(
       name: "LibVanguardTests",
@@ -64,6 +71,25 @@ let package = Package(
       name: "PerceptionKitTests",
       dependencies: ["PerceptionKit"],
       path: "./Tests/_Tests4Components/PerceptionKitTests"
+    ),
+    // Shared bundle for all tests using factory trie.
+    .target(
+      name: "SharedTrieTestDataBundle",
+      path: "./Tests/_Tests4Components/_SharedTrieTestDataBundle",
+      resources: [
+        .process("./Resources"),
+      ]
+    ),
+    // LexiconKit, the hub for all subsidiary language models.
+    .target(
+      name: "LexiconKit",
+      dependencies: ["TrieKit", "PerceptionKit", "SharedTrieTestDataBundle"],
+      path: "./Sources/_Modules/LexiconKit"
+    ),
+    .testTarget(
+      name: "LexiconKitTests",
+      dependencies: ["TrieKit", "LexiconKit", "Homa", "Tekkon"],
+      path: "./Tests/_Tests4Components/LexiconKitTests"
     ),
     // BrailleSputnik, the Braille module.
     .target(
