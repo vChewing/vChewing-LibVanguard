@@ -254,14 +254,22 @@ struct TekkonTestsBasic {
 
   @Test("[Tekkon] Chopper")
   func testChoppingRawComplex() async throws {
-    let composerZhuyin = Tekkon.PinyinTrie(parser: .ofDachen)
-    let composerPinyin = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
-    let choppedZhuyin = composerZhuyin.chop("ㄅㄩㄝㄓㄨㄑㄕㄢㄌㄧㄌㄧㄤ")
-    let choppedPinyin = composerPinyin.chop("byuezqsll")
-    #expect(choppedZhuyin == ["ㄅ", "ㄩㄝ", "ㄓㄨ", "ㄑ", "ㄕㄢ", "ㄌㄧ", "ㄌㄧㄤ"])
-    #expect(choppedPinyin == ["b", "yue", "z", "q", "s", "l", "l"])
-    let choppedZhuyin2 = composerZhuyin.chop("ㄕㄐㄧㄉㄓ")
-    #expect(choppedZhuyin2 == ["ㄕ", "ㄐㄧ", "ㄉ", "ㄓ"])
+    let trieZhuyin = Tekkon.PinyinTrie(parser: .ofDachen)
+    let triePinyin = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
+    do {
+      let choppedZhuyin = trieZhuyin.chop("ㄅㄩㄝㄓㄨㄑㄕㄢㄌㄧㄌㄧㄤ")
+      let choppedPinyin = triePinyin.chop("byuezqsll")
+      #expect(choppedZhuyin == ["ㄅ", "ㄩㄝ", "ㄓㄨ", "ㄑ", "ㄕㄢ", "ㄌㄧ", "ㄌㄧㄤ"])
+      #expect(choppedPinyin == ["b", "yue", "z", "q", "s", "l", "l"])
+      let choppedZhuyin2 = trieZhuyin.chop("ㄕㄐㄧㄉㄓ")
+      #expect(choppedZhuyin2 == ["ㄕ", "ㄐㄧ", "ㄉ", "ㄓ"])
+    }
+    do {
+      let choppedPinyin = triePinyin.chop("yod")
+      #expect(choppedPinyin == ["yo", "d"])
+      let deducted = triePinyin.deductChoppedPinyinToZhuyin(choppedPinyin)
+      #expect(deducted.first == "ㄧㄛ&ㄧㄡ&ㄩㄥ")
+    }
   }
 
   @Test("[Tekkon] Pinyin Trie Converting Pinyin Chops to Zhuyin")
