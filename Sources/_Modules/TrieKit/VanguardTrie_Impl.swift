@@ -87,12 +87,17 @@ extension VanguardTrie.Trie {
 // MARK: - VanguardTrie.Trie + VanguardTrieProtocol
 
 extension VanguardTrie.Trie: VanguardTrieProtocol {
-  public func getNodeIDs(keys: [String], filterType: EntryType, partiallyMatch: Bool) -> Set<Int> {
+  public func getNodeIDs(
+    keyArray: [String],
+    filterType: EntryType,
+    partiallyMatch: Bool
+  )
+    -> Set<Int> {
     switch partiallyMatch {
     case false:
-      return keyChainIDMap[keys.joined(separator: readingSeparator.description)] ?? []
+      return keyChainIDMap[keyArray.joined(separator: readingSeparator.description)] ?? []
     case true:
-      guard !keys.isEmpty else { return [] }
+      guard !keyArray.isEmpty else { return [] }
 
       // 使用 keyChainIDMap 來優化查詢
       var matchedNodeIDs = Set<Int>()
@@ -103,10 +108,10 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
         let keyComponents = keyChain.split(separator: readingSeparator).map(\.description)
 
         // 檢查長度是否相符
-        guard keyComponents.count == keys.count else { return }
+        guard keyComponents.count == keyArray.count else { return }
 
         // 檢查每個元素是否以對應的前綴開頭
-        guard zip(keys, keyComponents).allSatisfy({ $1.hasPrefix($0) }) else { return }
+        guard zip(keyArray, keyComponents).allSatisfy({ $1.hasPrefix($0) }) else { return }
 
         // 檢查類型過濾條件
         if !filterType.isEmpty {

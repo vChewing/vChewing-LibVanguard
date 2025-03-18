@@ -10,7 +10,7 @@ public protocol VanguardTrieProtocol {
   typealias EntryType = VanguardTrie.Trie.EntryType
 
   var readingSeparator: Character { get }
-  func getNodeIDs(keys: [String], filterType: EntryType, partiallyMatch: Bool) -> Set<Int>
+  func getNodeIDs(keyArray: [String], filterType: EntryType, partiallyMatch: Bool) -> Set<Int>
   func getNode(nodeID: Int) -> TNode?
   func getEntries(node: TNode) -> [Entry]
 }
@@ -32,7 +32,7 @@ extension VanguardTrieProtocol {
     // 單個讀音位置的多個可能性以 chopCaseSeparator 區隔。
     guard keysChopped.joined().contains(chopCaseSeparator) else {
       let result = getNodeIDs(
-        keys: keysChopped,
+        keyArray: keysChopped,
         filterType: filterType,
         partiallyMatch: partiallyMatch
       )
@@ -64,15 +64,15 @@ extension VanguardTrieProtocol {
     generateCombinations(index: 0, current: [])
 
     var result = [Int: (keys: [String], ids: Set<Int>)]()
-    possibleReadings.forEach { keys in
+    possibleReadings.forEach { keyArray in
       let nodeIDsFetched = getNodeIDs(
-        keys: keys,
+        keyArray: keyArray,
         filterType: filterType,
         partiallyMatch: partiallyMatch
       )
       nodeIDsFetched.forEach { nodeID in
-        let changedIDs = result[keys.hashValue, default: (keys, [])].ids.union([nodeID])
-        result[keys.hashValue, default: (keys, [])] = (keys, changedIDs)
+        let changedIDs = result[keyArray.hashValue, default: (keyArray, [])].ids.union([nodeID])
+        result[keyArray.hashValue, default: (keyArray, [])] = (keyArray, changedIDs)
       }
     }
     return Array(result.values)

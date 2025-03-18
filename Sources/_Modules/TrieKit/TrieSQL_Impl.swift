@@ -9,18 +9,18 @@ import CSQLite3
 // 讓 SQLTrie 遵循 VanguardTrieProtocol
 extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
   public func getNodeIDs(
-    keys: [String],
+    keyArray: [String],
     filterType: VanguardTrie.Trie.EntryType,
     partiallyMatch: Bool
   )
     -> Set<Int> {
-    guard !keys.isEmpty else { return [] }
+    guard !keyArray.isEmpty else { return [] }
 
     if partiallyMatch {
       var nodeIDs = Set<Int>()
 
       // 構建查詢前綴條件
-      let firstKeyEscaped = keys[0].replacingOccurrences(of: "'", with: "''")
+      let firstKeyEscaped = keyArray[0].replacingOccurrences(of: "'", with: "''")
 
       // 查詢與前綴比對的 keychain
       let query = """
@@ -52,7 +52,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       return nodeIDs
     } else {
       // 精確比對
-      let keychain = keys.joined(separator: readingSeparator.description)
+      let keychain = keyArray.joined(separator: readingSeparator.description)
       return getNodeIDsForKeychain(keychain, filterType: filterType)
     }
   }
