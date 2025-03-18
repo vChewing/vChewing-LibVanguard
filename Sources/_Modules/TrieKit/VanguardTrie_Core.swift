@@ -10,15 +10,14 @@ public enum VanguardTrie {
 
     public init(separator: Character) {
       self.readingSeparator = separator
-      self.root = .init(id: 0)
+      self.root = .init(id: "")
       self.nodes = [:]
 
       // 初始化時，將根節點加入到節點辭典中
-      root.id = 0
+      root.id = ""
       root.parentID = nil
       root.character = ""
-      nodes[0] = root
-      self.keyChainIDMap = [:]
+      nodes[""] = root
     }
 
     public required init(from decoder: any Decoder) throws {
@@ -42,17 +41,15 @@ public enum VanguardTrie {
 
       self.readingSeparator = separatorChar
       let nodesExtracted = try container.decode(Set<TNode>.self, forKey: .nodes)
-      var nodesMap = [Int: TNode]()
+      var nodesMap = [String: TNode]()
       nodesExtracted.forEach {
         nodesMap[$0.id] = $0
       }
       self.nodes = nodesMap
 
       // 從節點辭典中獲取根節點
-      guard let rootNode = nodes[0] else { throw decodingErrorRoot0 }
+      guard let rootNode = nodes[""] else { throw decodingErrorRoot0 }
       self.root = rootNode
-      self.keyChainIDMap = [:]
-      updateKeyChainIDMap()
     }
 
     // MARK: Public
@@ -61,9 +58,9 @@ public enum VanguardTrie {
       // MARK: Lifecycle
 
       public init(
-        id: Int,
+        id: String,
         entries: [Entry] = [],
-        parentID: Int? = nil,
+        parentID: String? = nil,
         character: String = "",
         readingKey: String = ""
       ) {
@@ -77,12 +74,12 @@ public enum VanguardTrie {
 
       public required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decode(Int.self, forKey: .id)
-        self.parentID = try container.decodeIfPresent(Int.self, forKey: .parentID)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.parentID = try container.decodeIfPresent(String.self, forKey: .parentID)
         self.character = try container.decodeIfPresent(String.self, forKey: .character) ?? ""
         self.readingKey = try container.decodeIfPresent(String.self, forKey: .readingKey) ?? ""
         self.children = (
-          try container.decodeIfPresent([String: Int].self, forKey: .children)
+          try container.decodeIfPresent([String: String].self, forKey: .children)
         ) ?? [:]
         self.entries = (
           try container.decodeIfPresent([Entry].self, forKey: .entries)
@@ -91,12 +88,12 @@ public enum VanguardTrie {
 
       // MARK: Public
 
-      public internal(set) var id: Int = 0
+      public internal(set) var id: String = ""
       public internal(set) var entries: [Entry] = []
-      public internal(set) var parentID: Int?
+      public internal(set) var parentID: String?
       public internal(set) var character: String = ""
       public internal(set) var readingKey: String = "" // 新增：存儲節點對應的讀音鍵
-      public internal(set) var children: [String: Int] = [:] // 新的結構：字符 -> 子節點ID映射
+      public internal(set) var children: [String: String] = [:] // 新的結構：字符 -> 子節點ID映射
 
       public static func == (
         lhs: TNode,
@@ -251,8 +248,7 @@ public enum VanguardTrie {
 
     public let readingSeparator: Character
     public let root: TNode
-    public internal(set) var nodes: [Int: TNode] // 新增：節點辭典，以id為索引
-    public internal(set) var keyChainIDMap: [String: Set<Int>]
+    public internal(set) var nodes: [String: TNode] // 修改：由 Int 改為 String
 
     public func encode(to encoder: any Encoder) throws {
       var container = encoder.container(keyedBy: CodingKeys.self)
@@ -275,66 +271,44 @@ public enum VanguardTrie {
 extension VanguardTrie.Trie {
   public func insert(entry: Entry, readings: [String]) {
     var currentNode = root
-    var currentNodeID = 0
+    var currentNodeID = ""
 
     let key = readings.joined(separator: readingSeparator.description)
-    var keyCells = [String]()
+    let keyCells = readings // 修改：直接使用 readings 作為 keyCells，不再拆分字符
 
-    if key.hasPrefix("_") {
-      keyCells = [key]
-    } else {
-      keyCells = key.map(\.description)
-    }
-
-    // 遍歷關鍵字的每個字符
+    // 遍歷關鍵字的每個讀音單元
     keyCells.forEach { nodeUnitStr in
-      if let childNodeID = currentNode.children[nodeUnitStr],
-         let matchedNode = nodes[childNodeID] {
+      let nextNodeKeyChain = currentNodeID.isEmpty ? nodeUnitStr :
+        currentNodeID + readingSeparator.description + nodeUnitStr
+
+      if let childNode = nodes[nextNodeKeyChain] {
         // 有效的子節點已存在，繼續遍歷
-        currentNodeID = childNodeID
-        currentNode = matchedNode
+        currentNodeID = nextNodeKeyChain
+        currentNode = childNode
         return
       }
       // 創建新的子節點
-      let newNodeID = nodes.count
-      let newNode = TNode(id: newNodeID, parentID: currentNodeID, character: nodeUnitStr)
+      let newNode = TNode(id: nextNodeKeyChain, parentID: currentNodeID, character: nodeUnitStr)
 
       // 更新關係
-      currentNode.children[nodeUnitStr] = newNodeID
-      nodes[newNodeID] = newNode
+      currentNode.children[nodeUnitStr] = nextNodeKeyChain
+      nodes[nextNodeKeyChain] = newNode
 
       // 更新當前節點
       currentNode = newNode
-      currentNodeID = newNodeID
+      currentNodeID = nextNodeKeyChain
     }
 
     // 在最終節點設定讀音鍵並添加詞條
     currentNode.readingKey = key
     currentNode.entries.append(entry)
-
-    // 更新 keyChainIDMap
-    keyChainIDMap[key, default: []].insert(currentNodeID)
   }
 
   public func clearAllContents() {
     root.children.removeAll()
     root.entries.removeAll()
-    root.id = 0
+    root.id = ""
     nodes.removeAll()
-    nodes[0] = root
-    updateKeyChainIDMap()
-  }
-
-  internal func updateKeyChainIDMap() {
-    // 清空現有映射以確保資料一致性
-    keyChainIDMap.removeAll()
-
-    // 遍歷所有節點和條目來重建映射
-    nodes.forEach { nodeID, node in
-      node.entries.forEach { _ in
-        let keyChainStr = node.readingKey
-        keyChainIDMap[keyChainStr, default: []].insert(nodeID)
-      }
-    }
+    nodes[""] = root
   }
 }

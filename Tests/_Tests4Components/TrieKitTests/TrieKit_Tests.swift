@@ -17,7 +17,7 @@ public struct TrieKitTests: TrieKitTestSuite {
   /// 這裡重複對護摩引擎的胡桃測試（Full Match）。
   @Test("[TrieKit] Trie SQL Structure Test (Full Match)", arguments: [false, true])
   func testTrieSQLStructureWithFullMatch(useSQL: Bool) async throws {
-    let mockLM = try await prepareTrieLM(useSQL: useSQL)
+    let mockLM = try prepareTrieLM(useSQL: useSQL).lm
     let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) }, // 會回傳包含 Bigram 的結果。
@@ -68,7 +68,7 @@ public struct TrieKitTests: TrieKitTestSuite {
   /// 這裡重複對護摩引擎的胡桃測試（Partial Match）。
   @Test("[TrieKit] Trie SQL Structure Test (Partial Match)", arguments: [false, true])
   func testTrieSQLStructureWithPartialMatch(useSQL: Bool) async throws {
-    let mockLM = try await prepareTrieLM(useSQL: useSQL)
+    let mockLM = try prepareTrieLM(useSQL: useSQL).lm
     #expect(mockLM.hasGrams(["ㄧ"], partiallyMatch: true))
     #expect(!mockLM.queryGrams(["ㄧ"], partiallyMatch: true).isEmpty)
     let readings: [String] = "ㄧㄉㄋㄌㄧㄌㄈ".map(\.description)
@@ -108,7 +108,7 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(rawPinyinChopped == ["yo", "die", "n", "li", "y", "lv", "f"])
     let keys2Add = pinyinTrie.deductChoppedPinyinToZhuyin(rawPinyinChopped)
     #expect(keys2Add == ["ㄧㄛ&ㄧㄡ&ㄩㄥ", "ㄉㄧㄝ", "ㄋ", "ㄌㄧ", "ㄧ&ㄩ", "ㄌㄩ&ㄌㄩㄝ&ㄌㄩㄢ", "ㄈ"])
-    let mockLM = try await prepareTrieLM(useSQL: useSQL)
+    let mockLM = try prepareTrieLM(useSQL: useSQL).lm
     let hasResults = mockLM.hasGrams(["ㄧ&ㄩ"], partiallyMatch: true)
     #expect(hasResults)
     let queried = mockLM.queryGrams(["ㄧ&ㄩ"], partiallyMatch: true)
@@ -137,9 +137,68 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(actualkeysJoined == "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ")
   }
 
+  /// 檢查對關聯詞語的檢索能力。
+  @Test("[TrieKit] Trie Associated Phrases Query Test", arguments: [false, true])
+  func testTrieQueryingAssociatedPhrases(useSQL: Bool) async throws {
+    let trie = try prepareTrieLM(useSQL: useSQL).trie
+    do {
+      let fetched = trie.queryAssociatedPhrasesPlain(
+        (["ㄌㄧㄡˊ"], "流"),
+        filterType: .langNeutral
+      )
+      #expect(fetched?.map(\.value) == ["溢", "易", "議"])
+    }
+    do {
+      let fetched = trie.queryAssociatedPhrasesAsGrams(
+        (["ㄕㄨˋ"], "🌳"),
+        filterType: .langNeutral
+      )
+      #expect(fetched?.filter { $0.previous == nil }.map(\.value) == ["🌳🆕💨", "🌳🆕🐝"])
+      #expect(fetched?.map(\.value).prefix(2) == ["🌳🆕🐝", "🌳🆕💨"])
+      let fetchedPlain = trie.queryAssociatedPhrasesPlain(
+        (["ㄕㄨˋ"], "🌳"),
+        filterType: .langNeutral
+      )
+      #expect(fetchedPlain?.map(\.value) == ["🆕🐝", "🆕💨"])
+    }
+    do {
+      let fetched = trie.queryAssociatedPhrasesAsGrams(
+        (["ㄕㄨˋ"], "🌳"),
+        anterior: "",
+        filterType: .langNeutral
+      )
+      #expect(fetched?.map(\.value) == ["🌳🆕💨", "🌳🆕🐝"])
+      #expect(fetched?.map(\.value).prefix(2) == ["🌳🆕💨", "🌳🆕🐝"])
+      let fetchedPlain = trie.queryAssociatedPhrasesPlain(
+        (["ㄕㄨˋ"], "🌳"),
+        anterior: "",
+        filterType: .langNeutral
+      )
+      #expect(fetchedPlain?.map(\.value) == ["🆕💨", "🆕🐝"])
+    }
+    do {
+      let fetched = trie.queryAssociatedPhrasesAsGrams(
+        (["ㄕㄨˋ"], "🌳"),
+        anterior: "不要",
+        filterType: .langNeutral
+      )
+      #expect(fetched?.map(\.value) == ["🌳🆕🐝"])
+      #expect(fetched?.map(\.value).prefix(2) == ["🌳🆕🐝"])
+      let fetchedPlain = trie.queryAssociatedPhrasesPlain(
+        (["ㄕㄨˋ"], "🌳"),
+        anterior: "不要",
+        filterType: .langNeutral
+      )
+      #expect(fetchedPlain?.map(\.value) == ["🆕🐝"])
+    }
+  }
+
   // MARK: Private
 
-  private func prepareTrieLM(useSQL: Bool) async throws -> TestLM4Trie {
+  private func prepareTrieLM(useSQL: Bool) throws -> (
+    lm: TestLM4Trie,
+    trie: any VanguardTrieProtocol
+  ) {
     // 先測試物件創建。
     let trie = VanguardTrie.Trie(separator: "-")
     strLMSampleDataHutao.enumerateLines { line, _ in
@@ -174,11 +233,10 @@ public struct TrieKitTests: TrieKitTestSuite {
       trieFinal = sqlTrie
       #expect(sqlTrie.getTableRowCount("config") ?? 0 > 0)
       #expect(sqlTrie.getTableRowCount("nodes") ?? 0 > 0)
-      #expect(sqlTrie.getTableRowCount("keychain_id_map") ?? 0 > 0)
     }
     let mockLM = TestLM4Trie(trie: trieFinal)
     #expect(trieFinal.hasGrams(["ㄧˋ", "ㄌㄩˇ"], filterType: .langNeutral))
     #expect(!mockLM.queryGrams(["ㄧˋ", "ㄌㄩˇ"]).isEmpty)
-    return mockLM
+    return (mockLM, trieFinal)
   }
 }

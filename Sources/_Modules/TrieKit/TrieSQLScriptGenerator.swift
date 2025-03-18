@@ -32,7 +32,6 @@ extension VanguardTrie {
       BEGIN TRANSACTION;
 
       -- 移除現有表格
-      DROP TABLE IF EXISTS keychain_id_map;
       DROP TABLE IF EXISTS nodes;
       DROP TABLE IF EXISTS config;
 
@@ -40,25 +39,15 @@ extension VanguardTrie {
       CREATE TABLE config (
           key TEXT PRIMARY KEY,
           value TEXT NOT NULL
-      ) WITHOUT ROWID; -- 使用 WITHOUT ROWID 優化小型表
+      ) WITHOUT ROWID;
 
       CREATE TABLE nodes (
-          id INTEGER PRIMARY KEY,
-          parent_id INTEGER,
+          keychain TEXT PRIMARY KEY,
+          parent_id TEXT,
           character TEXT NOT NULL,
           reading_key TEXT DEFAULT '',
           entries_blob TEXT,
-          FOREIGN KEY (parent_id) REFERENCES nodes(id),
-          UNIQUE (parent_id, character)
-      );
-
-      -- 創建 keychain_id_map 表，對應原始的 keyChainIDMap 結構
-      -- 一個 keychain 可以對應多個 node_id
-      CREATE TABLE keychain_id_map (
-          keychain TEXT NOT NULL,
-          node_id INTEGER NOT NULL,
-          FOREIGN KEY (node_id) REFERENCES nodes(id),
-          PRIMARY KEY (keychain, node_id)
+          FOREIGN KEY (parent_id) REFERENCES nodes(keychain)
       ) WITHOUT ROWID;
       """)
 
@@ -72,10 +61,6 @@ extension VanguardTrie {
       sqlCommands.append("-- 插入所有節點（包括根節點）")
       generateBatchNodeInserts(trie.nodes, into: &sqlCommands)
 
-      // 批量插入 keychain_id_map 資料
-      sqlCommands.append("-- 插入 keychain_id_map 資料")
-      generateBatchKeychainIdMapInserts(trie.keyChainIDMap, into: &sqlCommands)
-
       // 提交事務，啟用外鍵約束
       sqlCommands.append("""
       -- 提交事務
@@ -83,11 +68,6 @@ extension VanguardTrie {
 
       -- 啟用外鍵約束
       PRAGMA foreign_keys=ON;
-
-      -- 創建索引
-      CREATE INDEX IF NOT EXISTS idx_keychain_id_map_keychain ON keychain_id_map(keychain);
-      CREATE INDEX IF NOT EXISTS idx_nodes_reading_key ON nodes(reading_key);
-      CREATE INDEX IF NOT EXISTS idx_keychain_prefix ON keychain_id_map(substr(keychain,1,3), keychain);
 
       -- 收集資料庫統計資訊，優化查詢
       ANALYZE;
@@ -106,7 +86,7 @@ extension VanguardTrie {
     ///   - nodes: 節點辭典
     ///   - sqlCommands: SQL 命令數組，結果會添加到此數組
     private static func generateBatchNodeInserts(
-      _ nodes: [Int: VanguardTrie.Trie.TNode],
+      _ nodes: [String: VanguardTrie.Trie.TNode],
       into sqlCommands: inout [String]
     ) {
       let batchSize = 500 // 每批插入的節點數量
@@ -114,28 +94,29 @@ extension VanguardTrie {
       var count = 0
 
       // 處理所有節點（包括根節點）
-      for (id, node) in nodes {
+      for (keychain, node) in nodes {
         // 正確處理所有字串以避免 SQL 注入和引號問題
         let escapedChar = escapeSQLString(node.character)
         let escapedReadingKey = escapeSQLString(node.readingKey)
+        let escapedKeychain = escapeSQLString(keychain)
 
         // 將條目編碼為 base64 字串
         let entriesBlob = encodeEntriesToBase64(node.entries)
         let escapedEntriesBlob = escapeSQLString(entriesBlob)
 
-        let parentIDPart = node.parentID != nil ? String(node.parentID!) : "NULL"
+        let parentIDPart = node.parentID != nil ? escapeSQLString(node.parentID!) : "NULL"
+        let parentIDSQL = node.parentID != nil ? "'\(parentIDPart)'" : "NULL"
 
-        nodeValues
-          .append(
-            "(\(id), \(parentIDPart), '\(escapedChar)', '\(escapedReadingKey)', '\(escapedEntriesBlob)')"
-          )
+        nodeValues.append(
+          "('\(escapedKeychain)', \(parentIDSQL), '\(escapedChar)', '\(escapedReadingKey)', '\(escapedEntriesBlob)')"
+        )
         count += 1
 
         // 達到批處理大小或處理完所有節點時，生成一條批量插入語句
         if nodeValues.count >= batchSize || count == nodes.count {
           sqlCommands
             .append(
-              "INSERT INTO nodes (id, parent_id, character, reading_key, entries_blob) VALUES \(nodeValues.joined(separator: ","));"
+              "INSERT INTO nodes (keychain, parent_id, character, reading_key, entries_blob) VALUES \(nodeValues.joined(separator: ","));"
             )
           nodeValues = []
         }
@@ -145,14 +126,13 @@ extension VanguardTrie {
       if !nodeValues.isEmpty {
         sqlCommands
           .append(
-            "INSERT INTO nodes (id, parent_id, character, reading_key, entries_blob) VALUES \(nodeValues.joined(separator: ","));"
+            "INSERT INTO nodes (keychain, parent_id, character, reading_key, entries_blob) VALUES \(nodeValues.joined(separator: ","));"
           )
       }
     }
 
-    /// 為 SQL 字串轉義，確保包含特殊字符（如分號）的字串能正確處理
+    /// 為 SQL 字串轉義，確保包含特殊字符（如分號和單引號）的字串能正確處理
     private static func escapeSQLString(_ input: String) -> String {
-      // SQL 字串中單引號需要用兩個單引號表示
       input.replacingOccurrences(of: "'", with: "''")
     }
 
@@ -168,43 +148,6 @@ extension VanguardTrie {
       } catch {
         print("Error encoding entries: \(error)")
         return ""
-      }
-    }
-
-    /// 生成批量插入 keychain_id_map 的 SQL 語句
-    /// - Parameters:
-    ///   - keychainMap: keyChainIDMap 辭典
-    ///   - sqlCommands: SQL 命令數組，結果會添加到此數組
-    private static func generateBatchKeychainIdMapInserts(
-      _ keychainMap: [String: Set<Int>],
-      into sqlCommands: inout [String]
-    ) {
-      let batchSize = 500 // 每批插入數量
-      var keychainValues: [String] = []
-
-      // 遍歷所有 keychain 和對應的節點 ID
-      for (keychain, nodeIDs) in keychainMap {
-        let escapedKeychain = escapeSQLString(keychain)
-
-        // 對每個 keychain，插入與所有對應節點 ID 的映射關係
-        for nodeID in nodeIDs {
-          keychainValues.append("('\(escapedKeychain)', \(nodeID))")
-
-          // 批量插入
-          if keychainValues.count >= batchSize {
-            sqlCommands.append(
-              "INSERT INTO keychain_id_map (keychain, node_id) VALUES \(keychainValues.joined(separator: ","));"
-            )
-            keychainValues = []
-          }
-        }
-      }
-
-      // 處理剩餘資料
-      if !keychainValues.isEmpty {
-        sqlCommands.append(
-          "INSERT INTO keychain_id_map (keychain, node_id) VALUES \(keychainValues.joined(separator: ","));"
-        )
       }
     }
   }

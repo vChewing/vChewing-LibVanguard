@@ -108,31 +108,31 @@ extension VanguardTrie {
       var errors = [String]()
 
       // 檢查根節點
-      if trie.root.id != 1 {
-        errors.append("根節點 ID 不正確：期望為 1，實際為 \(String(describing: trie.root.id))")
+      if trie.root.id != "" {
+        errors.append("根節點 ID 不正確：期望為空字串，實際為 \(String(describing: trie.root.id))")
       }
 
       // 檢查節點辭典中的根節點
-      if trie.nodes[1] == nil {
+      if trie.nodes[""] == nil {
         errors.append("節點辭典中缺少根節點")
       }
 
       // 檢查節點關係的一致性
-      for (id, node) in trie.nodes {
+      for (keychain, node) in trie.nodes {
         // 檢查 ID 一致性
-        if node.id != id {
-          errors.append("節點 ID 不一致：辭典鍵為 \(id)，節點 ID 為 \(String(describing: node.id))")
+        if node.id != keychain {
+          errors.append("節點 ID 不一致：辭典鍵為 \(keychain)，節點 ID 為 \(String(describing: node.id))")
         }
 
         // 檢查父節點關係
         if let parentID = node.parentID, trie.nodes[parentID] == nil {
-          errors.append("節點 \(id) 引用了不存在的父節點 \(parentID)")
+          errors.append("節點 \(keychain) 引用了不存在的父節點 \(parentID)")
         }
 
         // 檢查子節點關係
-        for (_, childID) in node.children {
-          if trie.nodes[childID] == nil {
-            errors.append("節點 \(id) 引用了不存在的子節點 \(childID)")
+        for (_, childKeychain) in node.children {
+          if trie.nodes[childKeychain] == nil {
+            errors.append("節點 \(keychain) 引用了不存在的子節點 \(childKeychain)")
           }
         }
       }

@@ -604,7 +604,11 @@ extension SimpleTrie {
     -> Bool {
     guard !keys.isEmpty else { return false }
 
-    if partiallyMatch {
+    if !partiallyMatch {
+      // 對於精確比對，直接用 getNodeIDs
+      let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: false)
+      return !nodeIDs.isEmpty
+    } else {
       // 增加快速路徑：如果不需要處理比對結果，只需檢查是否有相符的節點
       if partiallyMatchedKeysHandler == nil {
         return !getNodeIDs(keysChopped: keys, partiallyMatch: true).isEmpty
@@ -617,10 +621,6 @@ extension SimpleTrie {
         partiallyMatchedKeysHandler?(partiallyMatchedResult)
         return !partiallyMatchedResult.isEmpty
       }
-    } else {
-      // 對於精確比對，直接用 getNodeIDs
-      let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: false)
-      return !nodeIDs.isEmpty
     }
   }
 
@@ -632,7 +632,41 @@ extension SimpleTrie {
     -> [(keyArray: [String], value: String, probability: Double, previous: String?)] {
     guard !keys.isEmpty else { return [] }
 
-    if partiallyMatch {
+    if !partiallyMatch {
+      // 精確比對 - 現在也使用緩存提高效能
+      let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: false)
+      var processedNodeEntries = [Int: [Entry]]()
+      var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
+
+      for nodeID in nodeIDs {
+        guard let node = getNode(nodeID: nodeID) else { continue }
+
+        // 使用緩存避免重複查詢
+        let entries: [Entry]
+        if let cachedEntries = processedNodeEntries[nodeID] {
+          entries = cachedEntries
+        } else if let node = getNode(nodeID: nodeID) {
+          entries = getEntries(node: node)
+          processedNodeEntries[nodeID] = entries
+        } else {
+          continue
+        }
+
+        // 過濾符合類型的詞條
+        var inserted = Set<Entry>()
+        let filteredEntries = entries.filter { entry in
+          inserted.insert(entry).inserted
+        }
+
+        results.append(contentsOf: filteredEntries.map { entry in
+          entry.asTuple(
+            with: node.readingKey.split(separator: readingSeparator).map(\.description)
+          )
+        })
+      }
+
+      return results
+    } else {
       // 1. 獲取所有節點IDs
       let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: true)
       guard !nodeIDs.isEmpty else { return [] }
@@ -681,40 +715,6 @@ extension SimpleTrie {
         }
 
         // 5. 將符合條件的詞條添加到結果中
-        results.append(contentsOf: filteredEntries.map { entry in
-          entry.asTuple(
-            with: node.readingKey.split(separator: readingSeparator).map(\.description)
-          )
-        })
-      }
-
-      return results
-    } else {
-      // 精確比對 - 現在也使用緩存提高效能
-      let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: false)
-      var processedNodeEntries = [Int: [Entry]]()
-      var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
-
-      for nodeID in nodeIDs {
-        guard let node = getNode(nodeID: nodeID) else { continue }
-
-        // 使用緩存避免重複查詢
-        let entries: [Entry]
-        if let cachedEntries = processedNodeEntries[nodeID] {
-          entries = cachedEntries
-        } else if let node = getNode(nodeID: nodeID) {
-          entries = getEntries(node: node)
-          processedNodeEntries[nodeID] = entries
-        } else {
-          continue
-        }
-
-        // 過濾符合類型的詞條
-        var inserted = Set<Entry>()
-        let filteredEntries = entries.filter { entry in
-          inserted.insert(entry).inserted
-        }
-
         results.append(contentsOf: filteredEntries.map { entry in
           entry.asTuple(
             with: node.readingKey.split(separator: readingSeparator).map(\.description)

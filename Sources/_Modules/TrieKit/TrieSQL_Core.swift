@@ -41,6 +41,8 @@ extension VanguardTrie {
 
     /// 從 SQL 腳本內容初始化記憶體中的資料庫
     /// - Parameter sqlContent: SQL 腳本內容
+    /// - Warning: 該 Constructor 可能會非常慢。
+    /// 實際使用時建議還是直接用另一個 Constructor 直接讀取 SQLite 檔案。
     public init?(sqlContent: String) {
       // 創建記憶體資料庫
       if sqlite3_open_v2(":memory:", &database, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nil) !=
@@ -54,7 +56,7 @@ extension VanguardTrie {
       // 禁用外鍵約束，以避免初始化期間的問題
       if sqlite3_exec(database, "PRAGMA foreign_keys=OFF;", nil, nil, nil) != SQLITE_OK {
         Self.printDebug("無法禁用外鍵約束: \(String(cString: sqlite3_errmsg(database)))")
-        sqlite3_close(database)
+        closeAndNullifyConnection()
         return nil
       }
 
@@ -66,41 +68,51 @@ extension VanguardTrie {
 
       var transactionBegun = false
 
-      // 使用更智能的方式分割 SQL 語句，避免將字串內的分號誤認為語句結束
-      let sqlStatements = parseSQLScript(sqlContent)
-
-      for statement in sqlStatements {
-        let trimmedStatement = statement.trimmingCharacters(in: .whitespacesAndNewlines)
+      var errorHappened = false
+      var statementBuffer = [String]()
+      sqlContent.enumerateLines { currentLine, _ in
+        guard !currentLine.hasPrefix("-- ") else { return }
+        let isEndOfStatement = currentLine.last == ";"
+        var statement: String = isEndOfStatement
+          ? (statementBuffer + [currentLine]).joined(separator: "\n")
+          : ""
+        guard isEndOfStatement else {
+          statementBuffer.append(currentLine)
+          return
+        }
+        statementBuffer.removeAll()
+        guard !errorHappened else { return }
         // 跳過空行和特定的事務控制語句
-        if trimmedStatement.isEmpty ||
-          trimmedStatement.uppercased().contains("PRAGMA SYNCHRONOUS") ||
-          trimmedStatement.uppercased().contains("PRAGMA JOURNAL_MODE") ||
-          trimmedStatement.uppercased().contains("COMMIT") ||
-          trimmedStatement.uppercased().contains("VACUUM") {
-          continue
+        statement = statement.trimmingCharacters(in: .newlines)
+        if statement.isEmpty ||
+          statement.uppercased().contains("PRAGMA SYNCHRONOUS") ||
+          statement.uppercased().contains("PRAGMA JOURNAL_MODE") ||
+          statement.uppercased().contains("COMMIT") ||
+          statement.uppercased().contains("VACUUM") {
+          return
         }
 
-        if trimmedStatement.uppercased().contains("BEGIN TRANSACTION") {
-          guard !transactionBegun else { continue }
+        if statement.uppercased().contains("BEGIN TRANSACTION") {
+          guard !transactionBegun else { return }
           transactionBegun = true
         }
 
         var errorMessage: UnsafeMutablePointer<CChar>?
-        let result = sqlite3_exec(database, "\(trimmedStatement);", nil, nil, &errorMessage)
+        let result = sqlite3_exec(self.database, "\(statement);", nil, nil, &errorMessage)
 
         if result != SQLITE_OK {
           if let errorMsg = errorMessage {
             let errorString = String(cString: errorMsg)
             Self.printDebug("執行 SQL 命令時發生錯誤: \(errorString)")
-            Self.printDebug("問題命令: \(trimmedStatement)")
+            Self.printDebug("問題命令: \(statement)")
             sqlite3_free(errorMessage)
           } else {
             Self.printDebug("執行 SQL 命令時發生錯誤，代碼: \(result)")
-            Self.printDebug("問題命令: \(trimmedStatement)")
+            Self.printDebug("問題命令: \(statement)")
           }
-          sqlite3_exec(database, "ROLLBACK;", nil, nil, nil)
-          sqlite3_close(database)
-          return nil
+          sqlite3_exec(self.database, "ROLLBACK;", nil, nil, nil)
+          self.closeAndNullifyConnection()
+          errorHappened = true
         }
       }
 
@@ -108,7 +120,7 @@ extension VanguardTrie {
       if sqlite3_exec(database, "COMMIT;", nil, nil, nil) != SQLITE_OK {
         Self.printDebug("無法提交事務: \(String(cString: sqlite3_errmsg(database)))")
         sqlite3_exec(database, "ROLLBACK;", nil, nil, nil)
-        sqlite3_close(database)
+        closeAndNullifyConnection()
         return nil
       }
 
@@ -120,14 +132,14 @@ extension VanguardTrie {
       // 初始化設定 - 直接調用相同的方法以確保一致性
       if !initializeSettings() {
         Self.printDebug("無法初始化分隔符設定")
-        sqlite3_close(database)
+        closeAndNullifyConnection()
         return nil
       }
     }
 
     deinit {
-      if let db = database {
-        sqlite3_close(db)
+      if !closedAndNullified {
+        closeAndNullifyConnection()
       }
     }
 
@@ -136,6 +148,16 @@ extension VanguardTrie {
     /// 資料庫是否為唯讀模式
     public let isReadOnly: Bool
     public private(set) var readingSeparator: Character = "-"
+    public private(set) var closedAndNullified: Bool = false
+
+    /// - Warning: 跑過之後這個 Trie 就無法再使用了。
+    public func closeAndNullifyConnection() {
+      if let db = database {
+        sqlite3_close_v2(db)
+        database = nil
+        closedAndNullified = true
+      }
+    }
 
     /// 輸出資料庫診斷資訊到控制台
     public func printDatabaseDiagnostics() {
@@ -145,7 +167,7 @@ extension VanguardTrie {
       }
 
       // 檢查表結構
-      let tables = ["config", "nodes", "keychain_id_map"]
+      let tables = ["config", "nodes"]
 
       Self.printDebug("=== 資料庫診斷 ===")
 
@@ -174,6 +196,8 @@ extension VanguardTrie {
 
     // MARK: Internal
 
+    internal let queryBuffer4NodeIDs: QueryBuffer<Set<String>> = .init()
+    internal let queryBuffer4Nodes: QueryBuffer<TNode> = .init()
     internal var database: OpaquePointer?
 
     /// 獲取表的行數
@@ -194,103 +218,34 @@ extension VanguardTrie {
       return count
     }
 
-    // MARK: - 輔助方法
-
-    /// 根據給定的讀音列表查詢完全比對的詞條
-    /// - Parameter keys: 讀音列表
-    /// - Returns: 比對的詞條
-    func queryExactMatch(_ keys: [String], filterType: Trie.EntryType) -> [(
-      keyArray: [String],
-      value: String,
-      probability: Double,
-      previous: String?
-    )] {
-      var result: [(keyArray: [String], value: String, probability: Double, previous: String?)] = []
-
-      // 列印偵錯資訊
-      Self.printDebug("DEBUG: 查詢詞條，keys = \(keys), filterType = \(filterType)")
-
-      // 使用 keychain_id_map 表進行精確比對
-      let keychain = keys.joined(separator: readingSeparator.description)
-      let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
-
-      // 構建查詢
-      let query = """
-        SELECT n.id, n.reading_key, n.entries_blob
-        FROM nodes n
-        JOIN keychain_id_map k ON n.id = k.node_id
-        WHERE k.keychain = '\(escapedKeychain)'
-      """
-
-      var statement: OpaquePointer?
-
-      if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
-        while sqlite3_step(statement) == SQLITE_ROW {
-          // 讀取 reading_key
-          var readingKey = ""
-          if let readingKeyPtr = sqlite3_column_text(statement, 1) {
-            readingKey = String(cString: readingKeyPtr)
-          }
-
-          // 讀取並解碼 entries_blob
-          if let blobPtr = sqlite3_column_text(statement, 2) {
-            let blobString = String(cString: blobPtr)
-
-            if !blobString.isEmpty, let entries = decodeEntriesFromBase64(blobString) {
-              // 過濾符合類型的條目
-              let filteredEntries = entries.filter {
-                filterType.isEmpty || $0.typeID.contains(filterType)
-              }
-
-              // 將符合條件的條目添加到結果中
-              let readings = readingKey.split(separator: readingSeparator).map(\.description)
-              for entry in filteredEntries {
-                result.append((
-                  keyArray: readings,
-                  value: entry.value,
-                  probability: entry.probability,
-                  previous: entry.previous
-                ))
-              }
-            }
-          }
-        }
-      } else {
-        Self.printDebug("ERROR: SQL準備失敗: \(String(cString: sqlite3_errmsg(database)))")
-      }
-
-      sqlite3_finalize(statement)
-      Self.printDebug("DEBUG: 查詢結束，找到 \(result.count) 個結果")
-
-      return result
-    }
-
     /// 根據 keychain 字串查詢節點 ID
-    func getNodeIDsForKeychain(_ keychain: String, filterType: Trie.EntryType = []) -> Set<Int> {
+    func getNodeIDsForKeychain(
+      _ keychain: String,
+      filterType: VanguardTrie.Trie.EntryType = []
+    )
+      -> Set<Int> {
       var nodeIDs = Set<Int>()
       let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
-
-      let query =
-        "SELECT DISTINCT k.node_id FROM keychain_id_map k WHERE k.keychain = '\(escapedKeychain)'"
+      let query = "SELECT id, entries_blob FROM nodes WHERE keychain = '\(escapedKeychain)'"
       var statement: OpaquePointer?
 
       if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
         while sqlite3_step(statement) == SQLITE_ROW {
           let nodeID = Int(sqlite3_column_int(statement, 0))
-
           if filterType.isEmpty {
             nodeIDs.insert(nodeID)
           } else {
             // 需要額外檢查節點中的詞條是否符合類型
-            if let entriesBlob = getNodeEntriesBlob(nodeID: nodeID),
-               let entries = decodeEntriesFromBase64(entriesBlob),
-               entries.contains(where: { $0.typeID.contains(filterType) }) {
-              nodeIDs.insert(nodeID)
+            if let blobPtr = sqlite3_column_text(statement, 1) {
+              let blobString = String(cString: blobPtr)
+              if let entries = decodeEntriesFromBase64(blobString),
+                 entries.contains(where: { filterType.contains($0.typeID) }) {
+                nodeIDs.insert(nodeID)
+              }
             }
           }
         }
       }
-
       sqlite3_finalize(statement)
       return nodeIDs
     }
@@ -350,7 +305,7 @@ extension VanguardTrie {
     /// - Returns: 是否成功初始化
     private func initializeSettings() -> Bool {
       // 檢查必要表是否存在
-      let requiredTables = ["nodes", "keychain_id_map"]
+      let requiredTables = ["nodes"]
       for table in requiredTables {
         if !checkTableExists(table) {
           Self.printDebug("資料庫中不存在 \(table) 表")
@@ -502,57 +457,6 @@ extension VanguardTrie {
         }
       }
       sqlite3_finalize(stmt)
-    }
-
-    /// 智能地解析 SQL 腳本，正確處理字串內的分號
-    private func parseSQLScript(_ script: String) -> [String] {
-      var statements = [String]()
-      var currentStatement = ""
-      var inSingleQuote = false
-      var inDoubleQuote = false
-      var roundBracketLevel = 0
-      var squareBracketLevel = 0
-      var curvedBracketLevel = 0
-      var lastChar: Character?
-
-      for char in script {
-        // 處理引號狀態
-        checkCharPair: switch char {
-        case #"'"# where lastChar != #"\"#: inSingleQuote.toggle()
-        case #"""# where lastChar != #"\"#: inDoubleQuote.toggle()
-        case #"("#: roundBracketLevel += 1
-        case #")"#: roundBracketLevel -= 1
-        case #"["#: squareBracketLevel += 1
-        case #"]"#: squareBracketLevel -= 1
-        case #"{"#: curvedBracketLevel += 1
-        case #"}"#: curvedBracketLevel -= 1
-        default: break checkCharPair
-        }
-
-        var notInBrackets: Bool {
-          roundBracketLevel == 0 && squareBracketLevel == 0 && curvedBracketLevel == 0
-        }
-
-        // 如果遇到分號且不在引號內，則表示語句結束
-        if char == ";", !inSingleQuote, !inDoubleQuote, notInBrackets {
-          currentStatement += String(char)
-          if !currentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            statements.append(currentStatement)
-          }
-          currentStatement = ""
-        } else {
-          currentStatement += String(char)
-        }
-
-        lastChar = char
-      }
-
-      // 添加最後一個語句（如果有）
-      if !currentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-        statements.append(currentStatement)
-      }
-
-      return statements
     }
   }
 }
