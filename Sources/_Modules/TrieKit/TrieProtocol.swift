@@ -28,14 +28,15 @@ extension VanguardTrieProtocol {
     filterType: EntryType,
     partiallyMatch: Bool
   )
-    -> Set<Int> {
+    -> [(keys: [String], ids: Set<Int>)] {
     // 單個讀音位置的多個可能性以 chopCaseSeparator 區隔。
     guard keysChopped.joined().contains(chopCaseSeparator) else {
-      return getNodeIDs(
+      let result = getNodeIDs(
         keys: keysChopped,
         filterType: filterType,
         partiallyMatch: partiallyMatch
       )
+      return [(keysChopped, result)]
     }
 
     var possibleReadings = [[String]]()
@@ -62,17 +63,19 @@ extension VanguardTrieProtocol {
     // 從索引0開始，使用空數組作為初始組合
     generateCombinations(index: 0, current: [])
 
-    var result = Set<Int>()
+    var result = [Int: (keys: [String], ids: Set<Int>)]()
     possibleReadings.forEach { keys in
-      getNodeIDs(
+      let nodeIDsFetched = getNodeIDs(
         keys: keys,
         filterType: filterType,
         partiallyMatch: partiallyMatch
-      ).forEach { nodeID in
-        result.insert(nodeID)
+      )
+      nodeIDsFetched.forEach { nodeID in
+        let changedIDs = result[keys.hashValue, default: (keys, [])].ids.union([nodeID])
+        result[keys.hashValue, default: (keys, [])] = (keys, changedIDs)
       }
     }
-    return result
+    return Array(result.values)
   }
 
   func partiallyMatchedKeys(
@@ -138,14 +141,22 @@ extension VanguardTrieProtocol {
       if partiallyMatchedKeysHandler == nil {
         return !getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: true).isEmpty
       } else {
-        let nodeIDs = getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: true)
-        let partiallyMatchedResult = partiallyMatchedKeys(
-          keys,
-          nodeIDs: nodeIDs,
-          filterType: filterType
+        let nodeIDsChopped = getNodeIDs(
+          keysChopped: keys,
+          filterType: filterType,
+          partiallyMatch: true
         )
-        partiallyMatchedKeysHandler?(partiallyMatchedResult)
-        return !partiallyMatchedResult.isEmpty
+        var partiallyMatchedKeysStack = Set<[String]>()
+        nodeIDsChopped.forEach { keys, nodeIDs in
+          let partiallyMatchedResultCurrent = partiallyMatchedKeys(
+            keys,
+            nodeIDs: nodeIDs,
+            filterType: filterType
+          )
+          partiallyMatchedKeysStack = partiallyMatchedKeysStack.union(partiallyMatchedResultCurrent)
+        }
+        partiallyMatchedKeysHandler?(partiallyMatchedKeysStack)
+        return !partiallyMatchedKeysStack.isEmpty
       }
     } else {
       // 對於精確比對，直接用 getNodeIDs
@@ -165,17 +176,27 @@ extension VanguardTrieProtocol {
 
     if partiallyMatch {
       // 1. 獲取所有節點IDs
-      let nodeIDs = getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: true)
-      guard !nodeIDs.isEmpty else { return [] }
+      let nodeIDsChopped = getNodeIDs(
+        keysChopped: keys,
+        filterType: filterType,
+        partiallyMatch: true
+      )
+      let allNodeIDs = nodeIDsChopped.flatMap(\.ids).sorted()
+      guard !allNodeIDs.isEmpty else { return [] }
       // 2. 獲取比對的讀音和節點，除非 handler 是 nil。
       defer {
-        let partiallyMatchedResult = partiallyMatchedKeys(
-          keys,
-          nodeIDs: nodeIDs,
-          filterType: filterType
-        )
-        if !partiallyMatchedResult.isEmpty {
-          partiallyMatchedKeysPostHandler?(partiallyMatchedResult)
+        if let partiallyMatchedKeysPostHandler {
+          var partiallyMatchedKeysStack = Set<[String]>()
+          nodeIDsChopped.forEach { keys, nodeIDs in
+            let partiallyMatchedResultCurrent = partiallyMatchedKeys(
+              keys,
+              nodeIDs: nodeIDs,
+              filterType: filterType
+            )
+            partiallyMatchedKeysStack = partiallyMatchedKeysStack
+              .union(partiallyMatchedResultCurrent)
+          }
+          partiallyMatchedKeysPostHandler(partiallyMatchedKeysStack)
         }
       }
 
@@ -184,51 +205,59 @@ extension VanguardTrieProtocol {
       var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
 
       // 3. 獲取每個節點的詞條
-      for nodeID in nodeIDs {
-        guard let node = getNode(nodeID: nodeID) else { continue }
-        let nodeReadings = node.readingKey.split(separator: readingSeparator).map(\.description)
-        // 使用緩存避免重複查詢
-        let entries: [Entry]
-        if let cachedEntries = processedNodeEntries[nodeID] {
-          entries = cachedEntries
-        } else if let node = getNode(nodeID: nodeID) {
-          entries = getEntries(node: node)
-          processedNodeEntries[nodeID] = entries // 緩存結果
-        } else {
-          continue
-        }
-        guard nodeReadings.count == keys.count else { continue }
-        guard zip(keys, nodeReadings).allSatisfy({
-          let keyCases = $0.split(separator: chopCaseSeparator)
-          for currentKeyCase in keyCases {
-            if $1.hasPrefix(currentKeyCase) { return true }
+      nodeIDsChopped.forEach { currentKeys, nodeIDs in
+        for nodeID in nodeIDs {
+          guard let node = getNode(nodeID: nodeID) else { continue }
+          let nodeReadings = node.readingKey.split(separator: readingSeparator).map(\.description)
+          // 使用緩存避免重複查詢
+          let entries: [Entry]
+          if let cachedEntries = processedNodeEntries[nodeID] {
+            entries = cachedEntries
+          } else if let node = getNode(nodeID: nodeID) {
+            entries = getEntries(node: node)
+            processedNodeEntries[nodeID] = entries // 緩存結果
+          } else {
+            continue
           }
-          return false
-        }) else { continue }
+          guard nodeReadings.count == currentKeys.count else { continue }
+          guard zip(currentKeys, nodeReadings).allSatisfy({
+            let keyCases = $0.split(separator: chopCaseSeparator)
+            for currentKeyCase in keyCases {
+              if $1.hasPrefix(currentKeyCase) { return true }
+            }
+            return false
+          }) else { continue }
 
-        // 4. 過濾符合條件的詞條
-        var inserted = Set<Entry>()
-        let filteredEntries = entries.filter { entry in
-          guard filterType.isEmpty || entry.typeID.contains(filterType) else { return false }
-          return inserted.insert(entry).inserted
+          // 4. 過濾符合條件的詞條
+          var inserted = Set<Entry>()
+          let filteredEntries = entries.filter { entry in
+            guard filterType.isEmpty || entry.typeID.contains(filterType) else { return false }
+            return inserted.insert(entry).inserted
+          }
+
+          // 5. 將符合條件的詞條添加到結果中
+          results.append(contentsOf: filteredEntries.map { entry in
+            entry.asTuple(
+              with: node.readingKey.split(separator: readingSeparator).map(\.description)
+            )
+          })
         }
-
-        // 5. 將符合條件的詞條添加到結果中
-        results.append(contentsOf: filteredEntries.map { entry in
-          entry.asTuple(
-            with: node.readingKey.split(separator: readingSeparator).map(\.description)
-          )
-        })
       }
 
       return results
     } else {
       // 精確比對 - 現在也使用緩存提高效能
-      let nodeIDs = getNodeIDs(keysChopped: keys, filterType: filterType, partiallyMatch: false)
+      let nodeIDsChopped = getNodeIDs(
+        keysChopped: keys,
+        filterType: filterType,
+        partiallyMatch: false
+      )
+      let allNodeIDs = nodeIDsChopped.flatMap(\.ids).sorted()
+      guard !allNodeIDs.isEmpty else { return [] }
       var processedNodeEntries = [Int: [Entry]]()
       var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
 
-      for nodeID in nodeIDs {
+      for nodeID in allNodeIDs {
         guard let node = getNode(nodeID: nodeID) else { continue }
 
         // 使用緩存避免重複查詢
