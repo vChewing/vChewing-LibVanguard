@@ -331,8 +331,19 @@ extension Homa {
     /// - Parameter keyArray: 讀音陣列。
     /// - Returns: 元圖陣列。
     private func queryGrams(using keyArray: [String]) -> [Homa.Gram] {
-      gramQuerier(keyArray).map { Homa.Gram($0) }.sorted {
-        $0.probability > $1.probability
+      var insertedIntel = Set<String>()
+      return gramQuerier(keyArray).sorted {
+        (
+          $1.keyArray.split(separator: "-").count, "\($0.keyArray)", $1.probability
+        ) < (
+          $0.keyArray.split(separator: "-").count, "\($1.keyArray)", $0.probability
+        )
+      }.compactMap {
+        let intel = "\($0.keyArray) \($0.value) \($0.previous ?? "")"
+        if !insertedIntel.contains(intel) {}
+        guard !insertedIntel.contains(intel) else { return nil }
+        insertedIntel.insert(intel)
+        return Homa.Gram($0)
       }
     }
   }
