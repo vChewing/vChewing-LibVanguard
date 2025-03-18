@@ -103,11 +103,11 @@ public struct TrieKitTests: TrieKitTestSuite {
   @Test("[TrieKit] Test Chopped Pinyin Handling (with PinyinTrie)", arguments: [false, true])
   func testTekkonPinyinTrieTogetherAgainstChoppedPinyin(useSQL: Bool) async throws {
     let pinyinTrie = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
-    let rawPinyin = "ydienlylf"
+    let rawPinyin = "yodienliylvf"
     let rawPinyinChopped = pinyinTrie.chop(rawPinyin)
-    #expect(rawPinyinChopped == ["y", "die", "n", "l", "y", "l", "f"])
-    let readingsToInsert = pinyinTrie.deductChoppedPinyinToZhuyin(rawPinyinChopped)
-    #expect(readingsToInsert == ["ㄧ&ㄩ", "ㄉㄧㄝ", "ㄋ", "ㄌ", "ㄧ&ㄩ", "ㄌ", "ㄈ"])
+    #expect(rawPinyinChopped == ["yo", "die", "n", "li", "y", "lv", "f"])
+    let keys2Add = pinyinTrie.deductChoppedPinyinToZhuyin(rawPinyinChopped)
+    #expect(keys2Add == ["ㄧㄛ&ㄧㄡ&ㄩㄥ", "ㄉㄧㄝ", "ㄋ", "ㄌㄧ", "ㄧ&ㄩ", "ㄌㄩ&ㄌㄩㄝ&ㄌㄩㄢ", "ㄈ"])
     let mockLM = try await prepareTrieLM(useSQL: useSQL)
     let hasResults = mockLM.hasGrams(["ㄧ&ㄩ"], partiallyMatch: true)
     #expect(hasResults)
@@ -117,7 +117,7 @@ public struct TrieKitTests: TrieKitTestSuite {
       gramQuerier: { mockLM.queryGrams($0, partiallyMatch: true) }, // 會回傳包含 Bigram 的結果。
       gramAvailabilityChecker: { mockLM.hasGrams($0, partiallyMatch: true) }
     )
-    try readingsToInsert.forEach {
+    try keys2Add.forEach {
       try assembler.insertKey($0.description)
     }
     var assembledSentence = assembler.assemble().compactMap(\.value)
