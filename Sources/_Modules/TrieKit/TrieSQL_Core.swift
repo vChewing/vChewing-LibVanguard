@@ -41,6 +41,8 @@ extension VanguardTrie {
 
     /// 從 SQL 腳本內容初始化記憶體中的資料庫
     /// - Parameter sqlContent: SQL 腳本內容
+    /// - Warning: 該 Constructor 可能會非常慢。
+    /// 實際使用時建議還是直接用另一個 Constructor 直接讀取 SQLite 檔案。
     public init?(sqlContent: String) {
       // 創建記憶體資料庫
       if sqlite3_open_v2(":memory:", &database, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nil) !=
@@ -54,7 +56,7 @@ extension VanguardTrie {
       // 禁用外鍵約束，以避免初始化期間的問題
       if sqlite3_exec(database, "PRAGMA foreign_keys=OFF;", nil, nil, nil) != SQLITE_OK {
         Self.printDebug("無法禁用外鍵約束: \(String(cString: sqlite3_errmsg(database)))")
-        sqlite3_close(database)
+        closeAndNullifyConnection()
         return nil
       }
 
@@ -66,41 +68,51 @@ extension VanguardTrie {
 
       var transactionBegun = false
 
-      // 使用更智能的方式分割 SQL 語句，避免將字串內的分號誤認為語句結束
-      let sqlStatements = parseSQLScript(sqlContent)
-
-      for statement in sqlStatements {
-        let trimmedStatement = statement.trimmingCharacters(in: .whitespacesAndNewlines)
+      var errorHappened = false
+      var statementBuffer = [String]()
+      sqlContent.enumerateLines { currentLine, _ in
+        guard !currentLine.hasPrefix("-- ") else { return }
+        let isEndOfStatement = currentLine.last == ";"
+        var statement: String = isEndOfStatement
+          ? (statementBuffer + [currentLine]).joined(separator: "\n")
+          : ""
+        guard isEndOfStatement else {
+          statementBuffer.append(currentLine)
+          return
+        }
+        statementBuffer.removeAll()
+        guard !errorHappened else { return }
         // 跳過空行和特定的事務控制語句
-        if trimmedStatement.isEmpty ||
-          trimmedStatement.uppercased().contains("PRAGMA SYNCHRONOUS") ||
-          trimmedStatement.uppercased().contains("PRAGMA JOURNAL_MODE") ||
-          trimmedStatement.uppercased().contains("COMMIT") ||
-          trimmedStatement.uppercased().contains("VACUUM") {
-          continue
+        statement = statement.trimmingCharacters(in: .newlines)
+        if statement.isEmpty ||
+          statement.uppercased().contains("PRAGMA SYNCHRONOUS") ||
+          statement.uppercased().contains("PRAGMA JOURNAL_MODE") ||
+          statement.uppercased().contains("COMMIT") ||
+          statement.uppercased().contains("VACUUM") {
+          return
         }
 
-        if trimmedStatement.uppercased().contains("BEGIN TRANSACTION") {
-          guard !transactionBegun else { continue }
+        if statement.uppercased().contains("BEGIN TRANSACTION") {
+          guard !transactionBegun else { return }
           transactionBegun = true
         }
 
         var errorMessage: UnsafeMutablePointer<CChar>?
-        let result = sqlite3_exec(database, "\(trimmedStatement);", nil, nil, &errorMessage)
+        let result = sqlite3_exec(self.database, "\(statement);", nil, nil, &errorMessage)
 
         if result != SQLITE_OK {
           if let errorMsg = errorMessage {
             let errorString = String(cString: errorMsg)
             Self.printDebug("執行 SQL 命令時發生錯誤: \(errorString)")
-            Self.printDebug("問題命令: \(trimmedStatement)")
+            Self.printDebug("問題命令: \(statement)")
             sqlite3_free(errorMessage)
           } else {
             Self.printDebug("執行 SQL 命令時發生錯誤，代碼: \(result)")
-            Self.printDebug("問題命令: \(trimmedStatement)")
+            Self.printDebug("問題命令: \(statement)")
           }
-          sqlite3_exec(database, "ROLLBACK;", nil, nil, nil)
-          sqlite3_close(database)
-          return nil
+          sqlite3_exec(self.database, "ROLLBACK;", nil, nil, nil)
+          self.closeAndNullifyConnection()
+          errorHappened = true
         }
       }
 
@@ -108,7 +120,7 @@ extension VanguardTrie {
       if sqlite3_exec(database, "COMMIT;", nil, nil, nil) != SQLITE_OK {
         Self.printDebug("無法提交事務: \(String(cString: sqlite3_errmsg(database)))")
         sqlite3_exec(database, "ROLLBACK;", nil, nil, nil)
-        sqlite3_close(database)
+        closeAndNullifyConnection()
         return nil
       }
 
@@ -120,14 +132,14 @@ extension VanguardTrie {
       // 初始化設定 - 直接調用相同的方法以確保一致性
       if !initializeSettings() {
         Self.printDebug("無法初始化分隔符設定")
-        sqlite3_close(database)
+        closeAndNullifyConnection()
         return nil
       }
     }
 
     deinit {
-      if let db = database {
-        sqlite3_close(db)
+      if !closedAndNullified {
+        closeAndNullifyConnection()
       }
     }
 
@@ -136,6 +148,17 @@ extension VanguardTrie {
     /// 資料庫是否為唯讀模式
     public let isReadOnly: Bool
     public private(set) var readingSeparator: Character = "-"
+
+    public private(set) var closedAndNullified: Bool = false
+
+    /// - Warning: 跑過之後這個 Trie 就無法再使用了。
+    public func closeAndNullifyConnection() {
+      if let db = database {
+        sqlite3_close_v2(db)
+        database = nil
+        closedAndNullified = true
+      }
+    }
 
     /// 輸出資料庫診斷資訊到控制台
     public func printDatabaseDiagnostics() {
@@ -502,57 +525,6 @@ extension VanguardTrie {
         }
       }
       sqlite3_finalize(stmt)
-    }
-
-    /// 智能地解析 SQL 腳本，正確處理字串內的分號
-    private func parseSQLScript(_ script: String) -> [String] {
-      var statements = [String]()
-      var currentStatement = ""
-      var inSingleQuote = false
-      var inDoubleQuote = false
-      var roundBracketLevel = 0
-      var squareBracketLevel = 0
-      var curvedBracketLevel = 0
-      var lastChar: Character?
-
-      for char in script {
-        // 處理引號狀態
-        checkCharPair: switch char {
-        case #"'"# where lastChar != #"\"#: inSingleQuote.toggle()
-        case #"""# where lastChar != #"\"#: inDoubleQuote.toggle()
-        case #"("#: roundBracketLevel += 1
-        case #")"#: roundBracketLevel -= 1
-        case #"["#: squareBracketLevel += 1
-        case #"]"#: squareBracketLevel -= 1
-        case #"{"#: curvedBracketLevel += 1
-        case #"}"#: curvedBracketLevel -= 1
-        default: break checkCharPair
-        }
-
-        var notInBrackets: Bool {
-          roundBracketLevel == 0 && squareBracketLevel == 0 && curvedBracketLevel == 0
-        }
-
-        // 如果遇到分號且不在引號內，則表示語句結束
-        if char == ";", !inSingleQuote, !inDoubleQuote, notInBrackets {
-          currentStatement += String(char)
-          if !currentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            statements.append(currentStatement)
-          }
-          currentStatement = ""
-        } else {
-          currentStatement += String(char)
-        }
-
-        lastChar = char
-      }
-
-      // 添加最後一個語句（如果有）
-      if !currentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-        statements.append(currentStatement)
-      }
-
-      return statements
     }
   }
 }
