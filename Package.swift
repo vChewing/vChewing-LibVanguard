@@ -65,6 +65,25 @@ let package = Package(
       dependencies: ["PerceptionKit"],
       path: "./Tests/_Tests4Components/PerceptionKitTests"
     ),
+    // Shared bundle for all tests using factory trie.
+    .target(
+      name: "SharedTrieTestDataBundle",
+      path: "./Tests/_Tests4Components/_SharedTrieTestDataBundle",
+      resources: [
+        .process("./Resources"),
+      ]
+    ),
+    // LexiconKit, the hub for all subsidiary language models.
+    .target(
+      name: "LexiconKit",
+      dependencies: ["TrieKit", "PerceptionKit", "SharedTrieTestDataBundle"],
+      path: "./Sources/_Modules/LexiconKit"
+    ),
+    .testTarget(
+      name: "LexiconKitTests",
+      dependencies: ["TrieKit", "LexiconKit", "Homa", "Tekkon"],
+      path: "./Tests/_Tests4Components/LexiconKitTests"
+    ),
     // BrailleSputnik, the Braille module.
     .target(
       name: "BrailleSputnik",
