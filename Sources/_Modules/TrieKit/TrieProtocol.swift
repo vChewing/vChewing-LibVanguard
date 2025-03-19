@@ -112,7 +112,7 @@ extension VanguardTrieProtocol {
       let firstMatchedEntry = entries.first { entry in
 
         // 確保類型相符
-        if !filterType.isEmpty, !entry.typeID.contains(filterType) {
+        if !filterType.isEmpty, !filterType.contains(entry.typeID) {
           return false
         }
         return true
@@ -230,7 +230,7 @@ extension VanguardTrieProtocol {
           // 4. 過濾符合條件的詞條
           var inserted = Set<Entry>()
           let filteredEntries = entries.filter { entry in
-            guard filterType.isEmpty || entry.typeID.contains(filterType) else { return false }
+            guard filterType.isEmpty || filterType.contains(entry.typeID) else { return false }
             return inserted.insert(entry).inserted
           }
 
@@ -273,7 +273,7 @@ extension VanguardTrieProtocol {
         // 過濾符合類型的詞條
         var inserted = Set<Entry>()
         let filteredEntries = entries.filter { entry in
-          guard filterType.isEmpty || entry.typeID.contains(filterType) else { return false }
+          guard filterType.isEmpty || filterType.contains(entry.typeID) else { return false }
           return inserted.insert(entry).inserted
         }
 

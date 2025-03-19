@@ -44,7 +44,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
             // 需要檢查節點中的詞條是否符合類型
             if let entriesBlob = getNodeEntriesBlob(nodeID: nodeID),
                let entries = decodeEntriesFromBase64(entriesBlob),
-               entries.contains(where: { $0.typeID.contains(filterType) }) {
+               entries.contains(where: { filterType.contains($0.typeID) }) {
               nodeIDs.insert(nodeID)
             }
           }

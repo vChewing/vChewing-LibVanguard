@@ -117,7 +117,7 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
         if !filterType.isEmpty {
           for nodeID in nodeIDs {
             guard let node = nodes[nodeID] else { continue }
-            if node.entries.contains(where: { $0.typeID.contains(filterType) }) {
+            if node.entries.contains(where: { filterType.contains($0.typeID) }) {
               matchedNodeIDs.insert(nodeID)
             }
           }
