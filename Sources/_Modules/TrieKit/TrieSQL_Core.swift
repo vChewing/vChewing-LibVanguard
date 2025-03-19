@@ -148,7 +148,6 @@ extension VanguardTrie {
     /// 資料庫是否為唯讀模式
     public let isReadOnly: Bool
     public private(set) var readingSeparator: Character = "-"
-
     public private(set) var closedAndNullified: Bool = false
 
     /// - Warning: 跑過之後這個 Trie 就無法再使用了。
@@ -197,6 +196,8 @@ extension VanguardTrie {
 
     // MARK: Internal
 
+    internal let queryBuffer4NodeIDs: QueryBuffer<Set<Int>> = .init()
+    internal let queryBuffer4Nodes: QueryBuffer<TNode> = .init()
     internal var database: OpaquePointer?
 
     /// 獲取表的行數

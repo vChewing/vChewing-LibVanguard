@@ -10,7 +10,10 @@
 
 ### TrieKit
 
-字典樹（Trie）類型模組，負責支援對每個讀音的首字元檢索配對。
+字典樹（Trie）類型模組，負責支援對每個讀音的首字元檢索配對。分為兩種：
+
+- **VanguardTrie.Trie**: 原始形態，常駐於記憶體內，無 QueryBuffer。
+- **VanguardTrie.SQLTrie**: SQLite 形態，DFD 硬碟直讀，僅用於原廠辭典，有 QueryBuffer 生成至少七秒的資料查詢快取。對過期的記憶採用惰性清理策略、會在下一次資料存取時清理。
 
 > [!NOTE]
 > 注意：為了簡化實作，這個模組不計畫對 Regex Fuzzy Match 提供直接支援。

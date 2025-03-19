@@ -15,7 +15,10 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
   )
     -> Set<Int> {
     guard !keyArray.isEmpty else { return [] }
+    let formedKey = "\(keyArray)::\(filterType.rawValue)::\(partiallyMatch ? 1 : 0)"
+    if let cachedResult = queryBuffer4NodeIDs.get(key: formedKey) { return cachedResult }
 
+    let result: Set<Int>
     if partiallyMatch {
       var nodeIDs = Set<Int>()
 
@@ -49,15 +52,19 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       }
 
       sqlite3_finalize(statement)
-      return nodeIDs
+      result = nodeIDs
     } else {
       // 精確比對
       let keychain = keyArray.joined(separator: readingSeparator.description)
-      return getNodeIDsForKeychain(keychain, filterType: filterType)
+      result = getNodeIDsForKeychain(keychain, filterType: filterType)
     }
+    queryBuffer4NodeIDs.set(key: formedKey, value: result)
+    return result
   }
 
   public func getNode(nodeID: Int) -> VanguardTrie.Trie.TNode? {
+    if let cachedResult = queryBuffer4Nodes.get(hashKey: nodeID) { return cachedResult }
+
     // 查詢節點資訊
     let query = """
       SELECT n.id, n.parent_id, n.character, n.reading_key, n.entries_blob
@@ -133,6 +140,11 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     }
 
     sqlite3_finalize(statement)
+
+    if let node {
+      queryBuffer4Nodes.set(hashKey: nodeID, value: node)
+    }
+
     return node
   }
 
