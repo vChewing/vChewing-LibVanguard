@@ -15,19 +15,21 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
   )
     -> Set<Int> {
     guard !keyArray.isEmpty else { return [] }
-    let formedKey = "\(keyArray)::\(filterType.rawValue)::\(partiallyMatch ? 1 : 0)"
-    if let cachedResult = queryBuffer4NodeIDs.get(key: formedKey) { return cachedResult }
-
+    let formedKey: String
     let result: Set<Int>
     if !partiallyMatch {
+      formedKey = "\(keyArray)::\(filterType.rawValue)::\(partiallyMatch ? 1 : 0)"
+      if let cachedResult = queryBuffer4NodeIDs.get(key: formedKey) { return cachedResult }
       // 精確比對
       let keychain = keyArray.joined(separator: readingSeparator.description)
       result = getNodeIDsForKeychain(keychain, filterType: filterType)
     } else {
-      var nodeIDs = Set<Int>()
-
       // 構建查詢前綴條件
       let firstKeyEscaped = keyArray[0].replacingOccurrences(of: "'", with: "''")
+
+      formedKey = "\(firstKeyEscaped)::\(filterType.rawValue)::\(partiallyMatch ? 1 : 0)"
+      if let cachedResult = queryBuffer4NodeIDs.get(key: formedKey) { return cachedResult }
+      var nodeIDs = Set<Int>()
 
       // 查詢與前綴比對的 keychain
       let query = """
