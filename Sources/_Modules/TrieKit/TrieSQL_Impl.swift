@@ -19,7 +19,11 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     if let cachedResult = queryBuffer4NodeIDs.get(key: formedKey) { return cachedResult }
 
     let result: Set<Int>
-    if partiallyMatch {
+    if !partiallyMatch {
+      // 精確比對
+      let keychain = keyArray.joined(separator: readingSeparator.description)
+      result = getNodeIDsForKeychain(keychain, filterType: filterType)
+    } else {
       var nodeIDs = Set<Int>()
 
       // 構建查詢前綴條件
@@ -53,10 +57,6 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
 
       sqlite3_finalize(statement)
       result = nodeIDs
-    } else {
-      // 精確比對
-      let keychain = keyArray.joined(separator: readingSeparator.description)
-      result = getNodeIDsForKeychain(keychain, filterType: filterType)
     }
     queryBuffer4NodeIDs.set(key: formedKey, value: result)
     return result
