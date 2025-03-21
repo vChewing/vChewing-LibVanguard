@@ -93,17 +93,20 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
     partiallyMatch: Bool
   )
     -> Set<Int> {
+    guard let firstKeyCell = keyArray.first else { return [] }
     switch partiallyMatch {
     case false:
       return keyChainIDMap[keyArray.joined(separator: readingSeparator.description)] ?? []
     case true:
-      guard !keyArray.isEmpty else { return [] }
-
+      let possibleKeys: [String] = keyChainIDMap.keys.filter {
+        $0.hasPrefix(firstKeyCell)
+      }.map(\.description)
       // 使用 keyChainIDMap 來優化查詢
       var matchedNodeIDs = Set<Int>()
 
       // 從 keyChainIDMap 中查找所有鍵
-      keyChainIDMap.forEach { keyChain, nodeIDs in
+      possibleKeys.forEach { keyChain in
+        guard let nodeIDs = keyChainIDMap[keyChain] else { return }
         // 只處理那些至少和首個查詢鍵相符的鍵鏈
         let keyComponents = keyChain.split(separator: readingSeparator).map(\.description)
 
