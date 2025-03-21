@@ -153,7 +153,7 @@ extension VanguardTrieProtocol {
             nodeIDs: nodeIDs,
             filterType: filterType
           )
-          partiallyMatchedKeysStack = partiallyMatchedKeysStack.union(partiallyMatchedResultCurrent)
+          partiallyMatchedKeysStack.formUnion(partiallyMatchedResultCurrent)
         }
         partiallyMatchedKeysHandler?(partiallyMatchedKeysStack)
         return !partiallyMatchedKeysStack.isEmpty
@@ -193,8 +193,7 @@ extension VanguardTrieProtocol {
               nodeIDs: nodeIDs,
               filterType: filterType
             )
-            partiallyMatchedKeysStack = partiallyMatchedKeysStack
-              .union(partiallyMatchedResultCurrent)
+            partiallyMatchedKeysStack.formUnion(partiallyMatchedResultCurrent)
           }
           partiallyMatchedKeysPostHandler(partiallyMatchedKeysStack)
         }
