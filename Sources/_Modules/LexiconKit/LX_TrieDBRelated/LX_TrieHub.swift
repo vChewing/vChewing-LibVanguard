@@ -24,8 +24,8 @@ extension VanguardTrie {
 
     internal var sqlTrieMap: [FactoryTrieDBType: VanguardTrie.SQLTrie] = [:]
     internal var plistTrieMap: [FactoryTrieDBType: VanguardTrie.Trie] = [:]
-    internal var userTrie: VanguardTrie.Trie = .init(separator: "-")
-    internal var cinTrie: VanguardTrie.Trie = .init(separator: "-")
+    internal var userTrie: LexiconGramSupplierProtocol?
+    internal var cinTrie: LexiconGramSupplierProtocol?
   }
 }
 
@@ -65,12 +65,14 @@ extension VanguardTrie.TrieHub {
   }
 }
 
-extension VanguardTrie.TrieHub {
+// MARK: - VanguardTrie.TrieHub + LexiconGramSupplierProtocol
+
+extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
   public func hasGrams(
     _ keys: [String],
     filterType: VanguardTrie.Trie.EntryType,
-    partiallyMatch: Bool = false,
-    partiallyMatchedKeysHandler: ((Set<[String]>) -> ())? = nil
+    partiallyMatch: Bool,
+    partiallyMatchedKeysHandler: ((Set<[String]>) -> ())?
   )
     -> Bool {
     guard !keys.isEmpty else { return false }
@@ -83,11 +85,11 @@ extension VanguardTrie.TrieHub {
       case .revLookup where !isRevLookup: continue
       default: break dataTypeCheck
       }
-      var hasGrams = userTrie.hasGrams(
+      var hasGrams = userTrie?.hasGrams(
         keys, filterType: filterType, partiallyMatch: partiallyMatch
       ) { retrievedKeys in
         partiallyMatchedKeys.formUnion(retrievedKeys)
-      }
+      } ?? false
       hasGrams = hasGrams || plistTrieMap[dataType]?.hasGrams(
         keys, filterType: filterType, partiallyMatch: partiallyMatch
       ) { retrievedKeys in
@@ -99,11 +101,11 @@ extension VanguardTrie.TrieHub {
         partiallyMatchedKeys.formUnion(retrievedKeys)
       } ?? false
       if filterType.contains(.cinCassette) {
-        hasGrams = hasGrams || cinTrie.hasGrams(
+        hasGrams = hasGrams || cinTrie?.hasGrams(
           keys, filterType: filterType, partiallyMatch: partiallyMatch
         ) { retrievedKeys in
           partiallyMatchedKeys.formUnion(retrievedKeys)
-        }
+        } ?? false
       }
       if hasGrams { return true }
     }
@@ -113,8 +115,8 @@ extension VanguardTrie.TrieHub {
   public func queryGrams(
     _ keys: [String],
     filterType: VanguardTrie.Trie.EntryType,
-    partiallyMatch: Bool = false,
-    partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
+    partiallyMatch: Bool,
+    partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())?
   )
     -> [VanguardTrie.HomaGramTuple] {
     guard !keys.isEmpty else { return [] }
@@ -128,11 +130,11 @@ extension VanguardTrie.TrieHub {
       case .revLookup where !isRevLookup: continue
       default: break dataTypeCheck
       }
-      var fetched: [VanguardTrie.HomaGramTuple] = userTrie.queryGrams(
+      var fetched: [VanguardTrie.HomaGramTuple] = userTrie?.queryGrams(
         keys, filterType: filterType, partiallyMatch: partiallyMatch
       ) { retrievedKeys in
         partiallyMatchedKeys.formUnion(retrievedKeys)
-      }
+      } ?? []
       fetched += plistTrieMap[dataType]?.queryGrams(
         keys, filterType: filterType, partiallyMatch: partiallyMatch
       ) { retrievedKeys in
@@ -144,11 +146,11 @@ extension VanguardTrie.TrieHub {
         partiallyMatchedKeys.formUnion(retrievedKeys)
       } ?? []
       if filterType.contains(.cinCassette) {
-        fetched += cinTrie.queryGrams(
+        fetched += cinTrie?.queryGrams(
           keys, filterType: filterType, partiallyMatch: partiallyMatch
         ) { retrievedKeys in
           partiallyMatchedKeys.formUnion(retrievedKeys)
-        }
+        } ?? []
       }
       if fetched.isEmpty { continue }
       fetched.forEach { currentTuple in
