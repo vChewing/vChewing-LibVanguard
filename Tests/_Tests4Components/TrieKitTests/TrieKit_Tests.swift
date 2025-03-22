@@ -17,7 +17,7 @@ public struct TrieKitTests: TrieKitTestSuite {
   /// 這裡重複對護摩引擎的胡桃測試（Full Match）。
   @Test("[TrieKit] Trie SQL Structure Test (Full Match)", arguments: [false, true])
   func testTrieSQLStructureWithFullMatch(useSQL: Bool) async throws {
-    let mockLM = try await prepareTrieLM(useSQL: useSQL)
+    let mockLM = try prepareTrieLM(useSQL: useSQL).lm
     let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) }, // 會回傳包含 Bigram 的結果。
@@ -68,7 +68,7 @@ public struct TrieKitTests: TrieKitTestSuite {
   /// 這裡重複對護摩引擎的胡桃測試（Partial Match）。
   @Test("[TrieKit] Trie SQL Structure Test (Partial Match)", arguments: [false, true])
   func testTrieSQLStructureWithPartialMatch(useSQL: Bool) async throws {
-    let mockLM = try await prepareTrieLM(useSQL: useSQL)
+    let mockLM = try prepareTrieLM(useSQL: useSQL).lm
     #expect(mockLM.hasGrams(["ㄧ"], partiallyMatch: true))
     #expect(!mockLM.queryGrams(["ㄧ"], partiallyMatch: true).isEmpty)
     let readings: [String] = "ㄧㄉㄋㄌㄧㄌㄈ".map(\.description)
@@ -108,7 +108,7 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(rawPinyinChopped == ["yo", "die", "n", "li", "y", "lv", "f"])
     let keys2Add = pinyinTrie.deductChoppedPinyinToZhuyin(rawPinyinChopped)
     #expect(keys2Add == ["ㄧㄛ&ㄧㄡ&ㄩㄥ", "ㄉㄧㄝ", "ㄋ", "ㄌㄧ", "ㄧ&ㄩ", "ㄌㄩ&ㄌㄩㄝ&ㄌㄩㄢ", "ㄈ"])
-    let mockLM = try await prepareTrieLM(useSQL: useSQL)
+    let mockLM = try prepareTrieLM(useSQL: useSQL).lm
     let hasResults = mockLM.hasGrams(["ㄧ&ㄩ"], partiallyMatch: true)
     #expect(hasResults)
     let queried = mockLM.queryGrams(["ㄧ&ㄩ"], partiallyMatch: true)
@@ -139,7 +139,10 @@ public struct TrieKitTests: TrieKitTestSuite {
 
   // MARK: Private
 
-  private func prepareTrieLM(useSQL: Bool) async throws -> TestLM4Trie {
+  private func prepareTrieLM(useSQL: Bool) throws -> (
+    lm: TestLM4Trie,
+    trie: any VanguardTrieProtocol
+  ) {
     // 先測試物件創建。
     let trie = VanguardTrie.Trie(separator: "-")
     strLMSampleDataHutao.enumerateLines { line, _ in
@@ -179,6 +182,6 @@ public struct TrieKitTests: TrieKitTestSuite {
     let mockLM = TestLM4Trie(trie: trieFinal)
     #expect(trieFinal.hasGrams(["ㄧˋ", "ㄌㄩˇ"], filterType: .langNeutral))
     #expect(!mockLM.queryGrams(["ㄧˋ", "ㄌㄩˇ"]).isEmpty)
-    return mockLM
+    return (mockLM, trieFinal)
   }
 }
