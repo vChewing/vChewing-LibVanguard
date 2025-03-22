@@ -287,4 +287,115 @@ extension VanguardTrieProtocol {
       return results
     }
   }
+
+  /// 關聯詞語檢索，返回 Gram Raw 結果，不去除重複結果。
+  ///
+  /// 此處不以 anterior 作為參數，以免影響到之後的爬軌結果。
+  ///
+  /// - Remark: 如果想只獲取沒有 anterior 的結果的話，請將 anterior 設定為空字串。
+  public func queryAssociatedPhrasesAsGrams(
+    _ previous: (keyArray: [String], value: String),
+    anterior anteriorValue: String? = nil,
+    filterType: VanguardTrie.Trie.EntryType
+  )
+    -> [(keyArray: [String], value: String, probability: Double, previous: String?)]? {
+    guard !previous.keyArray.isEmpty else { return nil }
+    guard previous.keyArray.allSatisfy({ !$0.isEmpty }) else { return nil }
+    guard !previous.value.isEmpty else { return nil }
+    let prevSpanLength = previous.keyArray.count
+    let nodeIDs = getNodeIDs(
+      keyArray: previous.keyArray,
+      filterType: filterType,
+      partiallyMatch: true
+    )
+    guard !nodeIDs.isEmpty else { return nil }
+    var resultsMap = [
+      Int: (keyArray: [String], value: String, probability: Double, previous: String?, seq: Int)
+    ]()
+    nodeIDs.forEach { nodeID in
+      guard let node = getNode(nodeID: nodeID) else { return }
+      let nodeKeyArray = node.readingKey.split(separator: readingSeparator).map(\.description)
+      /// 得前綴相等。
+      guard Array(nodeKeyArray.prefix(prevSpanLength)) == previous.keyArray else { return }
+      /// 得前綴幅長相等。
+      guard nodeKeyArray.count > prevSpanLength else { return }
+      getEntries(node: node).forEach { entry in
+        /// 故意略過那些 Entry Value 的長度不等於幅長的資料值。
+        guard entry.value.count == nodeKeyArray.count else { return }
+        /// Value 的前綴也得與 previous.value 一致。
+        guard entry.value.prefix(prevSpanLength) == previous.value else { return }
+        /// 指定要過濾的資料種類。
+        guard filterType.isEmpty || filterType.contains(entry.typeID) else { return }
+        if let anteriorValue {
+          if !anteriorValue.isEmpty {
+            guard entry.previous == anteriorValue else { return }
+          } else {
+            guard entry.previous == nil else { return }
+          }
+        }
+        let newResult = (
+          keyArray: nodeKeyArray,
+          value: entry.value,
+          probability: entry.probability,
+          previous: entry.previous,
+          seq: resultsMap.count
+        )
+        let hashTag = "\(newResult.keyArray)::\(newResult.value)::\(newResult.previous ?? "NULL")"
+        let theHash = hashTag.hashValue
+        if let existingValue = resultsMap[theHash] {
+          if existingValue.probability < newResult.probability {
+            resultsMap[theHash] = newResult
+          }
+        } else {
+          resultsMap[theHash] = newResult
+        }
+      }
+    }
+    guard !resultsMap.isEmpty else { return nil }
+    var final = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
+    final = resultsMap.values.sorted {
+      ($0.keyArray.count, $0.probability, $1.seq, $0.previous?.count ?? 0) > (
+        $1.keyArray.count, $1.probability, $0.seq, $1.previous?.count ?? 0
+      )
+    }.map {
+      (
+        keyArray: $0.keyArray,
+        value: $0.value,
+        probability: $0.probability,
+        previous: $0.previous
+      )
+    }
+    guard !final.isEmpty else { return nil }
+    return final
+  }
+
+  /// 關聯詞語檢索：僅用於ㄅ半輸入模式，有做過進階去重複處理。
+  public func queryAssociatedPhrasesPlain(
+    _ previous: (keyArray: [String], value: String),
+    anterior anteriorValue: String? = nil,
+    filterType: VanguardTrie.Trie.EntryType
+  )
+    -> [(keyArray: [String], value: String)]? {
+    let rawResults = queryAssociatedPhrasesAsGrams(
+      previous,
+      anterior: anteriorValue,
+      filterType: filterType
+    )
+    guard let rawResults else { return nil }
+    let prevSpanLength = previous.keyArray.count
+    var results = [(keyArray: [String], value: String)]()
+    var inserted = Set<Int>()
+    rawResults.forEach { entry in
+      let newResult = (
+        keyArray: Array(entry.keyArray[prevSpanLength...]),
+        value: entry.value.map(\.description)[prevSpanLength...].joined()
+      )
+      let theHash = "\(newResult)".hashValue
+      guard !inserted.contains(theHash) else { return }
+      inserted.insert("\(newResult)".hashValue)
+      results.append(newResult)
+    }
+    guard !results.isEmpty else { return nil }
+    return results
+  }
 }
