@@ -21,7 +21,7 @@ public protocol LexiconGramSupplierProtocol: AnyObject {
     partiallyMatch: Bool,
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())?
   )
-    -> [VanguardTrie.HomaGramTuple]
+    -> [Lexicon.HomaGramTuple]
 }
 
 extension LexiconGramSupplierProtocol {
@@ -31,7 +31,7 @@ extension LexiconGramSupplierProtocol {
     partiallyMatch: Bool = false,
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
   )
-    -> [VanguardTrie.HomaGramTuple] {
+    -> [Lexicon.HomaGramTuple] {
     queryGrams(
       keys,
       filterType: filterType,

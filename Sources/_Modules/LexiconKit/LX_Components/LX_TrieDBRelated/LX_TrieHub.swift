@@ -8,13 +8,6 @@ import TrieKit
 // MARK: - VanguardTrie.TrieHub
 
 extension VanguardTrie {
-  public typealias HomaGramTuple = (
-    keyArray: [String],
-    value: String,
-    probability: Double,
-    previous: String?
-  )
-
   internal class TrieHub {
     // MARK: Lifecycle
 
@@ -118,11 +111,11 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
     partiallyMatch: Bool,
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())?
   )
-    -> [VanguardTrie.HomaGramTuple] {
+    -> [Lexicon.HomaGramTuple] {
     guard !keys.isEmpty else { return [] }
     let isRevLookup = filterType == .revLookup
     let keys = isRevLookup ? keys : keys.map(VanguardTrie.encryptReadingKey)
-    var result = [VanguardTrie.HomaGramTuple]()
+    var result = [Lexicon.HomaGramTuple]()
     var partiallyMatchedKeys: Set<[String]> = []
     var insertedThings: Set<String> = []
     for dataType in FactoryTrieDBType.allCases {
@@ -130,7 +123,7 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
       case .revLookup where !isRevLookup: continue
       default: break dataTypeCheck
       }
-      var fetched: [VanguardTrie.HomaGramTuple] = userTrie?.queryGrams(
+      var fetched: [Lexicon.HomaGramTuple] = userTrie?.queryGrams(
         keys, filterType: filterType, partiallyMatch: partiallyMatch
       ) { retrievedKeys in
         partiallyMatchedKeys.formUnion(retrievedKeys)
@@ -178,7 +171,7 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
 }
 
 extension VanguardTrie.TrieHub {
-  public static func sortAndDeduplicateQueryResults(_ target: inout [VanguardTrie.HomaGramTuple]) {
+  public static func sortAndDeduplicateQueryResults(_ target: inout [Lexicon.HomaGramTuple]) {
     var insertedIntel = Set<String>()
     target = target.sorted {
       (
