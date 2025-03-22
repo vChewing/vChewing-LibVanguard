@@ -15,6 +15,36 @@ import TrieKit
 public struct LXTests4TrieHub {
   // MARK: Internal
 
+  static func makeSharedTrie4Tests(useSQL: Bool, measureTime: Bool = true) -> VanguardTrie.TrieHub {
+    let hub = VanguardTrie.TrieHub()
+    let tag = useSQL ? "(SQL)" : "(Plist)"
+    if useSQL {
+      try? Self.measureTime("Hub booting time cost \(tag)", useSQL: true, enabled: measureTime) {
+        hub.updateTrieFromSQLFile {
+          var resultMap4FilePaths: [FactoryTrieDBType: String] = [:]
+          FactoryTrieDBType.allCases.forEach { currentCase in
+            let sqlFilePath = currentCase.getFactorySQLiteDemoFilePath4Tests()
+            resultMap4FilePaths[currentCase] = sqlFilePath
+          }
+          return resultMap4FilePaths
+        }
+      }
+    } else {
+      try? Self.measureTime("Hub booting time cost \(tag)", useSQL: false, enabled: measureTime) {
+        hub.updateTrieFromPlistFile {
+          var resultMap4FileURLs: [FactoryTrieDBType: URL] = [:]
+          FactoryTrieDBType.allCases.forEach { currentCase in
+            if let plistURL = currentCase.getFactoryPlistDemoFileURL4Tests() {
+              resultMap4FileURLs[currentCase] = plistURL
+            }
+          }
+          return resultMap4FileURLs
+        }
+      }
+    }
+    return hub
+  }
+
   @Test("[LXKit] TrieHub_ConstructionAndQuery", arguments: [false, true])
   func testTrieHubConstructionAndQuery(useSQL: Bool) throws {
     let hub = Self.makeSharedTrie4Tests(useSQL: useSQL)
@@ -134,43 +164,18 @@ public struct LXTests4TrieHub {
   private static func measureTime(
     _ memo: String,
     useSQL: Bool,
+    enabled: Bool = true,
     _ task: @escaping () throws -> ()
   ) throws {
+    guard enabled else {
+      try task()
+      return
+    }
     let timestamp1a = Date().timeIntervalSince1970
     try task()
     let timestamp1b = Date().timeIntervalSince1970
     let timeCost = ((timestamp1b - timestamp1a) * 100_000).rounded() / 100
     let tag = useSQL ? "(SQL)" : "(Plist)"
     print("[Sitrep \(tag)] \(memo): \(timeCost)ms.")
-  }
-
-  private static func makeSharedTrie4Tests(useSQL: Bool) -> VanguardTrie.TrieHub {
-    let hub = VanguardTrie.TrieHub()
-    let tag = useSQL ? "(SQL)" : "(Plist)"
-    if useSQL {
-      try? Self.measureTime("Hub booting time cost \(tag)", useSQL: true) {
-        hub.updateTrieFromSQLFile {
-          var resultMap4FilePaths: [FactoryTrieDBType: String] = [:]
-          FactoryTrieDBType.allCases.forEach { currentCase in
-            let sqlFilePath = currentCase.getFactorySQLiteDemoFilePath4Tests()
-            resultMap4FilePaths[currentCase] = sqlFilePath
-          }
-          return resultMap4FilePaths
-        }
-      }
-    } else {
-      try? Self.measureTime("Hub booting time cost \(tag)", useSQL: false) {
-        hub.updateTrieFromPlistFile {
-          var resultMap4FileURLs: [FactoryTrieDBType: URL] = [:]
-          FactoryTrieDBType.allCases.forEach { currentCase in
-            if let plistURL = currentCase.getFactoryPlistDemoFileURL4Tests() {
-              resultMap4FileURLs[currentCase] = plistURL
-            }
-          }
-          return resultMap4FileURLs
-        }
-      }
-    }
-    return hub
   }
 }
