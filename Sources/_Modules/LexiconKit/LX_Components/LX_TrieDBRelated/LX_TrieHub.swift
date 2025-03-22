@@ -117,7 +117,7 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
     let keys = isRevLookup ? keys : keys.map(VanguardTrie.encryptReadingKey)
     var result = [Lexicon.HomaGramTuple]()
     var partiallyMatchedKeys: Set<[String]> = []
-    var insertedThings: Set<String> = []
+    var insertedThings: Set<Int> = []
     for dataType in FactoryTrieDBType.allCases {
       dataTypeCheck: switch dataType {
       case .revLookup where !isRevLookup: continue
@@ -147,9 +147,9 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
       }
       if fetched.isEmpty { continue }
       fetched.forEach { currentTuple in
-        let currentTupleStringified = "\(currentTuple)"
-        guard !insertedThings.contains(currentTupleStringified) else { return }
-        insertedThings.insert(currentTupleStringified)
+        let currentTupleHash = "\(currentTuple)".hashValue
+        guard !insertedThings.contains(currentTupleHash) else { return }
+        insertedThings.insert(currentTupleHash)
         let newKeyArray: [String] = isRevLookup
           ? currentTuple.keyArray
           : currentTuple.keyArray.map(VanguardTrie.decryptReadingKey)
@@ -167,6 +167,61 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
       }
     }
     return result
+  }
+
+  public func queryAssociatedPhrasesAsGrams(
+    _ previous: (keyArray: [String], value: String),
+    anterior anteriorValue: String?,
+    filterType: VanguardTrie.Trie.EntryType
+  )
+    -> [Lexicon.HomaGramTuple]? {
+    var keys = previous.keyArray
+    guard !keys.isEmpty else { return [] }
+    let isRevLookup = filterType == .revLookup
+    keys = isRevLookup ? keys : keys.map(VanguardTrie.encryptReadingKey)
+    var result = [Lexicon.HomaGramTuple]()
+    var insertedThings: Set<Int> = []
+    for dataType in FactoryTrieDBType.allCases {
+      dataTypeCheck: switch dataType {
+      case .revLookup where !isRevLookup: continue
+      default: break dataTypeCheck
+      }
+      var fetched: [Lexicon.HomaGramTuple] = userTrie?.queryAssociatedPhrasesAsGrams(
+        previous, anterior: anteriorValue, filterType: filterType
+      ) ?? []
+      fetched += plistTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
+        previous, anterior: anteriorValue, filterType: filterType
+      ) ?? []
+      fetched += sqlTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
+        previous, anterior: anteriorValue, filterType: filterType
+      ) ?? []
+      if filterType.contains(.cinCassette) {
+        fetched += cinTrie?.queryAssociatedPhrasesAsGrams(
+          previous, anterior: anteriorValue, filterType: filterType
+        ) ?? []
+      }
+      if fetched.isEmpty { continue }
+      fetched.forEach { currentTuple in
+        let currentTupleHash = "\(currentTuple)".hashValue
+        guard !insertedThings.contains(currentTupleHash) else { return }
+        insertedThings.insert(currentTupleHash)
+        let newKeyArray: [String] = isRevLookup
+          ? currentTuple.keyArray
+          : currentTuple.keyArray.map(VanguardTrie.decryptReadingKey)
+        let newValue: String = isRevLookup
+          ? VanguardTrie.decryptReadingKey(currentTuple.value)
+          : currentTuple.value
+        result.append(
+          (
+            keyArray: newKeyArray,
+            value: newValue,
+            probability: currentTuple.probability,
+            previous: currentTuple.previous
+          )
+        )
+      }
+    }
+    return result.isEmpty ? nil : result
   }
 }
 
