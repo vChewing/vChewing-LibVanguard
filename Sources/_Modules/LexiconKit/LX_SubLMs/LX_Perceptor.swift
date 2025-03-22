@@ -252,7 +252,10 @@ extension Perceptor {
   public func resetLRUList() {
     lockQueue.sync {
       mapLRUKeySeqList.removeAll()
-      for neta in mapLRU.reversed() {
+      let mapLRUSorted = mapLRU.sorted {
+        $0.value.latestTimeStamp > $1.value.latestTimeStamp
+      }
+      for neta in mapLRUSorted {
         mapLRUKeySeqList.append(neta.key)
       }
     }
@@ -267,7 +270,9 @@ extension Perceptor {
 
   public func getSavableData() -> [KeyPerceptionPair] {
     lockQueue.sync {
-      mapLRU.values.map(\.self)
+      mapLRU.values.sorted {
+        $0.latestTimeStamp > $1.latestTimeStamp
+      }
     }
   }
 
@@ -475,6 +480,10 @@ extension Perceptor {
 
     public fileprivate(set) var key: String
     public fileprivate(set) var perception: Perception
+
+    public var latestTimeStamp: Double {
+      perception.overrides.values.map(\.timestamp).max() ?? 0
+    }
 
     public static func == (lhs: KeyPerceptionPair, rhs: KeyPerceptionPair) -> Bool {
       lhs.key == rhs.key && lhs.perception == rhs.perception
