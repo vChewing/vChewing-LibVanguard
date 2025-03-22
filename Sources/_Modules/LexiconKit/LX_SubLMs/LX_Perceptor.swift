@@ -97,7 +97,7 @@ extension Perceptor {
     )]? {
     lockQueue.sync {
       let frontEdgeReading: String? = {
-        guard key.last == ")" else { return nil }
+        guard key.hasSuffix(")"), key.hasPrefix("("), key.count > 2 else { return nil }
         var charBuffer: [Character] = []
         for char in key.reversed() {
           guard char != "," else { return String(charBuffer.reversed()) }
@@ -114,8 +114,7 @@ extension Perceptor {
       // 解析 key 用於衰減計算
       let keyCells = key.dropLast(1).dropFirst(1).split(separator: ",")
       let isUnigramKey = key.contains("(),(),") || keyCells.count == 1
-      let isSingleCharUnigram = isUnigramKey &&
-        isSpanLengthOne(key: keyCells.last?.description ?? "")
+      let isSingleCharUnigram = isUnigramKey && isSpanLengthOne(key: frontEdgeReading)
 
       for (candidate, override) in perception.overrides {
         let overrideScore = calculateWeight(
@@ -173,13 +172,26 @@ extension Perceptor {
     _ perception: (ngramKey: String, candidate: String),
     timestamp: Double
   ) {
+    let key = perception.ngramKey
+    let candidate = perception.candidate
+    // 檢查 key 是否有效
+    guard !key.isEmpty else { return }
     lockQueue.sync {
-      let key = perception.ngramKey
-      let candidate = perception.candidate
-      // 檢查 key 是否有效
-      guard !key.isEmpty else { return }
+      // 更新現有的洞察
+      if let theNeta = mapLRU[key] {
+        theNeta.perception.update(candidate: candidate, timestamp: timestamp)
 
-      if mapLRU[key] == nil {
+        // 移除舊的項目引用
+        if let index = mapLRUKeySeqList.firstIndex(where: { $0 == key }) {
+          mapLRUKeySeqList.remove(at: index)
+        }
+
+        // 更新 Map 和 List
+        mapLRU[key] = theNeta
+        mapLRUKeySeqList.insert(key, at: 0)
+
+        print("Perceptor: 已更新現有洞察: \(key)")
+      } else {
         // 建立新的 perception
         let perception: Perception = .init()
         perception.update(
@@ -200,22 +212,6 @@ extension Perceptor {
         }
 
         print("Perceptor: 已完成新洞察: \(key)")
-      } else {
-        // 更新現有的洞察
-        if let theNeta = mapLRU[key] {
-          theNeta.perception.update(candidate: candidate, timestamp: timestamp)
-
-          // 移除舊的項目引用
-          if let index = mapLRUKeySeqList.firstIndex(where: { $0 == key }) {
-            mapLRUKeySeqList.remove(at: index)
-          }
-
-          // 更新 Map 和 List
-          mapLRU[key] = theNeta
-          mapLRUKeySeqList.insert(key, at: 0)
-
-          print("Perceptor: 已更新現有洞察: \(key)")
-        }
       }
     }
   }
