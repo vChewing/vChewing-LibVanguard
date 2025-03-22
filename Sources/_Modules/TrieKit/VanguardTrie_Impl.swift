@@ -98,9 +98,9 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
     case false:
       return keyChainIDMap[keyArray.joined(separator: readingSeparator.description)] ?? []
     case true:
-      let possibleKeys: [String] = keyChainIDMap.keys.filter {
-        $0.hasPrefix(firstKeyCell)
-      }.map(\.description)
+      let possibleKeys: [String] = Set(
+        keyChainIDMap.keys.filter { $0.hasPrefix(firstKeyCell) }
+      ).sorted()
       // 使用 keyChainIDMap 來優化查詢
       var matchedNodeIDs = Set<Int>()
 
