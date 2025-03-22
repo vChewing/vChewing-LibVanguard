@@ -87,6 +87,7 @@ extension VanguardTrie.Trie {
 // MARK: - VanguardTrie.Trie + VanguardTrieProtocol
 
 extension VanguardTrie.Trie: VanguardTrieProtocol {
+  /// 此處不需要做 keyArray 長度配對檢查。
   public func getNodeIDs(
     keyArray: [String],
     filterType: EntryType,
@@ -109,9 +110,6 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
         guard let nodeIDs = keyChainIDMap[keyChain] else { return }
         // 只處理那些至少和首個查詢鍵相符的鍵鏈
         let keyComponents = keyChain.split(separator: readingSeparator).map(\.description)
-
-        // 檢查長度是否相符
-        guard keyComponents.count == keyArray.count else { return }
 
         // 檢查每個元素是否以對應的前綴開頭
         guard zip(keyArray, keyComponents).allSatisfy({ $1.hasPrefix($0) }) else { return }
