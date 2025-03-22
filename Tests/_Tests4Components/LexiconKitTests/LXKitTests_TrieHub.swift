@@ -12,10 +12,10 @@ import TrieKit
 // MARK: - LexiconKitTests
 
 @Suite(.serialized)
-public struct LexiconKitTests {
+public struct LXTests4TrieHub {
   // MARK: Internal
 
-  @Test("[LexiconKit] TrieHub_ConstructionAndQuery", arguments: [false, true])
+  @Test("[LXKit] TrieHub_ConstructionAndQuery", arguments: [false, true])
   func testTrieHubConstructionAndQuery(useSQL: Bool) throws {
     let hub = Self.makeSharedTrie4Tests(useSQL: useSQL)
     let dataTypeCountRegistered = useSQL ? hub.sqlTrieMap.count : hub.plistTrieMap.count
@@ -70,7 +70,7 @@ public struct LexiconKitTests {
   }
 
   @Test(
-    "[LexiconKit] TrieHub_AssemblyingUsingFullMatch",
+    "[LXKit] TrieHub_AssemblyingUsingFullMatch",
     arguments: [false, true]
   )
   func testTrieHubAssemblyingUsingFullMatch(useSQL: Bool) async throws {
@@ -98,7 +98,7 @@ public struct LexiconKitTests {
 
   /// 該測試主要是為了測試效能。
   @Test(
-    "[LexiconKit] TrieHub_AssemblyingUsingPartialMatchAndChops",
+    "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops",
     arguments: [false, true]
   )
   func testTrieHubAssemblyingUsingPartialMatchAndChops(useSQL: Bool) async throws {

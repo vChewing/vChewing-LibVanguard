@@ -62,16 +62,6 @@ let package = Package(
       dependencies: ["Homa"],
       path: "./Tests/_Tests4Components/HomaTests"
     ),
-    // PerceptionKit, a companion for Homa Assembler.
-    .target(
-      name: "PerceptionKit",
-      path: "./Sources/_Modules/PerceptionKit"
-    ),
-    .testTarget(
-      name: "PerceptionKitTests",
-      dependencies: ["PerceptionKit"],
-      path: "./Tests/_Tests4Components/PerceptionKitTests"
-    ),
     // Shared bundle for all tests using factory trie.
     .target(
       name: "SharedTrieTestDataBundle",
@@ -83,7 +73,7 @@ let package = Package(
     // LexiconKit, the hub for all subsidiary language models.
     .target(
       name: "LexiconKit",
-      dependencies: ["TrieKit", "PerceptionKit", "SharedTrieTestDataBundle"],
+      dependencies: ["TrieKit", "SharedTrieTestDataBundle"],
       path: "./Sources/_Modules/LexiconKit"
     ),
     .testTarget(
