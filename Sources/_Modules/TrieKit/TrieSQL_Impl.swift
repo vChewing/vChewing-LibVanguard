@@ -8,6 +8,7 @@ import CSQLite3
 
 // 讓 SQLTrie 遵循 VanguardTrieProtocol
 extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
+  /// 此處不需要做 keyArray 長度配對檢查。
   public func getNodeIDs(
     keyArray: [String],
     filterType: VanguardTrie.Trie.EntryType,
@@ -33,7 +34,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
 
       // 查詢與前綴比對的 keychain
       let query = """
-        SELECT k.node_id
+        SELECT k.node_id, k.keychain
         FROM keychain_id_map k
         WHERE k.keychain LIKE '\(firstKeyEscaped)%'
       """
@@ -43,17 +44,26 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
         while sqlite3_step(statement) == SQLITE_ROW {
           let nodeID = Int(sqlite3_column_int(statement, 0))
+          let keychainPtr = sqlite3_column_text(statement, 1)
+          guard let keychainPtr else { continue }
+          let keyChainValue = String(cString: keychainPtr)
+          let keyComponents = keyChainValue.split(separator: readingSeparator).map(\.description)
 
-          if filterType.isEmpty {
-            nodeIDs.insert(nodeID)
-          } else {
+          // 確保該詞條確實以目標前綴開始
+          guard keyComponents.first?.hasPrefix(keyArray[0]) ?? false else { continue }
+
+          guard let entriesBlob = getNodeEntriesBlob(nodeID: nodeID) else { continue }
+          guard let entries = decodeEntriesFromBase64(entriesBlob) else { continue }
+
+          if !filterType.isEmpty {
             // 需要檢查節點中的詞條是否符合類型
-            if let entriesBlob = getNodeEntriesBlob(nodeID: nodeID),
-               let entries = decodeEntriesFromBase64(entriesBlob),
-               entries.contains(where: { filterType.contains($0.typeID) }) {
-              nodeIDs.insert(nodeID)
-            }
+            guard entries.contains(where: { filterType.contains($0.typeID) }) else { continue }
           }
+
+          // 檢查長度是否相符
+          guard zip(keyArray, keyComponents).allSatisfy({ $1.hasPrefix($0) }) else { continue }
+
+          nodeIDs.insert(nodeID)
         }
       }
 
