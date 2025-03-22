@@ -3,6 +3,7 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 import Foundation
+import Homa
 @testable import LexiconKit
 import Testing
 
@@ -185,6 +186,45 @@ public struct LXTests4Perceptor {
       timestamp: nowTimeStamp + 9
     )
     #expect(suggested == nil)
+  }
+
+  @Test("[LXKit] Perceptor_Homa_Integration_test")
+  func testIntegrationAgainstHoma() throws {
+    let perceptor = Perceptor()
+    let hub = LXTests4TrieHub.makeSharedTrie4Tests(useSQL: true)
+    let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
+    let assembler = Homa.Assembler(
+      gramQuerier: { hub.queryGrams($0, filterType: .cht, partiallyMatch: false) },
+      gramAvailabilityChecker: { hub.hasGrams($0, filterType: .cht, partiallyMatch: false) },
+      perceptor: { assembledSentence in
+        let perceptionEntryRAW = assembledSentence.generateKeyForPerception()
+        guard let perceptionEntryRAW else { return }
+        perceptor.memorizePerception(
+          (perceptionEntryRAW.ngramKey, perceptionEntryRAW.candidate),
+          timestamp: Date().timeIntervalSince1970
+        )
+      }
+    )
+    try readings.forEach { try assembler.insertKey($0.description) }
+    var assembledSentence = assembler.assemble().compactMap(\.value)
+    #expect(assembledSentence == ["優", "跌", "能", "留意", "旅", "方"])
+    try assembler.overrideCandidate(.init((["ㄧㄡ"], "幽")), at: 0)
+    try assembler.overrideCandidate(.init((["ㄉㄧㄝˊ"], "蝶")), at: 1)
+    try assembler.overrideCandidate(.init((["ㄌㄧㄡˊ"], "留")), at: 3)
+    try assembler.overrideCandidate(.init((["ㄧˋ", "ㄌㄩˇ"], "一縷")), at: 4)
+    try assembler.overrideCandidate(.init((["ㄈㄤ"], "芳")), at: 6)
+    assembledSentence = assembler.assemble().compactMap(\.value)
+    #expect(assembledSentence == ["幽", "蝶", "能", "留", "一縷", "芳"])
+    let actualkeysJoined = assembler.actualKeys.joined(separator: " ")
+    #expect(actualkeysJoined == "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ")
+    let expectedPerceptionKeys: [String] = [
+      "((ㄌㄧㄡˊ:留),(ㄧˋ-ㄌㄩˇ:一縷),ㄈㄤ)",
+      "((ㄋㄥˊ:能),(ㄌㄧㄡˊ:留),ㄧˋ-ㄌㄩˇ)",
+      "((ㄉㄧㄝˊ:蝶),(ㄋㄥˊ:能),ㄌㄧㄡˊ)",
+      "((ㄧㄡ:幽),ㄉㄧㄝˊ)",
+      "(ㄧㄡ)",
+    ]
+    print(perceptor.getSavableData().map(\.key) == expectedPerceptionKeys)
   }
 
   // MARK: Private
