@@ -22,6 +22,13 @@ public protocol LexiconGramSupplierProtocol: AnyObject {
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())?
   )
     -> [Lexicon.HomaGramTuple]
+
+  func queryAssociatedPhrasesAsGrams(
+    _ previous: (keyArray: [String], value: String),
+    anterior anteriorValue: String?,
+    filterType: VanguardTrie.Trie.EntryType
+  )
+    -> [Lexicon.HomaGramTuple]?
 }
 
 extension LexiconGramSupplierProtocol {
@@ -53,5 +60,44 @@ extension LexiconGramSupplierProtocol {
       partiallyMatch: partiallyMatch,
       partiallyMatchedKeysHandler: partiallyMatchedKeysHandler
     )
+  }
+
+  public func queryAssociatedPhrasesAsGrams(
+    _ previous: (keyArray: [String], value: String),
+    anterior anteriorValue: String? = nil,
+    filterType: VanguardTrie.Trie.EntryType
+  )
+    -> [Lexicon.HomaGramTuple]? {
+    queryAssociatedPhrasesAsGrams(previous, anterior: anteriorValue, filterType: filterType)
+  }
+
+  /// Exactly copied from VanguardTrieProtocol.
+  public func queryAssociatedPhrasesPlain(
+    _ previous: (keyArray: [String], value: String),
+    anterior anteriorValue: String? = nil,
+    filterType: VanguardTrie.Trie.EntryType
+  )
+    -> [(keyArray: [String], value: String)]? {
+    let rawResults = queryAssociatedPhrasesAsGrams(
+      previous,
+      anterior: anteriorValue,
+      filterType: filterType
+    )
+    guard let rawResults else { return nil }
+    let prevSpanLength = previous.keyArray.count
+    var results = [(keyArray: [String], value: String)]()
+    var inserted = Set<Int>()
+    rawResults.forEach { entry in
+      let newResult = (
+        keyArray: Array(entry.keyArray[prevSpanLength...]),
+        value: entry.value.map(\.description)[prevSpanLength...].joined()
+      )
+      let theHash = "\(newResult)".hashValue
+      guard !inserted.contains(theHash) else { return }
+      inserted.insert("\(newResult)".hashValue)
+      results.append(newResult)
+    }
+    guard !results.isEmpty else { return nil }
+    return results
   }
 }
