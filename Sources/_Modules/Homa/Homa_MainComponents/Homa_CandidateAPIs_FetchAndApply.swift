@@ -162,11 +162,16 @@ extension Homa.Assembler {
     }
 
     defer {
+      // 捕獲感知結果並傳往給定的 perceptor API。
+      // 這裡不能用 .lastIndex，因為實證之後發現是無效的。
       var assembledSentence = assemble()
-      while assembledSentence.last?.gram !== overriddenGram {
-        assembledSentence.removeLast()
+      prepare4Perception: if let perceptor {
+        while assembledSentence.last?.gram !== overriddenGram {
+          assembledSentence.removeLast()
+        }
+        guard !assembledSentence.isEmpty else { break prepare4Perception }
+        perceptor(assembledSentence.suffix(3))
       }
-      perceptor?(assembledSentence.suffix(3))
     }
 
     // 更新重疊節點的覆寫權重
