@@ -30,6 +30,10 @@ public final class Perceptor {
     return thresholdCalculated
   }
 
+  public func setCapacity(_ capacity: Int) {
+    self.capacity = max(capacity, 1)
+  }
+
   // MARK: Internal
 
   // 修改常數以讓測試能通過
