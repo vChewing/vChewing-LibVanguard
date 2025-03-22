@@ -156,7 +156,7 @@ extension Perceptor {
 
       if mapLRU[key] == nil {
         // 建立新的 perception
-        var perception: Perception = .init()
+        let perception: Perception = .init()
         perception.update(
           candidate: candidate,
           timestamp: timestamp
@@ -177,7 +177,7 @@ extension Perceptor {
         print("Perceptor: 已完成新洞察: \(key)")
       } else {
         // 更新現有的洞察
-        if var theNeta = mapLRU[key] {
+        if let theNeta = mapLRU[key] {
           theNeta.perception.update(candidate: candidate, timestamp: timestamp)
 
           // 移除舊的項目引用
@@ -335,33 +335,35 @@ extension Perceptor {
   }
 }
 
-// MARK: - Private Structures
+// MARK: - Private Types
 
 extension Perceptor {
-  enum OverrideUnit: String, CodingKey {
-    case count = "c"
-    case timestamp = "ts"
-  }
-
-  enum PerceptionUnit: String, CodingKey {
-    case count = "c"
-    case overrides = "o"
-  }
-
-  enum KeyPerceptionPairUnit: String, CodingKey {
-    case key = "k"
-    case perception = "p"
-  }
-
   public struct Override: Hashable, Encodable, Decodable {
+    // MARK: Lifecycle
+
+    fileprivate init(count: Int, timestamp: Double) {
+      self.count = count
+      self.timestamp = timestamp
+    }
+
+    public init(from decoder: any Decoder) throws {
+      let container = try decoder.container(keyedBy: CodingKeys.self)
+
+      self.count = try container.decode(Int.self, forKey: .count)
+      self.timestamp = try container.decode(Double.self, forKey: .timestamp)
+    }
+
     // MARK: Public
+
+    public fileprivate(set) var count: Int = 0
+    public fileprivate(set) var timestamp: Double = 0.0
 
     public static func == (lhs: Self, rhs: Self) -> Bool {
       lhs.count == rhs.count && lhs.timestamp == rhs.timestamp
     }
 
     public func encode(to encoder: Encoder) throws {
-      var container = encoder.container(keyedBy: OverrideUnit.self)
+      var container = encoder.container(keyedBy: CodingKeys.self)
       try container.encode(count, forKey: .count)
       try container.encode(timestamp, forKey: .timestamp)
     }
@@ -371,56 +373,94 @@ extension Perceptor {
       hasher.combine(timestamp)
     }
 
-    // MARK: Internal
+    // MARK: Private
 
-    var count: Int = 0
-    var timestamp: Double = 0.0
+    private enum CodingKeys: String, CodingKey {
+      case count = "c"
+      case timestamp = "ts"
+    }
   }
 
-  public struct Perception: Hashable, Encodable, Decodable {
+  public final class Perception: Hashable, Encodable, Decodable {
+    // MARK: Lifecycle
+
+    fileprivate init() {}
+
+    public required init(from decoder: any Decoder) throws {
+      let container = try decoder.container(keyedBy: CodingKeys.self)
+
+      self.overrides = try container.decode(
+        [String: Perceptor.Override].self,
+        forKey: .overrides
+      )
+    }
+
     // MARK: Public
 
-    public static func == (lhs: Self, rhs: Self) -> Bool {
+    public fileprivate(set) var overrides: [String: Override] = [:]
+
+    public static func == (lhs: Perception, rhs: Perception) -> Bool {
       lhs.count == rhs.count && lhs.overrides == rhs.overrides
     }
 
     public func encode(to encoder: Encoder) throws {
-      var container = encoder.container(keyedBy: PerceptionUnit.self)
-      try container.encode(count, forKey: .count)
+      var container = encoder.container(keyedBy: CodingKeys.self)
       try container.encode(overrides, forKey: .overrides)
     }
 
     public func hash(into hasher: inout Hasher) {
-      hasher.combine(count)
       hasher.combine(overrides)
     }
 
     // MARK: Internal
 
-    var overrides: [String: Override] = [:]
-
     var count: Int {
       overrides.values.map(\.count).reduce(0, +)
     }
 
-    mutating func update(
+    // MARK: Fileprivate
+
+    fileprivate func update(
       candidate: String,
       timestamp: Double
     ) {
       overrides[candidate, default: .init(count: 0, timestamp: timestamp)].count += 1
       overrides[candidate, default: .init(count: 0, timestamp: timestamp)].timestamp = timestamp
     }
+
+    // MARK: Private
+
+    private enum CodingKeys: String, CodingKey {
+      case overrides = "o"
+    }
   }
 
-  public struct KeyPerceptionPair: Hashable, Encodable, Decodable {
+  public final class KeyPerceptionPair: Hashable, Encodable, Decodable {
+    // MARK: Lifecycle
+
+    fileprivate init(key: String, perception: Perception) {
+      self.key = key
+      self.perception = perception
+    }
+
+    public required init(from decoder: any Decoder) throws {
+      let container = try decoder.container(keyedBy: CodingKeys.self)
+
+      self.key = try container.decode(String.self, forKey: .key)
+      self.perception = try container.decode(Perception.self, forKey: .perception)
+    }
+
     // MARK: Public
 
-    public static func == (lhs: Self, rhs: Self) -> Bool {
+    public fileprivate(set) var key: String
+    public fileprivate(set) var perception: Perception
+
+    public static func == (lhs: KeyPerceptionPair, rhs: KeyPerceptionPair) -> Bool {
       lhs.key == rhs.key && lhs.perception == rhs.perception
     }
 
     public func encode(to encoder: Encoder) throws {
-      var container = encoder.container(keyedBy: KeyPerceptionPairUnit.self)
+      var container = encoder.container(keyedBy: CodingKeys.self)
       try container.encode(key, forKey: .key)
       try container.encode(perception, forKey: .perception)
     }
@@ -430,9 +470,11 @@ extension Perceptor {
       hasher.combine(perception)
     }
 
-    // MARK: Internal
+    // MARK: Private
 
-    var key: String
-    var perception: Perception
+    private enum CodingKeys: String, CodingKey {
+      case key = "k"
+      case perception = "p"
+    }
   }
 }

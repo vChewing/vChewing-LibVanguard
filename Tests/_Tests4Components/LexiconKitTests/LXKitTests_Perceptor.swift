@@ -11,7 +11,7 @@ private let nowTimeStamp: Double = 114_514 * 10_000
 private let capacity = 5
 private let dayInSeconds: Double = 24 * 3_600 // 一天的秒數
 
-// MARK: - LexiconKitTests4Perceptor
+// MARK: - LXTests4Perceptor
 
 @Suite(.serialized)
 public struct LXTests4Perceptor {
