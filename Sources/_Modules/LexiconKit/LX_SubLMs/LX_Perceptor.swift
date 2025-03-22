@@ -56,6 +56,27 @@ public final class Perceptor {
   )
 }
 
+// MARK: Codable
+
+extension Perceptor: Codable {
+  public convenience init(from decoder: any Decoder) throws {
+    self.init()
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    let parsed = try container.decode([KeyPerceptionPair].self, forKey: .lruList)
+    loadData(from: parsed)
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case lruList
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    let toEncode = getSavableData()
+    try container.encode(toEncode, forKey: .lruList)
+  }
+}
+
 // MARK: - Public Methods in Homa.
 
 extension Perceptor {
