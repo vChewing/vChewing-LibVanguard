@@ -3,7 +3,7 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 import Foundation
-@testable import PerceptionKit
+@testable import LexiconKit
 import Testing
 
 // 更新時間常數，使用天為單位
@@ -11,13 +11,13 @@ private let nowTimeStamp: Double = 114_514 * 10_000
 private let capacity = 5
 private let dayInSeconds: Double = 24 * 3_600 // 一天的秒數
 
-// MARK: - PerceptorTests
+// MARK: - LexiconKitTests4Perceptor
 
 @Suite(.serialized)
-public struct PerceptorTests {
+public struct LXTests4Perceptor {
   // MARK: Internal
 
-  @Test("[PerceptionKit] Perceptor_BasicPerceptionOps")
+  @Test("[LXKit] Perceptor_BasicPerceptionOps")
   func testBasicPerceptionOps() throws {
     let perceptor = Perceptor(capacity: capacity)
     let key = "((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)"
@@ -47,7 +47,7 @@ public struct PerceptorTests {
     #expect(suggested == nil) // 修正：不應該檢查空陣列，而是檢查 nil
   }
 
-  @Test("[PerceptionKit] Perceptor_NewestAgainstRepeatedlyUsed")
+  @Test("[LXKit] Perceptor_NewestAgainstRepeatedlyUsed")
   func testNewestAgainstRepeatedlyUsed() throws {
     let perceptor = Perceptor(capacity: capacity)
     let key = "((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)"
@@ -93,7 +93,7 @@ public struct PerceptorTests {
   }
 
   // 添加一個專門測試長期記憶衰減的測試
-  @Test("[PerceptionKit] Perceptor_LongTermMemoryDecay")
+  @Test("[LXKit] Perceptor_LongTermMemoryDecay")
   func testLongTermMemoryDecay() throws {
     let perceptor = Perceptor(capacity: capacity)
     let key = "((ㄔㄥˊ-ㄒㄧㄣˋ:誠信),(ㄓㄜˋ:這),ㄉㄧㄢˇ)"
@@ -129,7 +129,7 @@ public struct PerceptorTests {
     }
   }
 
-  @Test("[PerceptionKit] Perceptor_LRUTable")
+  @Test("[LXKit] Perceptor_LRUTable")
   func testLRUTable() throws {
     let a = (key: "((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)", value: "狗", head: "ㄍㄡˇ")
     let b = (key: "((ㄆㄞˋ-ㄇㄥˊ:派蒙),(ㄉㄜ˙:的),ㄐㄧㄤˇ-ㄐㄧㄣ)", value: "伙食費", head: "ㄏㄨㄛˇ-ㄕˊ-ㄈㄟˋ")
@@ -144,14 +144,14 @@ public struct PerceptorTests {
     percept(who: perceptor, key: b.key, candidate: b.value, timestamp: nowTimeStamp + 1)
     percept(who: perceptor, key: c.key, candidate: c.value, timestamp: nowTimeStamp + 2)
 
-    // C是最新的，應該在列表中
+    // C是最新的，應該在清單中
     var suggested = perceptor.getSuggestion(
       key: c.key,
       timestamp: nowTimeStamp + 3
     )
     #expect(suggested?.map(\.value).first ?? "" == c.value)
 
-    // B是第二新的，應該在列表中
+    // B是第二新的，應該在清單中
     suggested = perceptor.getSuggestion(
       key: b.key,
       timestamp: nowTimeStamp + 4

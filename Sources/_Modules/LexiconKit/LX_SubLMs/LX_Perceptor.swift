@@ -6,7 +6,7 @@ import Foundation
 
 // MARK: - Perceptor
 
-public class Perceptor {
+public final class Perceptor {
   // MARK: Lifecycle
 
   public init(
@@ -88,7 +88,7 @@ extension Perceptor {
 
       // 解析 key 用於衰減計算
       let keyCells = key.dropLast(1).dropFirst(1).split(separator: ",")
-      let isUnigramKey = key.has(string: "(),(),") || keyCells.count == 1
+      let isUnigramKey = key.contains("(),(),") || keyCells.count == 1
       let isSingleCharUnigram = isUnigramKey &&
         isSpanLengthOne(key: keyCells.last?.description ?? "")
 
@@ -220,7 +220,7 @@ extension Perceptor {
   /// 自 LRU 辭典內移除所有的單元圖。
   public func bleachUnigrams() {
     lockQueue.sync {
-      let keysToRemove = mapLRU.keys.filter { $0.has(string: "(),()") }
+      let keysToRemove = mapLRU.keys.filter { $0.contains("(),()") }
       if !keysToRemove.isEmpty {
         keysToRemove.forEach { mapLRU.removeValue(forKey: $0) }
         resetLRUList()
