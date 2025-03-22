@@ -2,4 +2,11 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-public enum Lexicon {}
+public enum Lexicon {
+  public typealias HomaGramTuple = (
+    keyArray: [String],
+    value: String,
+    probability: Double,
+    previous: String?
+  )
+}
