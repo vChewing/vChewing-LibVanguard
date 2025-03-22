@@ -19,10 +19,10 @@ public struct PerceptorTests {
 
   @Test("[PerceptionKit] Perceptor_BasicPerceptionOps")
   func testBasicPerceptionOps() throws {
-    var perceptor = PerceptionManager(capacity: capacity)
+    let perceptor = Perceptor(capacity: capacity)
     let key = "((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)"
     let expectedSuggestion = "狗"
-    percept(who: &perceptor, key: key, candidate: expectedSuggestion, timestamp: nowTimeStamp)
+    percept(who: perceptor, key: key, candidate: expectedSuggestion, timestamp: nowTimeStamp)
 
     // 即時查詢應該能找到結果
     var suggested = perceptor.getSuggestion(
@@ -49,7 +49,7 @@ public struct PerceptorTests {
 
   @Test("[PerceptionKit] Perceptor_NewestAgainstRepeatedlyUsed")
   func testNewestAgainstRepeatedlyUsed() throws {
-    var perceptor = PerceptionManager(capacity: capacity)
+    let perceptor = Perceptor(capacity: capacity)
     let key = "((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)"
     let valRepeatedlyUsed = "狗" // 更常用
     let valNewest = "苟" // 最近偶爾用了一次
@@ -57,7 +57,7 @@ public struct PerceptorTests {
     // 使用天數作為單位
     let stamps: [Double] = [0, 0.1, 0.2].map { nowTimeStamp + dayInSeconds * $0 }
     stamps.forEach { stamp in
-      percept(who: &perceptor, key: key, candidate: valRepeatedlyUsed, timestamp: stamp)
+      percept(who: perceptor, key: key, candidate: valRepeatedlyUsed, timestamp: stamp)
     }
 
     // 即時查詢應該能找到結果
@@ -69,7 +69,7 @@ public struct PerceptorTests {
 
     // 在 1 天後選擇了另一個候選字
     percept(
-      who: &perceptor,
+      who: perceptor,
       key: key,
       candidate: valNewest,
       timestamp: nowTimeStamp + dayInSeconds * 1
@@ -95,12 +95,12 @@ public struct PerceptorTests {
   // 添加一個專門測試長期記憶衰減的測試
   @Test("[PerceptionKit] Perceptor_LongTermMemoryDecay")
   func testLongTermMemoryDecay() throws {
-    var perceptor = PerceptionManager(capacity: capacity)
+    let perceptor = Perceptor(capacity: capacity)
     let key = "((ㄔㄥˊ-ㄒㄧㄣˋ:誠信),(ㄓㄜˋ:這),ㄉㄧㄢˇ)"
     let expectedSuggestion = "點"
 
     // 記錄一個記憶
-    percept(who: &perceptor, key: key, candidate: expectedSuggestion, timestamp: nowTimeStamp)
+    percept(who: perceptor, key: key, candidate: expectedSuggestion, timestamp: nowTimeStamp)
 
     // 確認剛剛記錄的能被找到
     var suggested = perceptor.getSuggestion(key: key, timestamp: nowTimeStamp)
@@ -120,7 +120,7 @@ public struct PerceptorTests {
           let score = suggestion.probability
           #expect(
             score > perceptor.threshold,
-            "第\(days)天的權重\(score)不應低於閾值\(PerceptionManager.kDecayThreshold)"
+            "第\(days)天的權重\(score)不應低於閾值\(Perceptor.kDecayThreshold)"
           )
         }
       } else {
@@ -137,12 +137,12 @@ public struct PerceptorTests {
     let d = (key: "((ㄌㄟˊ-ㄉㄧㄢˋ-ㄐㄧㄤ-ㄐㄩㄣ:雷電將軍),(ㄉㄜ˙:的),ㄐㄧㄠˇ-ㄔㄡˋ)", value: "腳臭", head: "ㄐㄧㄠˇ-ㄔㄡˋ")
 
     // 容量為2的LRU測試
-    var perceptor = PerceptionManager(capacity: 2)
+    let perceptor = Perceptor(capacity: 2)
 
     // 緊接著記錄三個項目，只保留最後兩個
-    percept(who: &perceptor, key: a.key, candidate: a.value, timestamp: nowTimeStamp)
-    percept(who: &perceptor, key: b.key, candidate: b.value, timestamp: nowTimeStamp + 1)
-    percept(who: &perceptor, key: c.key, candidate: c.value, timestamp: nowTimeStamp + 2)
+    percept(who: perceptor, key: a.key, candidate: a.value, timestamp: nowTimeStamp)
+    percept(who: perceptor, key: b.key, candidate: b.value, timestamp: nowTimeStamp + 1)
+    percept(who: perceptor, key: c.key, candidate: c.value, timestamp: nowTimeStamp + 2)
 
     // C是最新的，應該在列表中
     var suggested = perceptor.getSuggestion(
@@ -166,7 +166,7 @@ public struct PerceptorTests {
     #expect(suggested == nil)
 
     // 添加D, B應該被移除
-    percept(who: &perceptor, key: d.key, candidate: d.value, timestamp: nowTimeStamp + 6)
+    percept(who: perceptor, key: d.key, candidate: d.value, timestamp: nowTimeStamp + 6)
 
     suggested = perceptor.getSuggestion(
       key: d.key,
@@ -190,7 +190,7 @@ public struct PerceptorTests {
   // MARK: Private
 
   private func percept(
-    who perceptor: inout PerceptionManager,
+    who perceptor: Perceptor,
     key: String,
     candidate: String,
     timestamp stamp: Double
