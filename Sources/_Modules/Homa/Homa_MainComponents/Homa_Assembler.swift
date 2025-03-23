@@ -160,7 +160,7 @@ extension Homa {
       do {
         try assignNodes()
       } catch {
-        // 用來在 langModel.hasUnigramsFor() 結果不準確的時候防呆、恢復被搞壞的 spans。
+        // 用來在 gramAvailabilityChecker() 結果不準確的時候防呆、恢復被搞壞的 spans。
         spans = gridBackup
         throw error
       }
@@ -292,7 +292,7 @@ extension Homa {
         let upperbound = Swift.min(cursor + maxSpanLength, keys.count)
         rangeOfPositions = lowerbound ..< upperbound
       }
-      var nodesChanged = 0
+      var nodesChangedCounter = 0
       rangeOfPositions.forEach { position in
         let rangeOfLengths = 1 ... min(maxSpanLength, rangeOfPositions.upperBound - position)
         rangeOfLengths.forEach { theLength in
@@ -300,25 +300,25 @@ extension Homa {
           let keyArraySliced = keys[position ..< (position + theLength)].map(\.description)
           if (0 ..< spans.count).contains(position), let theNode = spans[position][theLength] {
             if !updateExisting { return }
-            let unigrams: [Homa.Gram] = queryGrams(using: keyArraySliced)
+            let queriedGrams: [Homa.Gram] = queryGrams(using: keyArraySliced)
             // 自動銷毀無效的節點。
-            if unigrams.isEmpty {
+            if queriedGrams.isEmpty {
               if theNode.keyArray.count == 1 { return }
               spans[position][theNode.spanLength] = nil
             } else {
-              theNode.syncingGrams(from: unigrams)
+              theNode.syncingGrams(from: queriedGrams)
             }
-            nodesChanged += 1
+            nodesChangedCounter += 1
             return
           }
-          let unigrams: [Homa.Gram] = queryGrams(using: keyArraySliced)
-          guard !unigrams.isEmpty else { return }
+          let queriedGrams: [Homa.Gram] = queryGrams(using: keyArraySliced)
+          guard !queriedGrams.isEmpty else { return }
           // 這裡原本用 SpanUnit.addNode 來完成的，但直接當作辭典來互動的話也沒差。
-          spans[position][theLength] = .init(keyArray: keyArraySliced, grams: unigrams)
-          nodesChanged += 1
+          spans[position][theLength] = .init(keyArray: keyArraySliced, grams: queriedGrams)
+          nodesChangedCounter += 1
         }
       }
-      guard nodesChanged != 0 else { throw Homa.Exception.noNodesAssigned }
+      guard nodesChangedCounter != 0 else { throw Homa.Exception.noNodesAssigned }
       assemble()
     }
 
