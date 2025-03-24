@@ -159,45 +159,11 @@ extension VanguardTrie {
       }
     }
 
-    /// 輸出資料庫診斷資訊到控制台
-    public func printDatabaseDiagnostics() {
-      guard database != nil else {
-        Self.printDebug("資料庫連接不存在")
-        return
-      }
-
-      // 檢查表結構
-      let tables = ["config", "nodes", "keychain_id_map"]
-
-      Self.printDebug("=== 資料庫診斷 ===")
-
-      for table in tables {
-        let tableExists = checkTableExists(table)
-        Self.printDebug("表 \(table) \(tableExists ? "存在" : "不存在")")
-
-        if tableExists {
-          // 檢查表中的行數
-          if let count = getTableRowCount(table) {
-            Self.printDebug("  - 行數: \(count)")
-          }
-
-          // 顯示表的列資訊
-          displayTableColumns(table)
-        }
-      }
-
-      // 如果有 config 表，顯示其內容
-      if checkTableExists("config") {
-        displayConfigContent()
-      }
-
-      Self.printDebug("==================")
-    }
-
     // MARK: Internal
 
+    internal let queryBuffer4Node: QueryBuffer<TNode?> = .init()
+    internal let queryBuffer4Nodes: QueryBuffer<[TNode]> = .init()
     internal let queryBuffer4NodeIDs: QueryBuffer<Set<Int>> = .init()
-    internal let queryBuffer4Nodes: QueryBuffer<TNode> = .init()
     internal var database: OpaquePointer?
 
     /// 獲取表的行數
@@ -219,125 +185,6 @@ extension VanguardTrie {
     }
 
     // MARK: - 輔助方法
-
-    /// 根據給定的讀音列表查詢完全比對的詞條
-    /// - Parameter keys: 讀音列表
-    /// - Returns: 比對的詞條
-    func queryExactMatch(_ keys: [String], filterType: Trie.EntryType) -> [(
-      keyArray: [String],
-      value: String,
-      probability: Double,
-      previous: String?
-    )] {
-      var result: [(keyArray: [String], value: String, probability: Double, previous: String?)] = []
-
-      // 列印偵錯資訊
-      Self.printDebug("DEBUG: 查詢詞條，keys = \(keys), filterType = \(filterType)")
-
-      // 使用 keychain_id_map 表進行精確比對
-      let keychain = keys.joined(separator: readingSeparator.description)
-      let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
-
-      // 構建查詢
-      let query = """
-        SELECT n.id, n.reading_key, n.entries_blob
-        FROM nodes n
-        JOIN keychain_id_map k ON n.id = k.node_id
-        WHERE k.keychain = '\(escapedKeychain)'
-      """
-
-      var statement: OpaquePointer?
-
-      if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
-        while sqlite3_step(statement) == SQLITE_ROW {
-          // 讀取 reading_key
-          var readingKey = ""
-          if let readingKeyPtr = sqlite3_column_text(statement, 1) {
-            readingKey = String(cString: readingKeyPtr)
-          }
-
-          // 讀取並解碼 entries_blob
-          if let blobPtr = sqlite3_column_text(statement, 2) {
-            let blobString = String(cString: blobPtr)
-
-            if !blobString.isEmpty, let entries = decodeEntriesFromBase64(blobString) {
-              // 過濾符合類型的條目
-              let filteredEntries = entries.filter {
-                filterType.isEmpty || filterType.contains($0.typeID)
-              }
-
-              // 將符合條件的條目添加到結果中
-              let readings = readingKey.split(separator: readingSeparator).map(\.description)
-              for entry in filteredEntries {
-                result.append((
-                  keyArray: readings,
-                  value: entry.value,
-                  probability: entry.probability,
-                  previous: entry.previous
-                ))
-              }
-            }
-          }
-        }
-      } else {
-        Self.printDebug("ERROR: SQL準備失敗: \(String(cString: sqlite3_errmsg(database)))")
-      }
-
-      sqlite3_finalize(statement)
-      Self.printDebug("DEBUG: 查詢結束，找到 \(result.count) 個結果")
-
-      return result
-    }
-
-    /// 根據 keychain 字串查詢節點 ID
-    func getNodeIDsForKeychain(_ keychain: String, filterType: Trie.EntryType = []) -> Set<Int> {
-      var nodeIDs = Set<Int>()
-      let escapedKeychain = keychain.replacingOccurrences(of: "'", with: "''")
-
-      let query =
-        "SELECT DISTINCT k.node_id FROM keychain_id_map k WHERE k.keychain = '\(escapedKeychain)'"
-      var statement: OpaquePointer?
-
-      if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
-        while sqlite3_step(statement) == SQLITE_ROW {
-          let nodeID = Int(sqlite3_column_int(statement, 0))
-
-          if filterType.isEmpty {
-            nodeIDs.insert(nodeID)
-          } else {
-            // 需要額外檢查節點中的詞條是否符合類型
-            if let entriesBlob = getNodeEntriesBlob(nodeID: nodeID),
-               let entries = decodeEntriesFromBase64(entriesBlob),
-               entries.contains(where: { filterType.contains($0.typeID) }) {
-              nodeIDs.insert(nodeID)
-            }
-          }
-        }
-      }
-
-      sqlite3_finalize(statement)
-      return nodeIDs
-    }
-
-    /// 從節點獲取 entries_blob
-    internal func getNodeEntriesBlob(nodeID: Int) -> String? {
-      var entriesBlob: String?
-      let query = "SELECT entries_blob FROM nodes WHERE id = ?"
-      var statement: OpaquePointer?
-
-      if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
-        sqlite3_bind_int(statement, 1, Int32(nodeID))
-
-        if sqlite3_step(statement) == SQLITE_ROW {
-          if let blobPtr = sqlite3_column_text(statement, 0) {
-            entriesBlob = String(cString: blobPtr)
-          }
-        }
-      }
-
-      sqlite3_finalize(statement)
-      return entriesBlob
-    }
 
     /// 從 base64 字串解碼 entries
     internal func decodeEntriesFromBase64(_ base64String: String) -> [Trie.Entry]? {
@@ -374,7 +221,7 @@ extension VanguardTrie {
     /// - Returns: 是否成功初始化
     private func initializeSettings() -> Bool {
       // 檢查必要表是否存在
-      let requiredTables = ["nodes", "keychain_id_map"]
+      let requiredTables = ["nodes", "keyinitials_id_map"]
       for table in requiredTables {
         if !checkTableExists(table) {
           Self.printDebug("資料庫中不存在 \(table) 表")
@@ -397,7 +244,7 @@ extension VanguardTrie {
     /// - Returns: 分隔符字串，如果獲取失敗則返回預設值 "-"
     private func fetchSeparator() -> Character {
       var separator: Character = "-"
-      let query = "SELECT value FROM config WHERE key = 'separator'"
+      let query = "SELECT value FROM config WHERE key = 'separator' LIMIT 1" // 加上 LIMIT 1
       var statement: OpaquePointer?
 
       if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
@@ -405,8 +252,9 @@ extension VanguardTrie {
 
         if stepResult == SQLITE_ROW {
           if let cString = sqlite3_column_text(statement, 0) {
-            if let newSeparator = Character(pointer: cString) {
-              separator = newSeparator
+            let string = String(cString: cString)
+            if string.count == 1, let firstChar = string.first {
+              separator = firstChar
             } else {
               Self.printDebug("警告：分隔符必須僅有一個 ASCII 字元。已讀取的資料值過長，故使用預設值 '-'")
             }
@@ -497,7 +345,9 @@ extension VanguardTrie {
         var stmt: OpaquePointer?
         let query = "SELECT count(*) FROM reading_mappings WHERE reading = ?"
         if sqlite3_prepare_v2(database, query, -1, &stmt, nil) == SQLITE_OK {
-          sqlite3_bind_text(stmt, 1, key, -1, nil)
+          _ = key.withCString { cString in
+            sqlite3_bind_text(stmt, 1, cString, -1, nil)
+          }
 
           if sqlite3_step(stmt) == SQLITE_ROW {
             let count = sqlite3_column_int(stmt, 0)

@@ -14,6 +14,30 @@ import Testing
 public struct TrieKitTests: TrieKitTestSuite {
   // MARK: Internal
 
+  @Test("[TrieKit] Trie SQL Query Test", arguments: [false, true])
+  func testTrieDirectQuery(useSQL: Bool) async throws {
+    let mockLM = try prepareTrieLM(useSQL: useSQL).lm
+    do {
+      let partialMatchQueried = mockLM.queryGrams(["ㄧ"], partiallyMatch: true)
+      #expect(!partialMatchQueried.isEmpty)
+      #expect(partialMatchQueried.contains(where: { $0.keyArray.first == "ㄧˋ" }))
+    }
+    do {
+      let fullMatchQueried = mockLM.queryGrams(["ㄧㄡ"], partiallyMatch: true)
+      #expect(!fullMatchQueried.isEmpty)
+      #expect(!fullMatchQueried.contains(where: { $0.keyArray.first == "ㄧˋ" }))
+    }
+    do {
+      let fullMatchQueried2 = mockLM.queryGrams(["ㄧㄡ", "ㄉㄧㄝˊ"], partiallyMatch: true)
+      #expect(!fullMatchQueried2.isEmpty)
+    }
+    do {
+      let partialMultiMatchQueried = mockLM.queryGrams(["ㄧㄛ&ㄧㄡ&ㄩㄥ"], partiallyMatch: true)
+      #expect(!partialMultiMatchQueried.isEmpty)
+      #expect(!partialMultiMatchQueried.contains(where: { $0.keyArray.first == "ㄧˋ" }))
+    }
+  }
+
   /// 這裡重複對護摩引擎的胡桃測試（Full Match）。
   @Test("[TrieKit] Trie SQL Structure Test (Full Match)", arguments: [false, true])
   func testTrieSQLStructureWithFullMatch(useSQL: Bool) async throws {
@@ -233,7 +257,6 @@ public struct TrieKitTests: TrieKitTestSuite {
       trieFinal = sqlTrie
       #expect(sqlTrie.getTableRowCount("config") ?? 0 > 0)
       #expect(sqlTrie.getTableRowCount("nodes") ?? 0 > 0)
-      #expect(sqlTrie.getTableRowCount("keychain_id_map") ?? 0 > 0)
     }
     let mockLM = TestLM4Trie(trie: trieFinal)
     #expect(trieFinal.hasGrams(["ㄧˋ", "ㄌㄩˇ"], filterType: .langNeutral))

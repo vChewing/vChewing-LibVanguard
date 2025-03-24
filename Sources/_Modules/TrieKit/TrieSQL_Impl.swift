@@ -3,164 +3,145 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 import CSQLite3
+import Foundation
 
 // MARK: - VanguardTrie.SQLTrie + VanguardTrieProtocol
 
 // 讓 SQLTrie 遵循 VanguardTrieProtocol
 extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
-  /// 此處不需要做 keyArray 長度配對檢查。
-  public func getNodeIDs(
-    keyArray: [String],
-    filterType: VanguardTrie.Trie.EntryType,
-    partiallyMatch: Bool
-  )
-    -> Set<Int> {
-    guard !keyArray.isEmpty else { return [] }
-    let formedKey: String
-    let result: Set<Int>
-    if !partiallyMatch {
-      formedKey = "\(keyArray)::\(filterType.rawValue)::\(partiallyMatch ? 1 : 0)"
-      if let cachedResult = queryBuffer4NodeIDs.get(key: formedKey) { return cachedResult }
-      // 精確比對
-      let keychain = keyArray.joined(separator: readingSeparator.description)
-      result = getNodeIDsForKeychain(keychain, filterType: filterType)
-    } else {
-      // 構建查詢前綴條件
-      let firstKeyEscaped = keyArray[0].replacingOccurrences(of: "'", with: "''")
+  /// 根據 keychain 字串查詢節點 ID
+  public func getNodeIDsForKeyArray(_ keyArray: [String], longerSpan: Bool) -> [Int] {
+    let keyInitialsStr = keyArray.compactMap {
+      $0.first?.description
+    }.joined()
+    let formedKey = "\(keyInitialsStr)::\(longerSpan ? 1 : 0)"
+    if let cachedResult = queryBuffer4NodeIDs.get(key: formedKey) { return cachedResult.sorted() }
 
-      formedKey = "\(firstKeyEscaped)::\(filterType.rawValue)::\(partiallyMatch ? 1 : 0)"
-      if let cachedResult = queryBuffer4NodeIDs.get(key: formedKey) { return cachedResult }
-      var nodeIDs = Set<Int>()
+    var nodeIDs = Set<Int>()
+    let escapedKeyInitials = keyInitialsStr.replacingOccurrences(of: "'", with: "''")
 
-      // 查詢與前綴比對的 keychain
-      let query = """
-        SELECT k.node_id, k.keychain
-        FROM keychain_id_map k
-        WHERE k.keychain LIKE '\(firstKeyEscaped)%'
+    let query = switch longerSpan {
+    case false: """
+      SELECT node_ids FROM keyinitials_id_map
+      WHERE keyinitials = '\(escapedKeyInitials)'
       """
-
-      var statement: OpaquePointer?
-
-      if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
-        while sqlite3_step(statement) == SQLITE_ROW {
-          let nodeID = Int(sqlite3_column_int(statement, 0))
-          let keychainPtr = sqlite3_column_text(statement, 1)
-          guard let keychainPtr else { continue }
-          let keyChainValue = String(cString: keychainPtr)
-          let keyComponents = keyChainValue.split(separator: readingSeparator).map(\.description)
-
-          // 確保該詞條確實以目標前綴開始
-          guard keyComponents.first?.hasPrefix(keyArray[0]) ?? false else { continue }
-
-          guard let entriesBlob = getNodeEntriesBlob(nodeID: nodeID) else { continue }
-          guard let entries = decodeEntriesFromBase64(entriesBlob) else { continue }
-
-          if !filterType.isEmpty {
-            // 需要檢查節點中的詞條是否符合類型
-            guard entries.contains(where: { filterType.contains($0.typeID) }) else { continue }
-          }
-
-          // 檢查長度是否相符
-          guard zip(keyArray, keyComponents).allSatisfy({ $1.hasPrefix($0) }) else { continue }
-
-          nodeIDs.insert(nodeID)
-        }
-      }
-
-      sqlite3_finalize(statement)
-      result = nodeIDs
+    case true: """
+      SELECT node_ids FROM keyinitials_id_map
+      WHERE keyinitials LIKE '\(escapedKeyInitials)%'
+      """
     }
-    queryBuffer4NodeIDs.set(key: formedKey, value: result)
-    return result
-  }
-
-  public func getNode(nodeID: Int) -> VanguardTrie.Trie.TNode? {
-    if let cachedResult = queryBuffer4Nodes.get(hashKey: nodeID) { return cachedResult }
-
-    // 查詢節點資訊
-    let query = """
-      SELECT n.id, n.parent_id, n.character, n.reading_key, n.entries_blob
-      FROM nodes n
-      WHERE n.id = ?
-    """
 
     var statement: OpaquePointer?
-    var node: VanguardTrie.Trie.TNode?
 
     if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
-      sqlite3_bind_int(statement, 1, Int32(nodeID))
-
-      if sqlite3_step(statement) == SQLITE_ROW {
-        // 獲取節點基本資訊
-        let id = Int(sqlite3_column_int(statement, 0))
-        let parentID: Int?
-        if sqlite3_column_type(statement, 1) != SQLITE_NULL {
-          parentID = Int(sqlite3_column_int(statement, 1))
-        } else {
-          parentID = nil
-        }
-
-        let character: String
-        if let charPtr = sqlite3_column_text(statement, 2) {
-          character = String(cString: charPtr)
-        } else {
-          character = ""
-        }
-
-        let readingKey: String
-        if let readingKeyPtr = sqlite3_column_text(statement, 3) {
-          readingKey = String(cString: readingKeyPtr)
-        } else {
-          readingKey = ""
-        }
-
-        // 創建節點
-        node = VanguardTrie.Trie.TNode(
-          id: id,
-          entries: [],
-          parentID: parentID,
-          character: character,
-          readingKey: readingKey
-        )
-
-        // 解碼詞條
-        if let blobPtr = sqlite3_column_text(statement, 4) {
-          let blobString = String(cString: blobPtr)
-          if !blobString.isEmpty, let entries = decodeEntriesFromBase64(blobString) {
-            node?.entries = entries
+      while sqlite3_step(statement) == SQLITE_ROW {
+        if let jsonData = sqlite3_column_text(statement, 0).map({ String(cString: $0) }) {
+          // 將 JSON 字串解析為 [Int]，然後轉換為 Set<Int>
+          if let data = jsonData.data(using: .utf8),
+             let setDecoded = try? JSONDecoder().decode(Set<Int>.self, from: data) {
+            nodeIDs.formUnion(setDecoded)
           }
         }
-
-        // 獲取子節點資訊並更新 children 辭典
-        let childrenQuery = "SELECT id, character FROM nodes WHERE parent_id = ?"
-        var childStmt: OpaquePointer?
-
-        if sqlite3_prepare_v2(database, childrenQuery, -1, &childStmt, nil) == SQLITE_OK {
-          sqlite3_bind_int(childStmt, 1, Int32(nodeID))
-
-          while sqlite3_step(childStmt) == SQLITE_ROW {
-            let childID = Int(sqlite3_column_int(childStmt, 0))
-            if let charPtr = sqlite3_column_text(childStmt, 1) {
-              let char = String(cString: charPtr)
-              node?.children[char] = childID
-            }
-          }
-        }
-
-        sqlite3_finalize(childStmt)
       }
     }
 
     sqlite3_finalize(statement)
-
-    if let node {
-      queryBuffer4Nodes.set(hashKey: nodeID, value: node)
-    }
-
-    return node
+    queryBuffer4NodeIDs.set(key: formedKey, value: nodeIDs)
+    return nodeIDs.sorted()
   }
 
-  public func getEntries(node: VanguardTrie.Trie.TNode) -> [Entry] {
-    node.entries
+  /// 此處不需要做 keyArray 長度配對檢查。
+  public func getNodes(
+    keyArray: [String],
+    filterType: EntryType,
+    partiallyMatch: Bool,
+    longerSpan: Bool
+  )
+    -> [TNode] {
+    let formedKey =
+      "\(keyArray)::\(filterType.rawValue)::\(partiallyMatch ? 1 : 0)::\(longerSpan ? 1 : 0)"
+    if let cachedResult = queryBuffer4Nodes.get(key: formedKey) { return cachedResult }
+
+    // 接下來的步驟與 VanguardTrie.Trie 雷同。
+    let matchedNodeIDs: [Int] = getNodeIDsForKeyArray(
+      keyArray,
+      longerSpan: longerSpan
+    )
+    guard !matchedNodeIDs.isEmpty else { return [] }
+    var handledNodeHashes: Set<Int> = []
+    let matchedNodes: [TNode] = matchedNodeIDs.compactMap {
+      if let theNode = getNode($0) {
+        let hash = theNode.hashValue
+        if !handledNodeHashes.contains(hash) {
+          handledNodeHashes.insert(theNode.hashValue)
+          let nodeKeyArray = theNode.readingKey.split(separator: readingSeparator)
+          if nodeMeetsFilter(theNode, filter: filterType) {
+            var matched: Bool = longerSpan
+              ? nodeKeyArray.count > keyArray.count
+              : nodeKeyArray.count == keyArray.count
+            switch partiallyMatch {
+            case true:
+              matched = matched && zip(nodeKeyArray, keyArray).allSatisfy { $0.hasPrefix($1) }
+            case false:
+              matched = matched && zip(nodeKeyArray, keyArray).allSatisfy(==)
+            }
+            return matched ? theNode : nil
+          }
+        }
+      }
+      return nil
+    }
+    let result = matchedNodes
+    // 最後，將本次查詢的結果塞入快取。
+    queryBuffer4Nodes.set(key: formedKey, value: result)
+    return result
+  }
+
+  public func getNode(_ nodeID: Int) -> TNode? {
+    if let cachedResult = queryBuffer4Node.get(hashKey: nodeID) { return cachedResult }
+    // 基本查詢，只查必要資訊
+    let query = """
+    SELECT id, reading_key, entries_blob
+    FROM nodes
+    WHERE id = ?
+    LIMIT 1
+    """
+    var statement: OpaquePointer?
+
+    guard sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK else {
+      sqlite3_finalize(statement)
+      return nil
+    }
+    defer { sqlite3_finalize(statement) }
+
+    sqlite3_bind_int64(statement, 1, sqlite3_int64(nodeID))
+
+    guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+
+    // 直接從欄位讀取資料（注意：欄位索引從 0 開始）
+    let id = Int(sqlite3_column_int64(statement, 0))
+    let readingKey = sqlite3_column_text(statement, 1).map { String(cString: $0) } ?? ""
+
+    // 創建節點
+    let node = VanguardTrie.Trie.TNode(
+      id: id,
+      entries: [],
+      readingKey: readingKey
+    )
+
+    // 解析詞條資料（如果有的話）
+    if let blobPtr = sqlite3_column_text(statement, 2) {
+      let blobString = String(cString: blobPtr)
+      if !blobString.isEmpty, let entries = decodeEntriesFromBase64(blobString) {
+        guard !entries.isEmpty else {
+          queryBuffer4Node.set(hashKey: nodeID, value: nil)
+          return nil
+        }
+        node.entries = entries
+      }
+    }
+
+    queryBuffer4Node.set(hashKey: nodeID, value: node)
+    return node
   }
 }
