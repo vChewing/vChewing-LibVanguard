@@ -24,117 +24,68 @@ extension VanguardTrie.Trie.Entry {
   }
 }
 
-extension VanguardTrie.Trie {
-  public func search(_ key: String, partiallyMatch: Bool = false) -> [(
-    readings: [String],
-    entry: Entry
-  )] {
-    // 使用 keyChainIDMap 優化查詢效能，尤其對於精確比對的情況
-    if !partiallyMatch {
-      let nodeIDs = keyChainIDMap[key, default: []]
-      if !nodeIDs.isEmpty {
-        var results: [(readings: [String], entry: Entry)] = []
-        for nodeID in nodeIDs {
-          if let node = nodes[nodeID] {
-            let readings = node.readingKey.split(separator: readingSeparator).map(\.description)
-            node.entries.forEach { entry in
-              results.append((readings: readings, entry: entry))
-            }
-          }
-        }
-        return results
-      }
-    }
-
-    var currentNode = root
-    // 遍歷關鍵字的每個字符
-    for char in key {
-      let charStr = char.description
-      // 查找對應字符的子節點
-      guard let childNodeID = currentNode.children[charStr] else { return [] }
-      guard let childNode = nodes[childNodeID] else { return [] }
-      // 更新當前節點
-      currentNode = childNode
-    }
-
-    return partiallyMatch ?
-      collectAllDescendantEntriesWithReadings(from: currentNode) :
-      collectEntriesWithReadings(from: currentNode)
-  }
-
-  private func collectEntriesWithReadings(from node: TNode) -> [(
-    readings: [String],
-    entry: Entry
-  )] {
-    let readings = node.readingKey.split(separator: readingSeparator).map(\.description)
-    return node.entries.map { (readings: readings, entry: $0) }
-  }
-
-  private func collectAllDescendantEntriesWithReadings(from node: TNode) -> [(
-    readings: [String],
-    entry: Entry
-  )] {
-    var result = collectEntriesWithReadings(from: node)
-    // 遍歷所有子節點
-    node.children.values.forEach { childNodeID in
-      guard let childNode = nodes[childNodeID] else { return }
-      result.append(contentsOf: collectAllDescendantEntriesWithReadings(from: childNode))
-    }
-    return result
-  }
-}
-
 // MARK: - VanguardTrie.Trie + VanguardTrieProtocol
 
 extension VanguardTrie.Trie: VanguardTrieProtocol {
-  /// 此處不需要做 keyArray 長度配對檢查。
-  public func getNodeIDs(
-    keyArray: [String],
-    filterType: EntryType,
-    partiallyMatch: Bool
-  )
-    -> Set<Int> {
-    guard let firstKeyCell = keyArray.first else { return [] }
-    switch partiallyMatch {
-    case false:
-      return keyChainIDMap[keyArray.joined(separator: readingSeparator.description)] ?? []
-    case true:
-      let possibleKeys: [String] = Set(
-        keyChainIDMap.keys.filter { $0.hasPrefix(firstKeyCell) }
-      ).sorted()
-      // 使用 keyChainIDMap 來優化查詢
-      var matchedNodeIDs = Set<Int>()
-
-      // 從 keyChainIDMap 中查找所有鍵
-      possibleKeys.forEach { keyChain in
-        guard let nodeIDs = keyChainIDMap[keyChain] else { return }
-        // 只處理那些至少和首個查詢鍵相符的鍵鏈
-        let keyComponents = keyChain.split(separator: readingSeparator).map(\.description)
-
-        // 檢查每個元素是否以對應的前綴開頭
-        guard zip(keyArray, keyComponents).allSatisfy({ $1.hasPrefix($0) }) else { return }
-
-        // 檢查類型過濾條件
-        if !filterType.isEmpty {
-          for nodeID in nodeIDs {
-            guard let node = nodes[nodeID] else { continue }
-            if node.entries.contains(where: { filterType.contains($0.typeID) }) {
-              matchedNodeIDs.insert(nodeID)
-            }
-          }
-        } else {
-          matchedNodeIDs.formUnion(nodeIDs)
+  /// 根據 keychain 字串查詢節點 ID
+  public func getNodeIDsForKeyArray(_ keyArray: [String], longerSpan: Bool) -> [Int] {
+    let keyInitialsStr = keyArray.compactMap {
+      $0.first?.description
+    }.joined()
+    var matchedNodeIDs: Set<Int> = []
+    if longerSpan {
+      keyInitialsIDMap.forEach { thisKey, value in
+        if thisKey.hasPrefix(keyInitialsStr) {
+          matchedNodeIDs.formUnion(value)
         }
       }
-      return matchedNodeIDs
+    } else {
+      matchedNodeIDs = keyInitialsIDMap[keyInitialsStr] ?? []
     }
+    return matchedNodeIDs.sorted()
   }
 
-  public func getNode(nodeID: Int) -> TNode? {
-    nodes[nodeID]
+  public func getNode(_ nodeID: Int) -> TNode? {
+    guard let node = nodes[nodeID] else { return nil }
+    return node.entries.isEmpty ? nil : node
   }
 
-  public func getEntries(node: TNode) -> [Entry] {
-    node.entries
+  public func getNodes(
+    keyArray: [String],
+    filterType: EntryType,
+    partiallyMatch: Bool,
+    longerSpan: Bool
+  )
+    -> [TNode] {
+    let matchedNodeIDs: [Int] = getNodeIDsForKeyArray(
+      keyArray,
+      longerSpan: longerSpan
+    )
+    guard !matchedNodeIDs.isEmpty else { return [] }
+    var handledNodeHashes: Set<Int> = []
+    let matchedNodes: [TNode] = matchedNodeIDs.compactMap {
+      if let theNode = getNode($0) {
+        let hash = theNode.hashValue
+        if !handledNodeHashes.contains(hash) {
+          handledNodeHashes.insert(theNode.hashValue)
+          let nodeKeyArray = theNode.readingKey.split(separator: readingSeparator)
+          if nodeMeetsFilter(theNode, filter: filterType) {
+            var matched: Bool = longerSpan
+              ? nodeKeyArray.count > keyArray.count
+              : nodeKeyArray.count == keyArray.count
+            switch partiallyMatch {
+            case true:
+              matched = matched && zip(nodeKeyArray, keyArray).allSatisfy { $0.hasPrefix($1) }
+            case false:
+              matched = matched && zip(nodeKeyArray, keyArray).allSatisfy(==)
+            }
+            return matched ? theNode : nil
+          }
+        }
+      }
+      return nil
+    }
+    let result = matchedNodes
+    return result
   }
 }
