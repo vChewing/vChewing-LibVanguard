@@ -89,7 +89,6 @@ extension Tekkon {
 extension Tekkon.PinyinTrie {
   func insert(_ key: String, entry: String) {
     var currentNode = root
-    var currentNodeID = 0
 
     // 遍歷關鍵字的每個字符
     key.forEach { char in
@@ -97,7 +96,6 @@ extension Tekkon.PinyinTrie {
       if let childNodeID = currentNode.children[charStr],
          let matchedNode = nodes[childNodeID] {
         // 有效的子節點已存在，繼續遍歷
-        currentNodeID = childNodeID
         currentNode = matchedNode
         return
       }
@@ -111,7 +109,6 @@ extension Tekkon.PinyinTrie {
 
       // 更新當前節點
       currentNode = newNode
-      currentNodeID = newNodeID
     }
 
     // 在最終節點添加詞條
