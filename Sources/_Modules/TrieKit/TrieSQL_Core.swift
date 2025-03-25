@@ -14,28 +14,11 @@ extension VanguardTrie {
     /// 初始化 SQL 資料庫讀取器
     /// - Parameters:
     ///   - dbPath: SQLite 資料庫檔案路徑
-    ///   - readOnly: 是否以唯讀模式開啟
-    public init?(dbPath: String, readOnly: Bool = false) {
-      // 檢查資料庫檔案是否存在
-      guard FileManager.default.fileExists(atPath: dbPath) else {
-        Self.printDebug("資料庫檔案不存在: \(dbPath)")
-        return nil
-      }
-
-      // 選擇開啟模式
-      let flags = readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE
-
-      // 打開資料庫連接
-      if sqlite3_open_v2(dbPath, &database, flags, nil) != SQLITE_OK {
-        Self.printDebug("無法開啟資料庫: \(dbPath)")
-        return nil
-      }
-
-      self.isReadOnly = readOnly
-
-      // 讀取分隔符設定
-      if !initializeSettings() {
-        return nil
+    ///   - useDFD: 是否使用硬碟直讀。
+    public convenience init?(dbPath: String, useDFD: Bool = false) {
+      switch useDFD {
+      case false: self.init(fromFileToMemory: dbPath)
+      case true: self.init(dbPath4DFD: dbPath)
       }
     }
 
@@ -50,8 +33,6 @@ extension VanguardTrie {
         Self.printDebug("無法創建記憶體資料庫")
         return nil
       }
-
-      self.isReadOnly = false
 
       // 禁用外鍵約束，以避免初始化期間的問題
       if sqlite3_exec(database, "PRAGMA foreign_keys=OFF;", nil, nil, nil) != SQLITE_OK {
@@ -137,6 +118,89 @@ extension VanguardTrie {
       }
     }
 
+    /// 初始化 SQL 資料庫讀取器
+    /// - Parameters:
+    ///   - dbPath: SQLite 資料庫檔案路徑。
+    private init?(dbPath4DFD dbPath: String) {
+      // 檢查資料庫檔案是否存在
+      guard FileManager.default.fileExists(atPath: dbPath) else {
+        Self.printDebug("資料庫檔案不存在: \(dbPath)")
+        return nil
+      }
+
+      // 選擇開啟模式
+      let flags = SQLITE_OPEN_READONLY
+
+      // 打開資料庫連接
+      if sqlite3_open_v2(dbPath, &database, flags, nil) != SQLITE_OK {
+        Self.printDebug("無法開啟資料庫: \(dbPath)")
+        return nil
+      }
+
+      // 讀取分隔符設定
+      if !initializeSettings() {
+        return nil
+      }
+    }
+
+    /// 從實體 SQLite 檔案讀取並在記憶體內以唯讀模式運作
+    /// - Parameter dbPath: SQLite 資料庫檔案路徑
+    private init?(fromFileToMemory dbPath: String) {
+      // 檢查檔案是否存在
+      guard FileManager.default.fileExists(atPath: dbPath) else {
+        Self.printDebug("資料庫檔案不存在: \(dbPath)")
+        return nil
+      }
+
+      // 先以唯讀模式開啟原始檔案
+      var sourceDB: OpaquePointer?
+      guard sqlite3_open_v2(dbPath, &sourceDB, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
+        Self.printDebug("無法開啟來源資料庫: \(dbPath)")
+        return nil
+      }
+      defer { sqlite3_close(sourceDB) }
+
+      // 建立記憶體資料庫
+      var memoryDB: OpaquePointer?
+      guard sqlite3_open_v2(
+        ":memory:",
+        &memoryDB,
+        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+        nil
+      ) ==
+        SQLITE_OK else {
+        Self.printDebug("無法建立記憶體資料庫")
+        return nil
+      }
+
+      // 準備備份物件
+      let backup = sqlite3_backup_init(memoryDB, "main", sourceDB, "main")
+      guard backup != nil else {
+        Self.printDebug("無法初始化備份程序")
+        sqlite3_close(memoryDB)
+        return nil
+      }
+
+      // 執行備份
+      let result = sqlite3_backup_step(backup, -1)
+      sqlite3_backup_finish(backup)
+
+      guard result == SQLITE_DONE else {
+        Self.printDebug("複製到記憶體資料庫時發生錯誤")
+        sqlite3_close(memoryDB)
+        return nil
+      }
+
+      // 將記憶體資料庫設定為此實例的資料庫
+      self.database = memoryDB
+
+      // 讀取分隔符設定
+      if !initializeSettings() {
+        closeAndNullifyConnection()
+        return nil
+      }
+    }
+
     deinit {
       if !closedAndNullified {
         closeAndNullifyConnection()
@@ -146,7 +210,7 @@ extension VanguardTrie {
     // MARK: Public
 
     /// 資料庫是否為唯讀模式
-    public let isReadOnly: Bool
+    public let isReadOnly: Bool = true
     public private(set) var readingSeparator: Character = "-"
     public private(set) var closedAndNullified: Bool = false
 
