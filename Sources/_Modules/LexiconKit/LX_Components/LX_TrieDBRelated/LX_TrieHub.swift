@@ -30,7 +30,7 @@ extension VanguardTrie.TrieHub {
   ) {
     let map = trieMapProvider()
     map.forEach { trieDataType, urlStr in
-      let newTrie = VanguardTrie.SQLTrie(dbPath: urlStr, useDFD: true) // 必須得是唯讀。
+      let newTrie = VanguardTrie.SQLTrie(dbPath: urlStr, useDFD: isAppleSilicon()) // 必須得是唯讀。
       sqlTrieMap[trieDataType]?.closeAndNullifyConnection()
       sqlTrieMap[trieDataType] = newTrie
     }
