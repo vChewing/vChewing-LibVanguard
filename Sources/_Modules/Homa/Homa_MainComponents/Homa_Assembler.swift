@@ -148,15 +148,23 @@ extension Homa {
     /// 在游標位置插入給定的索引鍵。
     /// - Parameter key: 要插入的索引鍵。
     public func insertKey(_ key: String) throws {
-      guard !key.isEmpty else {
+      try insertKeys([key])
+    }
+
+    /// 在游標位置插入給定的多個索引鍵。
+    /// - Parameter keys: 要插入的多個索引鍵。
+    public func insertKeys(_ givenKeys: [String]) throws {
+      guard !givenKeys.isEmpty, givenKeys.map(\.count).reduce(1, *) != 0 else {
         throw Homa.Exception.givenKeyIsEmpty
       }
-      guard gramAvailabilityChecker([key]) else {
-        throw Homa.Exception.givenKeyHasNoResults
-      }
-      keys.insert(key, at: cursor)
       let gridBackup = spans
-      resizeGrid(at: cursor, do: .expand)
+      for (cursorAdv, key) in givenKeys.enumerated() {
+        guard gramAvailabilityChecker([key]) else {
+          throw Homa.Exception.givenKeyHasNoResults
+        }
+        keys.insert(key, at: cursor + cursorAdv)
+        resizeGrid(at: cursor + cursorAdv, do: .expand)
+      }
       do {
         try assignNodes()
       } catch {
@@ -164,7 +172,7 @@ extension Homa {
         spans = gridBackup
         throw error
       }
-      cursor += 1 // 游標必須得在執行 assignNodes() 之後才可以變動。
+      cursor += givenKeys.count // 游標必須得在執行 assignNodes() 之後才可以變動。
     }
 
     /// 朝著指定方向砍掉一個與游標相鄰的讀音。
