@@ -158,12 +158,16 @@ extension Homa {
         throw Homa.Exception.givenKeyIsEmpty
       }
       let gridBackup = spans
-      for (cursorAdv, key) in givenKeys.enumerated() {
-        guard gramAvailabilityChecker([key]) else {
-          throw Homa.Exception.givenKeyHasNoResults
+      var keyExistenceChecked = [String: Bool]()
+      for (cursorAdvancedPosition, key) in givenKeys.enumerated() {
+        if !(keyExistenceChecked[key] ?? false) {
+          guard gramAvailabilityChecker([key]) else {
+            throw Homa.Exception.givenKeyHasNoResults
+          }
+          keyExistenceChecked[key] = true
         }
-        keys.insert(key, at: cursor + cursorAdv)
-        resizeGrid(at: cursor + cursorAdv, do: .expand)
+        keys.insert(key, at: cursor + cursorAdvancedPosition)
+        resizeGrid(at: cursor + cursorAdvancedPosition, do: .expand)
       }
       do {
         try assignNodes()
