@@ -14,8 +14,17 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     let keyInitialsStr = keyArray.compactMap {
       $0.first?.description
     }.joined()
-    let formedKey = "\(keyInitialsStr)::\(longerSpan ? 1 : 0)"
-    if let cachedResult = queryBuffer4NodeIDs.get(key: formedKey) { return cachedResult.sorted() }
+
+    let formedKeyHash: Int = {
+      var hasher = Hasher()
+      hasher.combine(keyInitialsStr)
+      hasher.combine(longerSpan)
+      return hasher.finalize()
+    }()
+
+    if let cachedResult = queryBuffer4NodeIDs.get(hashKey: formedKeyHash) {
+      return cachedResult.sorted()
+    }
 
     var nodeIDs = Set<Int>()
     let escapedKeyInitials = keyInitialsStr.replacingOccurrences(of: "'", with: "''")
@@ -46,7 +55,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     }
 
     sqlite3_finalize(statement)
-    queryBuffer4NodeIDs.set(key: formedKey, value: nodeIDs)
+    queryBuffer4NodeIDs.set(hashKey: formedKeyHash, value: nodeIDs)
     return nodeIDs.sorted()
   }
 
@@ -58,9 +67,16 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     longerSpan: Bool
   )
     -> [TNode] {
-    let formedKey =
-      "\(keyArray)::\(filterType.rawValue)::\(partiallyMatch ? 1 : 0)::\(longerSpan ? 1 : 0)"
-    if let cachedResult = queryBuffer4Nodes.get(key: formedKey) { return cachedResult }
+    let formedKeyHash: Int = {
+      var hasher = Hasher()
+      hasher.combine(keyArray)
+      hasher.combine(filterType)
+      hasher.combine(partiallyMatch)
+      hasher.combine(longerSpan)
+      return hasher.finalize()
+    }()
+
+    if let cachedResult = queryBuffer4Nodes.get(hashKey: formedKeyHash) { return cachedResult }
 
     // 接下來的步驟與 VanguardTrie.Trie 雷同。
     let matchedNodeIDs: [Int] = getNodeIDsForKeyArray(
@@ -93,7 +109,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     }
     let result = matchedNodes
     // 最後，將本次查詢的結果塞入快取。
-    queryBuffer4Nodes.set(key: formedKey, value: result)
+    queryBuffer4Nodes.set(hashKey: formedKeyHash, value: result)
     return result
   }
 
