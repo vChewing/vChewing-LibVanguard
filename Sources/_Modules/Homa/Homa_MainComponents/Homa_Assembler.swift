@@ -305,6 +305,7 @@ extension Homa {
         rangeOfPositions = lowerbound ..< upperbound
       }
       var nodesChangedCounter = 0
+      var queryBuffer: [[String]: [Homa.Gram]] = [:]
       rangeOfPositions.forEach { position in
         let rangeOfLengths = 1 ... min(maxSpanLength, rangeOfPositions.upperBound - position)
         rangeOfLengths.forEach { theLength in
@@ -312,7 +313,7 @@ extension Homa {
           let keyArraySliced = keys[position ..< (position + theLength)].map(\.description)
           if (0 ..< spans.count).contains(position), let theNode = spans[position][theLength] {
             if !updateExisting { return }
-            let queriedGrams: [Homa.Gram] = queryGrams(using: keyArraySliced)
+            let queriedGrams = queryGrams(using: keyArraySliced, cache: &queryBuffer)
             // 自動銷毀無效的節點。
             if queriedGrams.isEmpty {
               if theNode.keyArray.count == 1 { return }
@@ -323,13 +324,14 @@ extension Homa {
             nodesChangedCounter += 1
             return
           }
-          let queriedGrams: [Homa.Gram] = queryGrams(using: keyArraySliced)
+          let queriedGrams = queryGrams(using: keyArraySliced, cache: &queryBuffer)
           guard !queriedGrams.isEmpty else { return }
           // 這裡原本用 SpanUnit.addNode 來完成的，但直接當作辭典來互動的話也沒差。
           spans[position][theLength] = .init(keyArray: keyArraySliced, grams: queriedGrams)
           nodesChangedCounter += 1
         }
       }
+      queryBuffer.removeAll() // 手動清理，免得 ARC 拖時間。
       guard nodesChangedCounter != 0 else { throw Homa.Exception.noNodesAssigned }
       assemble()
     }
@@ -340,11 +342,20 @@ extension Homa {
     ///
     /// 此處故意針對不同的 Nodes 單獨建立 Gram 實例，是為了確保它們的記憶體位置不同。
     /// 便於其他函式直接比對記憶體位置（也就是用「===」與「!==」來比對）。
-    /// - Parameter keyArray: 讀音陣列。
+    /// - Parameters:
+    ///   - keyArray: 讀音陣列。
+    ///   - cache: 快取。
     /// - Returns: 元圖陣列。
-    private func queryGrams(using keyArray: [String]) -> [Homa.Gram] {
+    private func queryGrams(
+      using keyArray: [String],
+      cache: inout [[String]: [Homa.Gram]]
+    )
+      -> [Homa.Gram] {
+      if let cached = cache[keyArray] {
+        return cached.map(\.copy) // 不要與之前的結果共用記憶體位置。
+      }
       var insertedIntel = Set<String>()
-      return gramQuerier(keyArray).sorted {
+      let newResult: [Homa.Gram] = gramQuerier(keyArray).sorted {
         (
           $1.keyArray.split(separator: "-").count, "\($0.keyArray)", $1.probability
         ) < (
@@ -357,6 +368,8 @@ extension Homa {
         insertedIntel.insert(intel)
         return Homa.Gram($0)
       }
+      cache[keyArray] = newResult
+      return newResult
     }
   }
 }
