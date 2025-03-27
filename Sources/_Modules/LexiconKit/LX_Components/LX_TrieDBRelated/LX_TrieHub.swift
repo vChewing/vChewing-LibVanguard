@@ -78,29 +78,30 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
       case .revLookup where !isRevLookup: continue
       default: break dataTypeCheck
       }
-      var hasGrams = userTrie?.hasGrams(
-        keys, filterType: filterType, partiallyMatch: partiallyMatch
-      ) { retrievedKeys in
-        partiallyMatchedKeys.formUnion(retrievedKeys)
-      } ?? false
-      hasGrams = hasGrams || plistTrieMap[dataType]?.hasGrams(
-        keys, filterType: filterType, partiallyMatch: partiallyMatch
-      ) { retrievedKeys in
-        partiallyMatchedKeys.formUnion(retrievedKeys)
-      } ?? false
-      hasGrams = hasGrams || sqlTrieMap[dataType]?.hasGrams(
-        keys, filterType: filterType, partiallyMatch: partiallyMatch
-      ) { retrievedKeys in
-        partiallyMatchedKeys.formUnion(retrievedKeys)
-      } ?? false
-      if filterType.contains(.cinCassette) {
-        hasGrams = hasGrams || cinTrie?.hasGrams(
+      return Lexicon.concatGramAvailabilityCheckResults {
+        userTrie?.hasGrams(
           keys, filterType: filterType, partiallyMatch: partiallyMatch
         ) { retrievedKeys in
           partiallyMatchedKeys.formUnion(retrievedKeys)
-        } ?? false
+        }
+        plistTrieMap[dataType]?.hasGrams(
+          keys, filterType: filterType, partiallyMatch: partiallyMatch
+        ) { retrievedKeys in
+          partiallyMatchedKeys.formUnion(retrievedKeys)
+        }
+        sqlTrieMap[dataType]?.hasGrams(
+          keys, filterType: filterType, partiallyMatch: partiallyMatch
+        ) { retrievedKeys in
+          partiallyMatchedKeys.formUnion(retrievedKeys)
+        }
+        if filterType.contains(.cinCassette) {
+          cinTrie?.hasGrams(
+            keys, filterType: filterType, partiallyMatch: partiallyMatch
+          ) { retrievedKeys in
+            partiallyMatchedKeys.formUnion(retrievedKeys)
+          }
+        }
       }
-      if hasGrams { return true }
     }
     return false
   }
@@ -117,39 +118,37 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
     let keys = isRevLookup ? keys : keys.map(VanguardTrie.encryptReadingKey)
     var result = [Lexicon.HomaGramTuple]()
     var partiallyMatchedKeys: Set<[String]> = []
-    var insertedThings: Set<Int> = []
     for dataType in FactoryTrieDBType.allCases {
       dataTypeCheck: switch dataType {
       case .revLookup where !isRevLookup: continue
       default: break dataTypeCheck
       }
-      var fetched: [Lexicon.HomaGramTuple] = userTrie?.queryGrams(
-        keys, filterType: filterType, partiallyMatch: partiallyMatch
-      ) { retrievedKeys in
-        partiallyMatchedKeys.formUnion(retrievedKeys)
-      } ?? []
-      fetched += plistTrieMap[dataType]?.queryGrams(
-        keys, filterType: filterType, partiallyMatch: partiallyMatch
-      ) { retrievedKeys in
-        partiallyMatchedKeys.formUnion(retrievedKeys)
-      } ?? []
-      fetched += sqlTrieMap[dataType]?.queryGrams(
-        keys, filterType: filterType, partiallyMatch: partiallyMatch
-      ) { retrievedKeys in
-        partiallyMatchedKeys.formUnion(retrievedKeys)
-      } ?? []
-      if filterType.contains(.cinCassette) {
-        fetched += cinTrie?.queryGrams(
+      let fetched: [Lexicon.HomaGramTuple]? = Lexicon.concatGramQueryResults {
+        userTrie?.queryGrams(
           keys, filterType: filterType, partiallyMatch: partiallyMatch
         ) { retrievedKeys in
           partiallyMatchedKeys.formUnion(retrievedKeys)
-        } ?? []
+        }
+        plistTrieMap[dataType]?.queryGrams(
+          keys, filterType: filterType, partiallyMatch: partiallyMatch
+        ) { retrievedKeys in
+          partiallyMatchedKeys.formUnion(retrievedKeys)
+        }
+        sqlTrieMap[dataType]?.queryGrams(
+          keys, filterType: filterType, partiallyMatch: partiallyMatch
+        ) { retrievedKeys in
+          partiallyMatchedKeys.formUnion(retrievedKeys)
+        }
+        if filterType.contains(.cinCassette) {
+          cinTrie?.queryGrams(
+            keys, filterType: filterType, partiallyMatch: partiallyMatch
+          ) { retrievedKeys in
+            partiallyMatchedKeys.formUnion(retrievedKeys)
+          }
+        }
       }
-      if fetched.isEmpty { continue }
+      guard let fetched, !fetched.isEmpty else { continue }
       fetched.forEach { currentTuple in
-        let currentTupleHash = "\(currentTuple)".hashValue
-        guard !insertedThings.contains(currentTupleHash) else { return }
-        insertedThings.insert(currentTupleHash)
         let newKeyArray: [String] = isRevLookup
           ? currentTuple.keyArray
           : currentTuple.keyArray.map(VanguardTrie.decryptReadingKey)
@@ -180,31 +179,29 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
     let isRevLookup = filterType == .revLookup
     keys = isRevLookup ? keys : keys.map(VanguardTrie.encryptReadingKey)
     var result = [Lexicon.HomaGramTuple]()
-    var insertedThings: Set<Int> = []
     for dataType in FactoryTrieDBType.allCases {
       dataTypeCheck: switch dataType {
       case .revLookup where !isRevLookup: continue
       default: break dataTypeCheck
       }
-      var fetched: [Lexicon.HomaGramTuple] = userTrie?.queryAssociatedPhrasesAsGrams(
-        previous, anterior: anteriorValue, filterType: filterType
-      ) ?? []
-      fetched += plistTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
-        previous, anterior: anteriorValue, filterType: filterType
-      ) ?? []
-      fetched += sqlTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
-        previous, anterior: anteriorValue, filterType: filterType
-      ) ?? []
-      if filterType.contains(.cinCassette) {
-        fetched += cinTrie?.queryAssociatedPhrasesAsGrams(
+      let fetched: [Lexicon.HomaGramTuple]? = Lexicon.concatGramQueryResults {
+        userTrie?.queryAssociatedPhrasesAsGrams(
           previous, anterior: anteriorValue, filterType: filterType
-        ) ?? []
+        )
+        plistTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
+          previous, anterior: anteriorValue, filterType: filterType
+        )
+        sqlTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
+          previous, anterior: anteriorValue, filterType: filterType
+        )
+        if filterType.contains(.cinCassette) {
+          cinTrie?.queryAssociatedPhrasesAsGrams(
+            previous, anterior: anteriorValue, filterType: filterType
+          )
+        }
       }
-      if fetched.isEmpty { continue }
+      guard let fetched, !fetched.isEmpty else { continue }
       fetched.forEach { currentTuple in
-        let currentTupleHash = "\(currentTuple)".hashValue
-        guard !insertedThings.contains(currentTupleHash) else { return }
-        insertedThings.insert(currentTupleHash)
         let newKeyArray: [String] = isRevLookup
           ? currentTuple.keyArray
           : currentTuple.keyArray.map(VanguardTrie.decryptReadingKey)
@@ -222,24 +219,5 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
       }
     }
     return result.isEmpty ? nil : result
-  }
-}
-
-extension VanguardTrie.TrieHub {
-  public static func sortAndDeduplicateQueryResults(_ target: inout [Lexicon.HomaGramTuple]) {
-    var insertedIntel = Set<String>()
-    target = target.sorted {
-      (
-        $1.keyArray.split(separator: "-").count, "\($0.keyArray)", $1.probability
-      ) < (
-        $0.keyArray.split(separator: "-").count, "\($1.keyArray)", $0.probability
-      )
-    }.compactMap {
-      let intel = "\($0.keyArray) \($0.value) \($0.previous ?? "")"
-      if !insertedIntel.contains(intel) {}
-      guard !insertedIntel.contains(intel) else { return nil }
-      insertedIntel.insert(intel)
-      return $0
-    }
   }
 }
