@@ -235,8 +235,13 @@ extension VanguardTrieProtocol {
           previous: entry.previous,
           seq: resultsMap.count
         )
-        let hashTag = "\(newResult.keyArray)::\(newResult.value)::\(newResult.previous ?? "NULL")"
-        let theHash = hashTag.hashValue
+        let theHash: Int = {
+          var hasher = Hasher()
+          hasher.combine(newResult.keyArray)
+          hasher.combine(newResult.value)
+          hasher.combine(newResult.previous)
+          return hasher.finalize()
+        }()
         if let existingValue = resultsMap[theHash] {
           if existingValue.probability < newResult.probability {
             resultsMap[theHash] = newResult
@@ -281,11 +286,10 @@ extension VanguardTrieProtocol {
     var results = [(keyArray: [String], value: String)]()
     var inserted = Set<Int>()
     rawResults.forEach { entry in
-      let newResult = (
-        keyArray: Array(entry.keyArray[prevSpanLength...]),
-        value: entry.value.map(\.description)[prevSpanLength...].joined()
-      )
-      let theHash = "\(newResult)".hashValue
+      let newKeyArray = Array(entry.keyArray[prevSpanLength...])
+      let newValue = entry.value.map(\.description)[prevSpanLength...].joined()
+      let newResult = (newKeyArray, newValue)
+      let theHash = "\(newResult)".hashValue // 此處只能用基於 String 的 Hash。原因不明。
       guard !inserted.contains(theHash) else { return }
       inserted.insert("\(newResult)".hashValue)
       results.append(newResult)
