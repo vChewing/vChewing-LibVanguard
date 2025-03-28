@@ -154,7 +154,7 @@ extension Homa {
     /// 在游標位置插入給定的多個索引鍵。
     /// - Parameter keys: 要插入的多個索引鍵。
     public func insertKeys(_ givenKeys: [String]) throws {
-      guard !givenKeys.isEmpty, givenKeys.map(\.count).reduce(1, *) != 0 else {
+      guard !givenKeys.isEmpty, givenKeys.allSatisfy({ !$0.isEmpty }) else {
         throw Homa.Exception.givenKeyIsEmpty
       }
       let gridBackup = spans
