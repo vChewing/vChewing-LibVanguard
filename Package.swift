@@ -38,6 +38,7 @@ let package = Package(
     Target.target(
       name: "LibVanguard",
       dependencies: buildTargetDependencies {
+        "CandidateKit"
         "Tekkon"
         "Homa"
         "BrailleSputnik"
@@ -113,6 +114,15 @@ let package = Package(
         "TrieKit"
       },
       path: "./Tests/_Tests4Components/LexiconKitTests"
+    )
+    // CandidateKit, the basic module for holding candidate pools.
+    Target.target(
+      name: "CandidateKit",
+      path: "./Sources/_Modules/CandidateKit"
+    )
+    Target.testTarget(
+      name: "CandidateKitTests",
+      path: "./Tests/_Tests4Components/CandidateKitTests"
     )
     // BrailleSputnik, the Braille module.
     Target.target(
