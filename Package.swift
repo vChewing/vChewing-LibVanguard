@@ -5,120 +5,222 @@ import PackageDescription
 
 let package = Package(
   name: "LibVanguard",
-  products: [
-    // Products define the executables and libraries a package produces, making them visible to other packages.
-    .library(
+  platforms: buildSupportedPlatform {
+    #if canImport(Darwin)
+      /// Certain cross-platform features in Swift (e.g. Observation) are intentionally
+      /// not supported on Apple platform releases prior to their official adoption.
+      /// There’s no workaround for this limitation.
+      SupportedPlatform.macOS(.v14) // Sonoma
+      SupportedPlatform.macCatalyst(.v17) // Sonoma
+      SupportedPlatform.iOS(.v17) // iOS 17
+      SupportedPlatform.visionOS(.v1) // VisionOS v1
+    #endif
+  },
+  products: buildProducts {
+    Product.library(
       name: "LibVanguard",
       targets: ["LibVanguard"]
-    ),
-    .library(
+    )
+    Product.library(
       name: "TrieKit",
       targets: ["TrieKit"]
-    ),
-    .library(
+    )
+    Product.library(
       name: "Tekkon",
       targets: ["Tekkon"]
-    ),
-    .library(
+    )
+    Product.library(
       name: "Homa",
       targets: ["Homa"]
-    ),
-  ],
-  targets: [
-    // Targets are the basic building blocks of a package, defining a module or a test suite.
-    // Targets can depend on other targets in this package and products from dependencies.
-    .target(
+    )
+  },
+  targets: buildTargets {
+    Target.target(
       name: "LibVanguard",
-      dependencies: [
-        "Tekkon",
-        "Homa",
-        "BrailleSputnik",
-        "TrieKit",
-        "KBEventKit",
-        "LexiconKit",
-      ]
-    ),
-    .testTarget(
+      dependencies: buildTargetDependencies {
+        "Tekkon"
+        "Homa"
+        "BrailleSputnik"
+        "TrieKit"
+        "KBEventKit"
+        "LexiconKit"
+      }
+    )
+    Target.testTarget(
       name: "LibVanguardTests",
-      dependencies: ["LibVanguard"]
-    ),
+      dependencies: buildTargetDependencies {
+        "LibVanguard"
+      }
+    )
     // Tekkon, the phonabet composer.
-    .target(
+    Target.target(
       name: "Tekkon",
       path: "./Sources/_Modules/Tekkon"
-    ),
-    .testTarget(
+    )
+    Target.testTarget(
       name: "TekkonTests",
-      dependencies: ["Tekkon"],
+      dependencies: buildTargetDependencies {
+        "Tekkon"
+      },
       path: "./Tests/_Tests4Components/TekkonTests"
-    ),
+    )
     // Homa, the sentence Assembler.
-    .target(
+    Target.target(
       name: "Homa",
       path: "./Sources/_Modules/Homa"
-    ),
-    .testTarget(
+    )
+    Target.testTarget(
       name: "HomaTests",
-      dependencies: ["Homa"],
+      dependencies: buildTargetDependencies {
+        "Homa"
+      },
       path: "./Tests/_Tests4Components/HomaTests"
-    ),
+    )
     // Shared bundle for all tests using factory trie.
-    .target(
+    Target.target(
       name: "SharedTrieTestDataBundle",
       path: "./Tests/_Tests4Components/_SharedTrieTestDataBundle",
-      resources: [
-        .process("./Resources"),
-      ]
-    ),
+      resources: buildResources {
+        Resource.process("./Resources")
+      }
+    )
     // LexiconKit, the hub for all subsidiary language models.
-    .target(
+    Target.target(
       name: "LexiconKit",
-      dependencies: ["TrieKit", "SharedTrieTestDataBundle"],
+      dependencies: buildTargetDependencies {
+        "SharedTrieTestDataBundle"
+        "TrieKit"
+      },
       path: "./Sources/_Modules/LexiconKit"
-    ),
-    .testTarget(
+    )
+    Target.testTarget(
       name: "LexiconKitTests",
-      dependencies: ["TrieKit", "LexiconKit", "Homa", "Tekkon"],
+      dependencies: buildTargetDependencies {
+        "Homa"
+        "LexiconKit"
+        "Tekkon"
+        "TrieKit"
+      },
       path: "./Tests/_Tests4Components/LexiconKitTests"
-    ),
+    )
     // BrailleSputnik, the Braille module.
-    .target(
+    Target.target(
       name: "BrailleSputnik",
-      dependencies: ["Tekkon"],
+      dependencies: buildTargetDependencies {
+        "Tekkon"
+      },
       path: "./Sources/_Modules/BrailleSputnik"
-    ),
-    .testTarget(
+    )
+    Target.testTarget(
       name: "BrailleSputnikTests",
-      dependencies: ["BrailleSputnik"],
+      dependencies: buildTargetDependencies {
+        "BrailleSputnik"
+      },
       path: "./Tests/_Tests4Components/BrailleSputnikTests"
-    ),
+    )
     // VanguardTrieSupport, the data structure for factory dictionary files.
-    .target(
+    Target.target(
       name: "TrieKit",
-      dependencies: ["CSQLite3"],
+      dependencies: buildTargetDependencies {
+        "CSQLite3"
+      },
       path: "./Sources/_Modules/TrieKit"
-    ),
-    .testTarget(
+    )
+    Target.testTarget(
       name: "TrieKitTests",
-      dependencies: [
-        "TrieKit",
-        "Homa",
-        "Tekkon",
-      ],
+      dependencies: buildTargetDependencies {
+        "Homa"
+        "Tekkon"
+        "TrieKit"
+      },
       path: "./Tests/_Tests4Components/TrieKitTests"
-    ),
+    )
     // KBEventKit, the Keyboard Event Management Kit.
-    .target(
+    Target.target(
       name: "KBEventKit",
       path: "./Sources/_Modules/KBEventKit"
-    ),
+    )
     // CSQLite3 for all platforms.
-    .target(
+    Target.target(
       name: "CSQLite3",
       path: "./Sources/_3rdParty/CSQLite3",
       cSettings: [
         .unsafeFlags(["-w"]),
       ]
-    ),
-  ]
+    )
+  }
 )
+
+// MARK: - ArrayBuilder
+
+@resultBuilder
+enum ArrayBuilder<Element> {
+  static func buildEither(first elements: [Element]) -> [Element] {
+    elements
+  }
+
+  static func buildEither(second elements: [Element]) -> [Element] {
+    elements
+  }
+
+  static func buildOptional(_ elements: [Element]?) -> [Element] {
+    elements ?? []
+  }
+
+  static func buildExpression(_ expression: Element) -> [Element] {
+    [expression]
+  }
+
+  static func buildExpression(_: ()) -> [Element] {
+    []
+  }
+
+  static func buildBlock(_ elements: [Element]...) -> [Element] {
+    elements.flatMap { $0 }
+  }
+
+  static func buildArray(_ elements: [[Element]]) -> [Element] {
+    Array(elements.joined())
+  }
+}
+
+func buildTargets(@ArrayBuilder<Target?> targets: () -> [Target?]) -> [Target] {
+  targets().compactMap { $0 }
+}
+
+func buildStrings(@ArrayBuilder<String?> strings: () -> [String?]) -> [String] {
+  strings().compactMap { $0 }
+}
+
+func buildProducts(@ArrayBuilder<Product?> products: () -> [Product?]) -> [Product] {
+  products().compactMap { $0 }
+}
+
+func buildTargetDependencies(
+  @ArrayBuilder<Target.Dependency?> dependencies: () -> [Target.Dependency?]
+)
+  -> [Target.Dependency] {
+  dependencies().compactMap { $0 }
+}
+
+func buildResources(
+  @ArrayBuilder<Resource?> resources: () -> [Resource?]
+)
+  -> [Resource] {
+  resources().compactMap { $0 }
+}
+
+func buildPackageDependencies(
+  @ArrayBuilder<Package.Dependency?> dependencies: () -> [Package.Dependency?]
+)
+  -> [Package.Dependency] {
+  dependencies().compactMap { $0 }
+}
+
+func buildSupportedPlatform(
+  @ArrayBuilder<SupportedPlatform?> dependencies: () -> [SupportedPlatform?]
+)
+  -> [SupportedPlatform]? {
+  let result = dependencies().compactMap { $0 }
+  return result.isEmpty ? nil : result
+}
