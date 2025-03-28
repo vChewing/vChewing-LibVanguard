@@ -127,7 +127,7 @@ extension VanguardTrieProtocol {
     partiallyMatchedKeysHandler: ((Set<[String]>) -> ())? = nil
   )
     -> Bool {
-    guard !keys.isEmpty else { return false }
+    guard !keys.isEmpty, keys.allSatisfy({ !$0.isEmpty }) else { return false }
     return if !partiallyMatch {
       !getNodes(
         keyArray: keys,
@@ -151,7 +151,7 @@ extension VanguardTrieProtocol {
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
   )
     -> [(keyArray: [String], value: String, probability: Double, previous: String?)] {
-    guard !keys.isEmpty else { return [] }
+    guard !keys.isEmpty, keys.allSatisfy({ !$0.isEmpty }) else { return [] }
     let fetchedNodes = if !partiallyMatch {
       getNodes(
         keyArray: keys,
@@ -197,8 +197,8 @@ extension VanguardTrieProtocol {
     filterType: VanguardTrie.Trie.EntryType
   )
     -> [(keyArray: [String], value: String, probability: Double, previous: String?)]? {
-    guard !previous.keyArray.isEmpty else { return nil }
-    guard previous.keyArray.allSatisfy({ !$0.isEmpty }) else { return nil }
+    let keys = previous.keyArray
+    guard !keys.isEmpty, keys.allSatisfy({ !$0.isEmpty }) else { return nil }
     guard !previous.value.isEmpty else { return nil }
     let prevSpanLength = previous.keyArray.count
     // 此時獲取的結果已經有了完全相符的讀音前綴（包括前綴的幅長）。

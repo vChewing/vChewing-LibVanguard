@@ -11,6 +11,7 @@ import Foundation
 extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
   /// 根據 keychain 字串查詢節點 ID
   public func getNodeIDsForKeyArray(_ keyArray: [String], longerSpan: Bool) -> [Int] {
+    guard !keyArray.isEmpty, keyArray.allSatisfy({ !$0.isEmpty }) else { return [] }
     let keyInitialsStr = keyArray.compactMap {
       $0.first?.description
     }.joined()
