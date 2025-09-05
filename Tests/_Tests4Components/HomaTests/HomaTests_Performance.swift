@@ -16,13 +16,13 @@ public struct HomaPerformanceTests: HomaTestSuite {
   func testLargeScaleSentenceAssembly() async throws {
     print("// Starting large scale sentence assembly performance test")
 
-    // 構築一份更複雜的測試資料。這次使用簡體中文。
+    // 構築一份更複雜的測試資料。這次使用繁體中文。
     let testSentences = [
-      "ni3-hao3-shi4-jie4", // 你好世界
-      "zhong1-guo2-ren2-min2", // 中国人民
-      "wo3-ai4-ni3-men5", // 我爱你们
-      "zhe4-shi4-yi1-ge4-ce4-shi4", // 这是一个测试
-      "cheng2-xu4-yuan2-de5-gong1-zuo4", // 程序员的工作
+      "ㄋㄧˇ-ㄏㄠˇ-ㄕˋ-ㄐㄧㄝˋ", // 你好世界
+      "ㄓㄨㄥ-ㄍㄨㄛˊ-ㄖㄣˊ-ㄇㄧㄣˊ", // 中國人民
+      "ㄨㄛˇ-ㄞˋ-ㄋㄧˇ-ㄇㄣ˙", // 我愛你們
+      "ㄓㄜˋ-ㄕˋ-ㄧ-ㄍㄜˋ-ㄘㄜˋ-ㄕˋ", // 這是一個測試
+      "ㄔㄥˊ-ㄒㄩˋ-ㄩㄢˊ-ㄉㄜ˙-ㄍㄨㄥ-ㄗㄨㄛˋ", // 程式員的工作
     ]
 
     let mockLM = TestLM(rawData: createExtensiveMockData())
@@ -77,7 +77,7 @@ public struct HomaPerformanceTests: HomaTestSuite {
     let mockLM = TestLM(rawData: createExtensiveMockData())
 
     // 測試查詢效能。
-    let keys = ["ni3", "hao3", "shi4", "jie4", "zhong1", "guo2"]
+    let keys = ["ㄋㄧˇ", "ㄏㄠˇ", "ㄕˋ", "ㄐㄧㄝˋ", "ㄓㄨㄥ", "ㄍㄨㄛˊ"]
     let iterations = 1_000
 
     let queryTime = Self.measureTime {
@@ -202,29 +202,29 @@ public struct HomaPerformanceTests: HomaTestSuite {
   // MARK: Private
 
   private func generateRealisticChineseInput() -> (keys: [String], mockData: String) {
-    // 建立真實的中文拼音輸入模式
-    let commonPinyins = [
-      "wo3", "ni3", "ta1", "de5", "shi4", "zai4", "you3", "le5", "ren2",
-      "yi1", "ge4", "shang4", "lai2", "dou1", "mei2", "qu4", "hao3",
-      "kan4", "jiu4", "zhe4", "yao4", "hui4", "dao4", "shuo1", "hen3",
-    ]
-
-    // 生成測試用讀音鍵值，以模擬長句輸入。
-    var keys: [String] = []
-    for _ in 0 ..< 15 { // Longer input sequence
-      keys.append(commonPinyins.randomElement()!)
-    }
-
     // 生成複雜的擬真語言模型資料。
     var mockData = createExtensiveMockData()
 
-    // 建立一些雙元圖組合，以球真實效能測試
-    for i in 0 ..< commonPinyins.count {
-      for j in 0 ..< commonPinyins.count {
-        let bigram = "\(commonPinyins[i])-\(commonPinyins[j])"
+    // 建立真實的中文注音輸入模式 - 使用與 Mock 資料對應的注音符號
+    let knownBopomofo = [
+      "ㄋㄧˇ", "ㄏㄠˇ", "ㄕˋ", "ㄐㄧㄝˋ", "ㄓㄨㄥ", "ㄍㄨㄛˊ", "ㄖㄣˊ", "ㄇㄧㄣˊ",
+      "ㄨㄛˇ", "ㄞˋ", "ㄇㄣ˙", "ㄓㄜˋ", "ㄧ", "ㄍㄜˋ", "ㄘㄜˋ", "ㄒㄩˋ", 
+      "ㄩㄢˊ", "ㄉㄜ˙", "ㄍㄨㄥ", "ㄗㄨㄛˋ", "ㄔㄥˊ"
+    ]
+
+    // 建立一些雙元圖組合
+    for i in 0 ..< min(knownBopomofo.count, 10) {
+      for j in 0 ..< min(knownBopomofo.count, 10) {
+        let bigram = "\(knownBopomofo[i])-\(knownBopomofo[j])"
         let weight = -7.0 - Double.random(in: 0 ... 2)
-        mockData += "\n\(bigram) 测试\(i)\(j) \(weight)"
+        mockData += "\n\(bigram) 測試\(i)\(j) \(weight)"
       }
+    }
+
+    // 生成測試用讀音鍵值，以模擬長句輸入。只使用已知存在的讀音。
+    var keys: [String] = []
+    for _ in 0 ..< 15 { // Longer input sequence
+      keys.append(knownBopomofo.randomElement()!)
     }
 
     return (keys: keys, mockData: mockData)
@@ -232,49 +232,49 @@ public struct HomaPerformanceTests: HomaTestSuite {
 
   private func createExtensiveMockData() -> String {
     """
-    ni3 你 -4.5
-    ni3 尼 -6.2
-    hao3 好 -4.1
-    hao3 號 -5.8
-    shi4 是 -3.9
-    shi4 事 -5.2
-    shi4 世 -5.4
-    jie4 界 -4.8
-    jie4 接 -5.1
-    zhong1 中 -4.0
-    zhong1 钟 -6.1
-    guo2 国 -4.2
-    guo2 果 -5.5
-    ren2 人 -4.0
-    ren2 仁 -6.8
-    min2 民 -4.3
-    min2 敏 -6.7
-    wo3 我 -3.8
-    ai4 爱 -4.5
-    men5 们 -4.1
-    zhe4 这 -3.7
-    yi1 一 -3.5
-    ge4 个 -3.8
-    ce4 测 -5.9
-    xu4 序 -5.1
-    yuan2 员 -4.9
-    de5 的 -3.2
-    gong1 工 -4.7
-    zuo4 作 -4.4
-    cheng2 程 -5.0
-    ni3-hao3 你好 -7.5
-    shi4-jie4 世界 -8.1
-    zhong1-guo2 中国 -7.8
-    ren2-min2 人民 -8.4
-    wo3-ai4 我爱 -8.9
-    ni3-men5 你们 -8.7
-    zhe4-shi4 这是 -8.0
-    yi1-ge4 一个 -7.9
-    ce4-shi4 测试 -9.1
-    cheng2-xu4 程序 -8.8
-    xu4-yuan2 序员 -9.2
-    yuan2-de5 员的 -9.5
-    gong1-zuo4 工作 -8.6
+    ㄋㄧˇ 你 -4.5
+    ㄋㄧˇ 尼 -6.2
+    ㄏㄠˇ 好 -4.1
+    ㄏㄠˇ 號 -5.8
+    ㄕˋ 是 -3.9
+    ㄕˋ 事 -5.2
+    ㄕˋ 世 -5.4
+    ㄐㄧㄝˋ 界 -4.8
+    ㄐㄧㄝˋ 接 -5.1
+    ㄓㄨㄥ 中 -4.0
+    ㄓㄨㄥ 鐘 -6.1
+    ㄍㄨㄛˊ 國 -4.2
+    ㄍㄨㄛˊ 果 -5.5
+    ㄖㄣˊ 人 -4.0
+    ㄖㄣˊ 仁 -6.8
+    ㄇㄧㄣˊ 民 -4.3
+    ㄇㄧㄣˊ 敏 -6.7
+    ㄨㄛˇ 我 -3.8
+    ㄞˋ 愛 -4.5
+    ㄇㄣ˙ 們 -4.1
+    ㄓㄜˋ 這 -3.7
+    ㄧ 一 -3.5
+    ㄍㄜˋ 個 -3.8
+    ㄘㄜˋ 測 -5.9
+    ㄒㄩˋ 序 -5.1
+    ㄩㄢˊ 員 -4.9
+    ㄉㄜ˙ 的 -3.2
+    ㄍㄨㄥ 工 -4.7
+    ㄗㄨㄛˋ 作 -4.4
+    ㄔㄥˊ 程 -5.0
+    ㄋㄧˇ-ㄏㄠˇ 你好 -7.5
+    ㄕˋ-ㄐㄧㄝˋ 世界 -8.1
+    ㄓㄨㄥ-ㄍㄨㄛˊ 中國 -7.8
+    ㄖㄣˊ-ㄇㄧㄣˊ 人民 -8.4
+    ㄨㄛˇ-ㄞˋ 我愛 -8.9
+    ㄋㄧˇ-ㄇㄣ˙ 你們 -8.7
+    ㄓㄜˋ-ㄕˋ 這是 -8.0
+    ㄧ-ㄍㄜˋ 一個 -7.9
+    ㄘㄜˋ-ㄕˋ 測試 -9.1
+    ㄔㄥˊ-ㄒㄩˋ 程式 -8.8
+    ㄒㄩˋ-ㄩㄢˊ 式員 -9.2
+    ㄩㄢˊ-ㄉㄜ˙ 員的 -9.5
+    ㄍㄨㄥ-ㄗㄨㄛˋ 工作 -8.6
     """
   }
 }
