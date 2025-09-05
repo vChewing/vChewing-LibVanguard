@@ -251,7 +251,7 @@ extension Tekkon {
       if phonabetCombinationCorrectionEnabled {
         switch phonabet {
         case "ㄧ", "ㄩ":
-          if vowel.value == "ㄜ" { vowel <~ "ㄝ" }
+          if vowel.equals("ㄜ") { vowel <~ "ㄝ" }
         case "ㄜ":
           if semivowel.isContained(in: Tekkon.scalarSet_U) { semivowel <~ "ㄩ" }
           if semivowel.isContained(in: Tekkon.scalarSet_IU) { thePhone <~ "ㄝ" }
@@ -471,13 +471,17 @@ extension Tekkon {
       switch incomingPhonabet.type {
       case .semivowel:
         // 這裡不處理「ㄍㄧ」到「ㄑㄧ」的轉換，因為只有倚天26需要處理這個。
-        switch (consonant.value, incomingPhonabet.value) {
-        case ("ㄓ", "ㄧ"), ("ㄓ", "ㄩ"): consonant <~ "ㄐ"
-        case ("ㄍ", "ㄩ"), ("ㄔ", "ㄧ"), ("ㄔ", "ㄩ"): consonant <~ "ㄑ"
-        case ("ㄕ", "ㄧ"), ("ㄕ", "ㄩ"): consonant <~ "ㄒ"
-        default: break
+        // Use optimized scalar comparisons to avoid String allocations
+        if consonant.equals("ㄓ") && (incomingPhonabet.equals("ㄧ") || incomingPhonabet.equals("ㄩ")) {
+          consonant <~ "ㄐ"
+        } else if consonant.equals("ㄍ") && incomingPhonabet.equals("ㄩ") ||
+                  consonant.equals("ㄔ") && (incomingPhonabet.equals("ㄧ") || incomingPhonabet.equals("ㄩ")) {
+          consonant <~ "ㄑ"
+        } else if consonant.equals("ㄕ") && (incomingPhonabet.equals("ㄧ") || incomingPhonabet.equals("ㄩ")) {
+          consonant <~ "ㄒ"
         }
-        if incomingPhonabet.value == "ㄨ" {
+        
+        if incomingPhonabet.equals("ㄨ") {
           fixValue("ㄐ", "ㄓ")
           fixValue("ㄑ", "ㄔ")
           fixValue("ㄒ", "ㄕ")
@@ -505,8 +509,8 @@ extension Tekkon {
       case "f" where isPronounceable: strReturn = "ˊ"
       case "j" where isPronounceable: strReturn = "ˇ"
       case "k" where isPronounceable: strReturn = "ˋ"
-      case "e" where consonant.value == "ㄍ": consonant <~ "ㄑ"
-      case "p" where !consonant.isEmpty || semivowel.value == "ㄧ": strReturn = "ㄡ"
+      case "e" where consonant.equals("ㄍ"): consonant <~ "ㄑ"
+      case "p" where !consonant.isEmpty || semivowel.equals("ㄧ"): strReturn = "ㄡ"
       case "h" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄦ"
       case "l" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄥ"
       case "m" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄢ"
@@ -664,25 +668,24 @@ extension Tekkon {
       case "d" where isPronounceable: strReturn = "ˋ"
       case "y" where isPronounceable: strReturn = "˙"
       case "b" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄝ"
-      case "i" where vowel.isEmpty || vowel.value == "ㄞ": strReturn = "ㄛ"
-      case "l" where vowel.isEmpty || vowel.value == "ㄤ": strReturn = "ㄠ"
+      case "i" where vowel.isEmpty || vowel.equals("ㄞ"): strReturn = "ㄛ"
+      case "l" where vowel.isEmpty || vowel.equals("ㄤ"): strReturn = "ㄠ"
       case "n" where !consonant.isEmpty || !semivowel.isEmpty:
         if value == "ㄙ" { consonant.clear() }
         strReturn = "ㄥ"
-      case "o" where vowel.isEmpty || vowel.value == "ㄢ": strReturn = "ㄟ"
-      case "p" where vowel.isEmpty || vowel.value == "ㄦ": strReturn = "ㄣ"
-      case "q" where consonant.isEmpty || consonant.value == "ㄅ": strReturn = "ㄆ"
-      case "t" where consonant.isEmpty || consonant.value == "ㄓ": strReturn = "ㄔ"
-      case "w" where consonant.isEmpty || consonant.value == "ㄉ": strReturn = "ㄊ"
+      case "o" where vowel.isEmpty || vowel.equals("ㄢ"): strReturn = "ㄟ"
+      case "p" where vowel.isEmpty || vowel.equals("ㄦ"): strReturn = "ㄣ"
+      case "q" where consonant.isEmpty || consonant.equals("ㄅ"): strReturn = "ㄆ"
+      case "t" where consonant.isEmpty || consonant.equals("ㄓ"): strReturn = "ㄔ"
+      case "w" where consonant.isEmpty || consonant.equals("ㄉ"): strReturn = "ㄊ"
       case "m":
-        switch (semivowel.value, vowel.value) {
-        case ("ㄩ", _):
+        if semivowel.equals("ㄩ") {
           semivowel.clear()
           strReturn = "ㄡ"
-        case (_, "ㄡ"):
+        } else if vowel.equals("ㄡ") {
           vowel.clear()
           strReturn = "ㄩ"
-        default:
+        } else {
           strReturn = (!semivowel.isEmpty || !consonant.isContained(in: Tekkon.scalarSet_JQX)) ?
             "ㄡ" : "ㄩ"
         }
