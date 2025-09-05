@@ -201,7 +201,7 @@ extension Homa {
       min(cursor, marker) ..< max(cursor, marker)
     }
 
-    /// 檢測是否出現游標切斷組字區內字符的情況。
+    /// 偵測是否出現游標切斷組字區內字元的情況。
     public func isCursorCuttingChar(isMarker: Bool = false) -> Bool {
       let index = isMarker ? marker : cursor
       return assembledSentence.isCursorCuttingChar(cursor: index)
@@ -218,7 +218,7 @@ extension Homa {
       }
     }
 
-    /// 按步移動游標。如果遇到游標切斷組字區內字符的情況，則繼續移動行為、直至該情況消失為止。
+    /// 按步移動游標。如果遇到游標切斷組字區內字元的情況，則繼續移動行為、直至該情況消失為止。
     /// - Parameters:
     ///   - direction: 指定方向（相對於文字輸入方向而言）。
     ///   - isMarker: 是否為標記游標。

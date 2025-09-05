@@ -70,7 +70,7 @@ struct HybridPriorityQueue<T: Comparable> {
   /// 根據輸入法使用模式實證調校的閾值。
   ///
   /// 一般情況下選擇 16 的理由：
-  /// 1. 大多數中文輸入序列為 1-7 個字符。
+  /// 1. 大多數中文輸入序列為 1-7 個字元。
   /// 2. 2 的冪次對 CPU 快取較為友善。
   /// 3. 切換至堆積前預留緩衝空間。
   ///
@@ -87,7 +87,7 @@ struct HybridPriorityQueue<T: Comparable> {
   private let isReversed: Bool
 
   private mutating func switchToHeap() {
-    heap = Heap(array: Array(sortedArray), sort: isReversed ? (>) : (<))
+    heap = Heap(array: Array(sortedArray), sort: isReversed ? { $0 > $1 } : { $0 < $1 })
     sortedArray.removeAll(keepingCapacity: true)
     usingArray = false
   }
