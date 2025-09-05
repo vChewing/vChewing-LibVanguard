@@ -188,7 +188,7 @@ extension Tekkon {
 
     /// Optimized character access without String allocation
     public var character: Character? {
-      return isValid ? Character(scalarValue) : nil
+      isValid ? Character(scalarValue) : nil
     }
 
     /// Optimized scalar access for performance-critical operations

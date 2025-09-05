@@ -37,9 +37,15 @@ extension Tekkon {
     }
 
     // MARK: Public
-    
-    /// Optimized phonabet storage using ContiguousArray for better cache locality and memory efficiency
-    private var phonabets: ContiguousArray<Phonabet>
+
+    /// 拼音組音區。
+    public internal(set) var romajiBuffer: String = .init()
+
+    /// 注音排列種類。預設情況下是大千排列（Windows / macOS 預設注音排列）。
+    public internal(set) var parser: MandarinParser = .ofDachen
+
+    /// 是否對錯誤的注音讀音組合做出自動糾正處理。
+    public var phonabetCombinationCorrectionEnabled = false
 
     /// 聲母。
     public var consonant: Phonabet {
@@ -64,15 +70,6 @@ extension Tekkon {
       get { phonabets[3] }
       set { phonabets[3] = newValue }
     }
-
-    /// 拼音組音區。
-    public internal(set) var romajiBuffer: String = .init()
-
-    /// 注音排列種類。預設情況下是大千排列（Windows / macOS 預設注音排列）。
-    public internal(set) var parser: MandarinParser = .ofDachen
-
-    /// 是否對錯誤的注音讀音組合做出自動糾正處理。
-    public var phonabetCombinationCorrectionEnabled = false
 
     /// 內容值，會直接按照正確的順序拼裝自己的聲介韻調內容、再回傳。
     /// 注意：直接取這個參數的內容的話，陰平聲調會成為一個空格。
@@ -100,7 +97,7 @@ extension Tekkon {
     /// 注拼槽內容是否可唸。
     public var isPronounceable: Bool {
       // Optimized: check first 3 phonabets (consonant, semivowel, vowel) efficiently
-      return phonabets.prefix(3).contains { !$0.isEmpty }
+      phonabets.prefix(3).contains { !$0.isEmpty }
     }
 
     // MARK: - Misc Definitions
@@ -803,6 +800,9 @@ extension Tekkon {
 
     /// 動態佈局按鍵轉譯快取，用於提升效能
     private static let dynamicLayoutCache = DynamicLayoutCache()
+
+    /// Optimized phonabet storage using ContiguousArray for better cache locality and memory efficiency
+    private var phonabets: ContiguousArray<Phonabet>
   }
 }
 
