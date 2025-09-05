@@ -30,8 +30,8 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
   /// 根據 keychain 字串查詢節點 ID
   public func getNodeIDsForKeyArray(_ keyArray: [String], longerSpan: Bool) -> [Int] {
     guard !keyArray.isEmpty, keyArray.allSatisfy({ !$0.isEmpty }) else { return [] }
-    let keyInitialsStr = keyArray.compactMap {
-      $0.first?.description
+    let keyInitialsStr = keyArray.compactMap { keyStr in
+      TrieStringPool.shared.internKey(TrieStringOperationCache.shared.getCachedFirstChar(keyStr))
     }.joined()
     var matchedNodeIDs: Set<Int> = []
     if longerSpan {
@@ -69,7 +69,10 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
         let hash = theNode.hashValue
         if !handledNodeHashes.contains(hash) {
           handledNodeHashes.insert(theNode.hashValue)
-          let nodeKeyArray = theNode.readingKey.split(separator: readingSeparator)
+          let nodeKeyArray = TrieStringOperationCache.shared.getCachedSplit(
+            theNode.readingKey,
+            separator: readingSeparator
+          )
           if nodeMeetsFilter(theNode, filter: filterType) {
             var matched: Bool = longerSpan
               ? nodeKeyArray.count > keyArray.count
