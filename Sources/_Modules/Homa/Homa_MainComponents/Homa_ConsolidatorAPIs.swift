@@ -23,7 +23,7 @@ extension Homa.Assembler {
     for theCandidate: Homa.CandidatePair,
     cursorType: CandidateCursor,
     debugIntelHandler: ((String) -> ())? = nil
-  ) throws {
+  ) throws(Homa.Exception) {
     let grid = copy
     let actualNodeCursorPosition = getLogicalCandidateCursorPosition(forCursor: cursorType)
     var debugIntelToPrint = [String]()
@@ -51,7 +51,7 @@ extension Homa.Assembler {
 
     // 應用節點鞏固
     guard frontBoundary >= rearBoundary else {
-      throw Homa.Exception.upperboundSmallerThanLowerbound
+      throw .upperboundSmallerThanLowerbound
     }
     applyNodeConsolidation(at: rearBoundary ... frontBoundary)
   }

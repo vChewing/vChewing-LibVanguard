@@ -141,7 +141,7 @@ public struct HomaPerformanceTests: HomaTestSuite {
     )
   }
 
-  @Test("[Homa] Bench_AdvancedOptimizationsBenchmark")
+  @Test("[Homa] Bench_AdvancedOptimizations")
   func testAdvancedOptimizations() async throws {
     print("// Starting advanced optimizations benchmark")
 

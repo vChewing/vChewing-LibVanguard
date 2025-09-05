@@ -80,7 +80,7 @@ extension Homa.Assembler {
   public func overrideCandidate(
     _ candidate: Homa.CandidatePair, at location: Int,
     type overrideType: Homa.Node.OverrideType = .withSpecified
-  ) throws {
+  ) throws(Homa.Exception) {
     try overrideCandidateAgainst(
       keyArray: candidate.keyArray,
       at: location,
@@ -100,7 +100,7 @@ extension Homa.Assembler {
   public func overrideCandidateLiteral(
     _ candidate: String,
     at location: Int, overrideType type: Homa.Node.OverrideType = .withSpecified
-  ) throws {
+  ) throws(Homa.Exception) {
     try overrideCandidateAgainst(keyArray: nil, at: location, value: candidate, type: type)
   }
 
@@ -118,7 +118,7 @@ extension Homa.Assembler {
     at location: Int,
     value: String,
     type: Homa.Node.OverrideType
-  ) throws {
+  ) throws(Homa.Exception) {
     let location = max(min(location, keys.count), 0) // 防呆
     let effectiveLocation = min(keys.count - 1, location)
 
@@ -126,7 +126,7 @@ extension Homa.Assembler {
     let arrOverlappedNodes = fetchOverlappingNodes(at: effectiveLocation)
 
     if arrOverlappedNodes.isEmpty {
-      throw Homa.Exception.nothingOverriddenAtNode
+      throw .nothingOverriddenAtNode
     }
 
     // 尋找相符的節點
@@ -148,11 +148,8 @@ extension Homa.Assembler {
         )
         overridden = anchor
         break
-      } catch let error as Homa.Exception {
-        lastError = error
       } catch {
-        // 處理非Homa.Exception類型的錯誤
-        lastError = .nothingOverriddenAtNode
+        lastError = error
       }
     }
 

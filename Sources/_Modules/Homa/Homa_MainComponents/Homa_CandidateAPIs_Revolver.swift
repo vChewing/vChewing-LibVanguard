@@ -47,13 +47,13 @@ extension Homa.Assembler {
     counterClockwise: Bool,
     debugIntelHandler: ((String) -> ())? = nil,
     candidateArrayHandler: (([Homa.CandidatePairWeighted]) -> ())? = nil
-  ) throws
+  ) throws(Homa.Exception)
     -> (
       Homa.CandidatePairWeighted,
       current: Int,
       total: Int
     ) {
-    guard !isEmpty else { throw Homa.Exception.assemblerIsEmpty }
+    guard !isEmpty else { throw .assemblerIsEmpty }
 
     // 獲取候選字列表
     let candidates: [Homa.CandidatePairWeighted] = switch cursorType {
@@ -65,11 +65,11 @@ extension Homa.Assembler {
 
     // 驗證候選字是否存在
     guard let firstCandidate = candidates.first else {
-      throw Homa.Exception.noCandidatesAvailableToRevolve
+      throw .noCandidatesAvailableToRevolve
     }
     guard candidates.count > 1 else {
       print(firstCandidate)
-      throw Homa.Exception.onlyOneCandidateAvailableToRevolve
+      throw .onlyOneCandidateAvailableToRevolve
     }
 
     // 確保有組裝好的節點串資料
@@ -80,7 +80,7 @@ extension Homa.Assembler {
     let regionMap = assembledSentence.cursorRegionMap
     let candidateCursorPos = getLogicalCandidateCursorPosition(forCursor: cursorType)
     guard let regionID = regionMap[candidateCursorPos], assembledSentence.count > regionID else {
-      throw Homa.Exception.cursorOutOfReasonableNodeRegions
+      throw .cursorOutOfReasonableNodeRegions
     }
 
     // 獲取當前節點和其詞組資訊
