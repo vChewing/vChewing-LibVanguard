@@ -16,22 +16,21 @@ final class StringInternPool: @unchecked Sendable {
 
   @usableFromInline
   func intern(_ string: String) -> String {
-    lock.lock()
-    defer { lock.unlock() }
+    lock.withLock {
+      if let interned = pool[string] {
+        return interned
+      }
 
-    if let interned = pool[string] {
-      return interned
+      pool[string] = string
+      return string
     }
-
-    pool[string] = string
-    return string
   }
 
   @usableFromInline
   func clear() {
-    lock.lock()
-    defer { lock.unlock() }
-    pool.removeAll(keepingCapacity: true)
+    lock.withLock {
+      pool.removeAll(keepingCapacity: true)
+    }
   }
 
   // MARK: Private
@@ -57,22 +56,20 @@ final class ObjectPool<T> {
 
   @usableFromInline
   func borrow() -> T {
-    lock.lock()
-    defer { lock.unlock() }
-
-    if let object = objects.popLast() {
-      return object
+    lock.withLock {
+      if let object = objects.popLast() {
+        return object
+      }
+      return createObject()
     }
-    return createObject()
   }
 
   @usableFromInline
   func returnObject(_ object: T) {
-    lock.lock()
-    defer { lock.unlock() }
-
-    resetObject(object)
-    objects.append(object)
+    lock.withLock {
+      resetObject(object)
+      objects.append(object)
+    }
   }
 
   // MARK: Private
@@ -97,50 +94,48 @@ final class StringOperationCache: @unchecked Sendable {
   func getCachedSplit(_ string: String, separator: Character) -> [String] {
     let key = "\(string)|\(separator)"
 
-    lock.lock()
-    defer { lock.unlock() }
+    return lock.withLock {
+      if let cached = splitCache[key] {
+        return cached
+      }
 
-    if let cached = splitCache[key] {
-      return cached
+      let result = string.split(separator: separator).map(String.init)
+
+      // Prevent unbounded cache growth
+      if splitCache.count < maxCacheSize {
+        splitCache[key] = result
+      }
+
+      return result
     }
-
-    let result = string.split(separator: separator).map(String.init)
-
-    // Prevent unbounded cache growth
-    if splitCache.count < maxCacheSize {
-      splitCache[key] = result
-    }
-
-    return result
   }
 
   @usableFromInline
   func getCachedJoin(_ strings: [String], separator: String) -> String {
     let key = strings.joined(separator: "|") + "|\(separator)"
 
-    lock.lock()
-    defer { lock.unlock() }
+    return lock.withLock {
+      if let cached = joinCache[key] {
+        return cached
+      }
 
-    if let cached = joinCache[key] {
-      return cached
+      let result = strings.joined(separator: separator)
+
+      // Prevent unbounded cache growth
+      if joinCache.count < maxCacheSize {
+        joinCache[key] = result
+      }
+
+      return result
     }
-
-    let result = strings.joined(separator: separator)
-
-    // Prevent unbounded cache growth
-    if joinCache.count < maxCacheSize {
-      joinCache[key] = result
-    }
-
-    return result
   }
 
   @usableFromInline
   func clear() {
-    lock.lock()
-    defer { lock.unlock() }
-    splitCache.removeAll(keepingCapacity: true)
-    joinCache.removeAll(keepingCapacity: true)
+    lock.withLock {
+      splitCache.removeAll(keepingCapacity: true)
+      joinCache.removeAll(keepingCapacity: true)
+    }
   }
 
   // MARK: Private

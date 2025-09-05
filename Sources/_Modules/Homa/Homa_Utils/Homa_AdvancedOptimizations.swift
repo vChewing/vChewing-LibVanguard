@@ -20,36 +20,34 @@ final class BigramScoreCache: @unchecked Sendable {
 
   @usableFromInline
   func getCachedBigramScore(for current: String, previous: String) -> Double? {
-    lock.lock()
-    defer { lock.unlock() }
-
-    return cache[previous]?[current]
+    lock.withLock {
+      cache[previous]?[current]
+    }
   }
 
   @usableFromInline
   func setBigramScore(_ score: Double, for current: String, previous: String) {
-    lock.lock()
-    defer { lock.unlock() }
-
-    if cache.count >= maxCacheSize {
-      // Simple LRU-like behavior: remove first entries when cache is full
-      let keysToRemove = Array(cache.keys.prefix(maxCacheSize / 4))
-      for key in keysToRemove {
-        cache.removeValue(forKey: key)
+    lock.withLock {
+      if cache.count >= maxCacheSize {
+        // Simple LRU-like behavior: remove first entries when cache is full
+        let keysToRemove = Array(cache.keys.prefix(maxCacheSize / 4))
+        for key in keysToRemove {
+          cache.removeValue(forKey: key)
+        }
       }
-    }
 
-    if cache[previous] == nil {
-      cache[previous] = [:]
+      if cache[previous] == nil {
+        cache[previous] = [:]
+      }
+      cache[previous]![current] = score
     }
-    cache[previous]![current] = score
   }
 
   @usableFromInline
   func clear() {
-    lock.lock()
-    defer { lock.unlock() }
-    cache.removeAll(keepingCapacity: true)
+    lock.withLock {
+      cache.removeAll(keepingCapacity: true)
+    }
   }
 
   // MARK: Private

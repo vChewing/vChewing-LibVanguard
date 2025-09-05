@@ -16,36 +16,34 @@ final class TrieStringPool: @unchecked Sendable {
 
   @usableFromInline
   func internKey(_ string: String) -> String {
-    lock.lock()
-    defer { lock.unlock() }
+    lock.withLock {
+      if let interned = keyPool[string] {
+        return interned
+      }
 
-    if let interned = keyPool[string] {
-      return interned
+      keyPool[string] = string
+      return string
     }
-
-    keyPool[string] = string
-    return string
   }
 
   @usableFromInline
   func internValue(_ string: String) -> String {
-    lock.lock()
-    defer { lock.unlock() }
+    lock.withLock {
+      if let interned = valuePool[string] {
+        return interned
+      }
 
-    if let interned = valuePool[string] {
-      return interned
+      valuePool[string] = string
+      return string
     }
-
-    valuePool[string] = string
-    return string
   }
 
   @usableFromInline
   func clear() {
-    lock.lock()
-    defer { lock.unlock() }
-    keyPool.removeAll(keepingCapacity: true)
-    valuePool.removeAll(keepingCapacity: true)
+    lock.withLock {
+      keyPool.removeAll(keepingCapacity: true)
+      valuePool.removeAll(keepingCapacity: true)
+    }
   }
 
   // MARK: Private
@@ -68,49 +66,46 @@ final class TrieStringOperationCache: @unchecked Sendable {
   @usableFromInline
   func getCachedSplit(_ string: String, separator: Character) -> [String] {
     let key = "\(string)|\(separator)"
+    return lock.withLock {
+      if let cached = splitCache[key] {
+        return cached
+      }
 
-    lock.lock()
-    defer { lock.unlock() }
+      let result = string.split(separator: separator).map(String.init)
 
-    if let cached = splitCache[key] {
-      return cached
+      // Prevent unbounded cache growth
+      if splitCache.count < maxCacheSize {
+        splitCache[key] = result
+      }
+
+      return result
     }
-
-    let result = string.split(separator: separator).map(String.init)
-
-    // Prevent unbounded cache growth
-    if splitCache.count < maxCacheSize {
-      splitCache[key] = result
-    }
-
-    return result
   }
 
   @usableFromInline
   func getCachedFirstChar(_ string: String) -> String {
-    lock.lock()
-    defer { lock.unlock() }
+    lock.withLock {
+      if let cached = firstCharCache[string] {
+        return cached
+      }
 
-    if let cached = firstCharCache[string] {
-      return cached
+      let result = string.first?.description ?? ""
+
+      // Prevent unbounded cache growth
+      if firstCharCache.count < maxCacheSize {
+        firstCharCache[string] = result
+      }
+
+      return result
     }
-
-    let result = string.first?.description ?? ""
-
-    // Prevent unbounded cache growth
-    if firstCharCache.count < maxCacheSize {
-      firstCharCache[string] = result
-    }
-
-    return result
   }
 
   @usableFromInline
   func clear() {
-    lock.lock()
-    defer { lock.unlock() }
-    splitCache.removeAll(keepingCapacity: true)
-    firstCharCache.removeAll(keepingCapacity: true)
+    lock.withLock {
+      splitCache.removeAll(keepingCapacity: true)
+      firstCharCache.removeAll(keepingCapacity: true)
+    }
   }
 
   // MARK: Private
