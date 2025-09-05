@@ -178,6 +178,7 @@ extension Tekkon {
 
     public var type: PhoneType = .null
 
+    /// This returns "~" if the phonabet is considered null.
     public private(set) var scalarValue: Unicode.Scalar = .init(unicodeScalarLiteral: "~")
 
     public var value: String {
@@ -186,13 +187,12 @@ extension Tekkon {
     }
 
     /// Optimized character access without String allocation
-    public var character: Character {
-      guard isValid else { return Character("") }
-      return Character(scalarValue)
+    public var character: Character? {
+      return isValid ? Character(scalarValue) : nil
     }
 
     /// Optimized scalar access for performance-critical operations
-    public var scalar: Unicode.Scalar { scalarValue }
+    public var scalar: Unicode.Scalar? { isValid ? scalarValue : nil }
 
     public var isEmpty: Bool { type == .null }
     public var isValid: Bool { type != .null }
