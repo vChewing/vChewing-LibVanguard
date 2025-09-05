@@ -7,6 +7,7 @@ import Testing
 
 // MARK: - TekkonTestsPinyin
 
+@MainActor
 @Suite(.serialized)
 struct TekkonTestsPinyin {
   @Test("[Tekkon] Composer_InputAndComposition_HanyuPinyin")
