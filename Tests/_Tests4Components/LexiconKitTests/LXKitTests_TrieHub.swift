@@ -19,7 +19,7 @@ public struct LXTests4TrieHub {
     let hub = VanguardTrie.TrieHub()
     let tag = useSQL ? "(SQL)" : "(Plist)"
     if useSQL {
-      try? Self.measureTime("Hub booting time cost \(tag)", useSQL: true, enabled: measureTime) {
+      Self.measureTime("Hub booting time cost \(tag)", useSQL: true, enabled: measureTime) {
         hub.updateTrieFromSQLFile {
           var resultMap4FilePaths: [FactoryTrieDBType: String] = [:]
           FactoryTrieDBType.allCases.forEach { currentCase in
@@ -30,7 +30,7 @@ public struct LXTests4TrieHub {
         }
       }
     } else {
-      try? Self.measureTime("Hub booting time cost \(tag)", useSQL: false, enabled: measureTime) {
+      Self.measureTime("Hub booting time cost \(tag)", useSQL: false, enabled: measureTime) {
         hub.updateTrieFromPlistFile {
           var resultMap4FileURLs: [FactoryTrieDBType: URL] = [:]
           FactoryTrieDBType.allCases.forEach { currentCase in
@@ -166,7 +166,7 @@ public struct LXTests4TrieHub {
     useSQL: Bool,
     enabled: Bool = true,
     _ task: @escaping () throws -> ()
-  ) throws {
+  ) rethrows {
     guard enabled else {
       try task()
       return

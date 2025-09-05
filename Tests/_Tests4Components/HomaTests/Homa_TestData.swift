@@ -559,3 +559,65 @@ zhi1 稙 -7.941
 zhi1 泜 -8.64
 zhi1 zhi1 -8.941
 """
+
+let strLMSampleDataTrailblazing = """
+ㄙㄨㄛˇ 所 -3.2suo3 索 -6.1
+wei4 謂 -3.8
+wei4 為 -4.2
+wei4 位 -5.3
+kai1 開 -3.5
+kai1 凱 -5.9
+tuo4 拓 -4.1
+tuo4 托 -5.2
+jiu4 就 -3.7
+jiu4 舊 -5.4
+shi4 是 -3.1
+shi4 事 -4.8
+shi4 世 -5.2
+yan2 沿 -4.3
+yan2 言 -5.1
+zhe5 著 -3.9
+zhe5 者 -4.7
+qian2 前 -3.6
+qian2 錢 -5.8
+ren2 人 -3.4
+ren2 仁 -6.2
+wei4 未 -4.1
+jin4 盡 -4.5
+jin4 進 -4.9
+de5 的 -2.8
+dao4 道 -3.7
+dao4 到 -4.3
+lu4 路 -4.2
+lu4 露 -6.1
+zou3 走 -3.9
+zou3 揍 -6.7
+chu1 出 -3.8
+chu1 初 -5.4
+geng1 更 -4.1
+geng1 耕 -6.3
+yao2 遙 -4.8
+yao2 搖 -5.9
+yuan3 遠 -4.2
+yuan3 院 -5.6
+ju4 距 -4.7
+ju4 巨 -5.3
+li2 離 -4.1
+li2 李 -5.8
+yin1 因 -3.8
+yin1 音 -5.2
+wei2 為 -3.5
+wei2 維 -5.7
+cong2 從 -4.1
+cong2 叢 -6.4
+lai2 來 -3.7
+lai2 萊 -5.9
+bu4 不 -3.2
+bu4 布 -5.1
+you2 由 -4.3
+you2 油 -5.4
+ta1 他 -3.6
+ta1 她 -4.1
+pu1 鋪 -4.9
+pu1 撲 -6.2
+"""
