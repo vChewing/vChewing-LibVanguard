@@ -3,8 +3,9 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 import Foundation
-@testable import Tekkon
 import Testing
+
+@testable import Tekkon
 
 // MARK: - Something Else
 
@@ -85,7 +86,7 @@ final class SubTestCase: Sendable {
 // MARK: - TestCaseBatch
 
 /// 批量測試案例處理器，用於減少記憶體分配
-struct TestCaseBatch {
+actor TestCaseBatch: Sendable {
   // MARK: Lifecycle
 
   init(parser: Tekkon.MandarinParser, rawData: String) {
@@ -114,23 +115,39 @@ struct TestCaseBatch {
   let parser: Tekkon.MandarinParser
   let testData: [(typing: String, expected: String)]
 
-  func runTests() -> Int {
-    var composer = Tekkon.Composer(arrange: parser)
-    var failures = 0
-
-    for testCase in testData {
-      composer.clear()
-      let strResult = composer.receiveSequence(testCase.typing)
-      if strResult != testCase.expected {
-        let parserTag = composer.parser.nameTag
-        let strError =
-          "MISMATCH (\(parserTag)): \"\(testCase.typing)\" -> \"\(strResult)\" != \"\(testCase.expected)\""
-        print(strError)
-        failures += 1
+  func runTests() async -> Int {
+    let indices = testData.indices
+    let chunkSize = 350
+    let failedCount = await withTaskGroup(of: Int.self, returning: Int.self) { group in
+      var failures = 0
+      for chunkStartPoint in stride(from: 0, to: indices.upperBound, by: chunkSize) {
+        let subIndiceMax = Swift.min(indices.upperBound, chunkStartPoint + chunkSize)
+        let subIndices = chunkStartPoint ..< subIndiceMax
+        for i in subIndices {
+          group.addTask {
+            var subFailures = 0
+            var composer = Tekkon.Composer(arrange: self.parser)
+            let strResult = composer.receiveSequence(self.testData[i].typing)
+            if strResult != self.testData[i].expected {
+              let parserTag = composer.parser.nameTag
+              let typingStr = self.testData[i].typing
+              let expectedStr = self.testData[i].expected
+              let strError =
+                "MISMATCH (\(parserTag)): \"\(typingStr)\" -> \"\(strResult)\" != \"\(expectedStr)\""
+              print(strError)
+              subFailures += 1
+            }
+            return subFailures
+          }
+        }
+        for await subFailures in group {
+          // Set operation name as key and operation result as value
+          failures += subFailures
+        }
       }
+      return failures
     }
-
-    return failures
+    return failedCount
   }
 
   // MARK: Private
@@ -215,7 +232,7 @@ struct TekkonTestsKeyboardArrangmentsDynamic {
     let timeTag = Date.now
     print(" -> [Tekkon][(\(parser.nameTag))] Starting dynamic keyboard handling test ...")
 
-    let failures = testBatch.runTests()
+    let failures = await testBatch.runTests()
 
     #expect(
       failures == 0,
