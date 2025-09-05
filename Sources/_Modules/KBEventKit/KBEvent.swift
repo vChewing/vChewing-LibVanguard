@@ -258,7 +258,7 @@ extension KBEvent {
 
   public var isASCII: Bool { charCode < 0x80 }
 
-  // 這裡必須加上「flags == .shift」，否則會出現某些情況下輸入法「誤判當前鍵入的非 Shift 字符為大寫」的問題
+  // 這裡必須加上「flags == .shift」，否則會出現某些情況下輸入法「誤判當前鍵入的非 Shift 字元為大寫」的問題
   public var isUpperCaseASCIILetterKey: Bool {
     (65 ... 90).contains(charCode) && keyModifierFlags == .shift
   }
