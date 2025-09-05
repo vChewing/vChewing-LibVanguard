@@ -18,7 +18,7 @@ public enum LatinKeyboardMappings: String, CaseIterable {
 
   // MARK: Public
 
-  /// 鍵盤映射表，将 Darwin Keycode 翻译成字符。
+  /// 鍵盤映射表，将 Darwin Keycode 翻译成字元。
   public var mapTableDarwin: [UInt16: (String, String)] {
     switch self {
     case .qwerty, .qwertyBritish, .qwertyUS: Self.dictQwerty

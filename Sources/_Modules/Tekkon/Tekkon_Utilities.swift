@@ -79,7 +79,7 @@ extension Tekkon {
   }
 }
 
-/// 檢測字串是否包含半形英數內容
+/// 偵測字串是否包含半形英數內容
 extension String {
   fileprivate var isNotPureAlphanumerical: Bool {
     let x = unicodeScalars.map(\.value).filter {

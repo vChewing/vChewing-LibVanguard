@@ -232,7 +232,7 @@ public final class SimpleTrie {
     public internal(set) var parentID: Int?
     public internal(set) var character: String = ""
     public internal(set) var readingKey: String = "" // 新增：存儲節點對應的讀音鍵
-    public internal(set) var children: [String: Int] = [:] // 新的結構：字符 -> 子節點ID映射
+    public internal(set) var children: [String: Int] = [:] // 新的結構：字元 -> 子節點ID映射
 
     public static func == (
       lhs: TNode,
@@ -327,7 +327,7 @@ extension SimpleTrie {
       separator: readingSeparator.description
     )
 
-    // 遍歷關鍵字的每個字符
+    // 遍歷關鍵字的每個字元
     key.forEach { char in
       let charStr = char.description
       if let childNodeID = currentNode.children[charStr],
@@ -426,10 +426,10 @@ extension SimpleTrie {
     }
 
     var currentNode = root
-    // 遍歷關鍵字的每個字符
+    // 遍歷關鍵字的每個字元
     for char in key {
       let charStr = char.description
-      // 查找對應字符的子節點
+      // 查找對應字元的子節點
       guard let childNodeID = currentNode.children[charStr] else { return [] }
       guard let childNode = nodes[childNodeID] else { return [] }
       // 更新當前節點

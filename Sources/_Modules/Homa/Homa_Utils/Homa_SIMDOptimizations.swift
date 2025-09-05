@@ -4,23 +4,23 @@
 
 import Foundation
 
-// MARK: - SIMD字符串操作
+// MARK: - SIMDStringOps
 
-/// 為提升性能的 SIMD 最佳化字符串操作
+/// 為提升效能的 SIMD 最佳化字串操作
 @usableFromInline
 enum SIMDStringOps {
-  /// 針對語音鍵最佳化的快速字符串比較
+  /// 針對語音鍵最佳化的快速字串比較
   @usableFromInline
   static func fastCompare(_ lhs: String, _ rhs: String) -> Bool {
-    // 對於語音輸入中常見的短字符串，直接比較通常是最快的
+    // 對於語音輸入中常見的短字串，直接比較通常是最快的
     guard lhs.count == rhs.count else { return false }
 
-    // 對於非常短的字符串（常見情況），使用直接比較
+    // 對於非常短的字串（常見情況），使用直接比較
     if lhs.count <= 8 {
       return lhs == rhs
     }
 
-    // 對於較長的字符串，使用最佳化比較
+    // 對於較長的字串，使用最佳化比較
     return lhs.withCString { lhsPtr in
       rhs.withCString { rhsPtr in
         memcmp(lhsPtr, rhsPtr, lhs.utf8.count) == 0
@@ -28,16 +28,16 @@ enum SIMDStringOps {
     }
   }
 
-  /// 字符串的快速雜湊計算
+  /// 字串的快速雜湊計算
   @usableFromInline
   static func fastHash(_ string: String) -> Int {
     var hasher = Hasher()
 
-    // 對常見的短字符串使用更高效的雜湊
+    // 對常見的短字串使用更高效的雜湊
     if string.count <= 16 {
       hasher.combine(string)
     } else {
-      // 對於較長的字符串，分塊雜湊以獲得更好的性能
+      // 對於較長的字串，分塊雜湊以獲得更好的效能
       let utf8 = string.utf8
       var chunks = utf8.makeIterator()
       while let chunk = chunks.next() {
@@ -66,7 +66,7 @@ enum SIMDStringOps {
   }
 }
 
-// MARK: - 語音樹狀節點
+// MARK: - PhoneticTrieNode
 
 /// 專為語音輸入模式設計的特化樹狀節點
 @usableFromInline
@@ -161,7 +161,7 @@ struct PhoneticTrieNode {
   }
 }
 
-// MARK: - 原子快取
+// MARK: - AtomicCache
 
 /// 使用原子操作的簡單無鎖快取
 @usableFromInline

@@ -11,7 +11,7 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct TekkonPerformanceTests {
-  /// 性能基準測試 - 動態佈局處理效能
+  /// 效能基準測試 - 動態佈局處理效能
   @Test("[Tekkon] DynamicLayoutPerformance")
   func testDynamicLayoutPerformance() async throws {
     let testSequences = ["e", "r", "d", "y", "qu", "quu", "quur", "q", "qj", "qjo", "l", "lr"]
@@ -50,7 +50,7 @@ struct TekkonPerformanceTests {
   @Test("[Tekkon] MemoryOptimizationTest")
   func testMemoryOptimization() async throws {
     let testSequences = ["ba", "pa", "ma", "fa", "da", "ta", "na", "la"]
-    let iterations = 50 // 增加迭代次數以產生更顯著的性能差異
+    let iterations = 50 // 增加迭代次數以產生更顯著的效能差異
 
     // 測試物件重用 vs 重新建立
     let reuseStartTime = Date.now
@@ -81,7 +81,7 @@ struct TekkonPerformanceTests {
     print(" -> [Tekkon] Object reuse: \(reuseTimeStr)s vs recreation: \(recreateTimeStr)s")
     print(" -> [Tekkon] Memory optimization improvement: \(improvementStr)%")
 
-    // 允許性能測量的變異性 - 50% 內是可接受的
+    // 允許效能測量的變異性 - 50% 內是可接受的
     // 經過 ContiguousArray 最佳化，物件建立現在非常高效，
     // 因此重複使用可能並不總是顯示顯著優勢
     let performanceTolerance = recreateTime * 0.5
@@ -93,14 +93,14 @@ struct TekkonPerformanceTests {
     )
   }
 
-  /// 字符串處理效能測試
+  /// 字串處理效能測試
   @Test("[Tekkon] StringProcessingPerformance")
   func testStringProcessingPerformance() async throws {
     let testStrings = ["ㄅㄆㄇㄈ", "ㄐㄑㄒ", "ㄓㄔㄕㄗㄘㄙ", "ㄧㄩ", "ㄛㄥ", "ㄟ"]
     let targetChar = "ㄅ"
     let iterations = 10_000
 
-    // 測試字符串包含檢查效能
+    // 測試字串包含檢查效能
     let startTime = Date.now
     for _ in 0 ..< iterations {
       for testString in testStrings {
@@ -112,7 +112,7 @@ struct TekkonPerformanceTests {
     let processingTimeStr = String(format: "%.6f", processingTime)
     print(" -> [Tekkon] String processing (\(iterations) iterations): \(processingTimeStr)s")
 
-    // 效能期望：字符串處理應該相對較快
+    // 效能期望：字串處理應該相對較快
     #expect(processingTime < 0.1, "String processing performance regression")
   }
 

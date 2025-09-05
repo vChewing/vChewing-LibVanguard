@@ -4,9 +4,9 @@
 
 import Foundation
 
-// MARK: - 樹狀索引字符串拘留池
+// MARK: - TrieStringPool
 
-/// 專為樹狀索引操作最佳化的字符串拘留池
+/// 專為樹狀索引操作最佳化的字串拘留池
 @usableFromInline
 final class TrieStringPool: @unchecked Sendable {
   // MARK: Internal
@@ -53,9 +53,9 @@ final class TrieStringPool: @unchecked Sendable {
   private let lock = NSLock()
 }
 
-// MARK: - 樹狀索引字符串操作快取
+// MARK: - TrieStringOperationCache
 
-/// 針對樹狀索引特定模式最佳化的字符串操作快取
+/// 針對樹狀索引特定模式最佳化的字串操作快取
 @usableFromInline
 final class TrieStringOperationCache: @unchecked Sendable {
   // MARK: Internal

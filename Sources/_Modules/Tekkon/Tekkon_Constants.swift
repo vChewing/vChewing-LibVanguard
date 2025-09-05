@@ -27,9 +27,9 @@ public enum Tekkon {
   /// 引擎僅接受這些記號作為聲調
   public static let allowedIntonations: [Unicode.Scalar] = [" ", "ˊ", "ˇ", "ˋ", "˙"]
 
-  // MARK: - 針對熱路徑的性能最佳化純量集合
+  // MARK: - 針對熱路徑的效能最佳化純量集合
 
-  /// 針對頻繁比較的預計算集合，以避免字符串配置
+  /// 針對頻繁比較的預計算集合，以避免字串配置
   public static let scalarSet_BPMF: Set<Unicode.Scalar> = ["ㄅ", "ㄆ", "ㄇ", "ㄈ"]
   public static let scalarSet_NL: Set<Unicode.Scalar> = ["ㄋ", "ㄌ"]
   public static let scalarSet_U: Set<Unicode.Scalar> = ["ㄨ"]

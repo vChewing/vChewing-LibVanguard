@@ -4,7 +4,7 @@
 
 import Foundation
 
-// MARK: - 進階性能最佳化
+// MARK: - 進階效能最佳化
 
 /// 專門用於雙字組評分計算的快取，避免重複的排序與查找操作
 @usableFromInline

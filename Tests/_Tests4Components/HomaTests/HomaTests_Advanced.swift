@@ -603,7 +603,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
             if revolvedCandidates.contains(currentRevolvedPair) {
               // 若發現重複，檢查詳細情況
               if revolvedCandidates.count != currentRevolved.total {
-                print("=== 檢測到不一致: 位置 \(pos), 游標類型 \(candidateCursorType) ===")
+                print("=== 偵測到不一致: 位置 \(pos), 游標類型 \(candidateCursorType) ===")
                 print("已輪替數量: \(revolvedCandidates.count), 報告總數: \(currentRevolved.total)")
                 print("當前候選字: \(currentRevolved.0.pair.value)")
 

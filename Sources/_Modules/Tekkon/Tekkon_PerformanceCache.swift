@@ -4,7 +4,7 @@
 
 import Foundation
 
-// MARK: - 動態佈局快取
+// MARK: - DynamicLayoutCache
 
 /// 動態佈局效能快取，用於快取按鍵轉譯結果以提升動態佈局的輸入效能
 internal final class DynamicLayoutCache: @unchecked Sendable {
@@ -95,19 +95,19 @@ internal final class DynamicLayoutCache: @unchecked Sendable {
   private var cache: [CacheKey: Unicode.Scalar?] = [:]
 }
 
-// MARK: - 性能用字符集擴展
+// MARK: - 效能用字元集擴展
 
 extension String {
-  /// 高效能字符檢查，使用 CharacterSet 取代 contains
+  /// 高效能字元檢查，使用 CharacterSet 取代 contains
   func hasCharacterIn(_ characters: CharacterSet) -> Bool {
     rangeOfCharacter(from: characters) != nil
   }
 }
 
-// MARK: - 性能常數
+// MARK: - 效能常數
 
 extension Tekkon {
-  /// 高效能字符集，用於快速字符檢查
+  /// 高效能字元集，用於快速字元檢查
   static let consonantJQXCharacterSet = CharacterSet(charactersIn: "ㄐㄑㄒ")
   static let consonantZCSCharacterSet = CharacterSet(charactersIn: "ㄓㄔㄕ")
   static let consonantBPMFCharacterSet = CharacterSet(charactersIn: "ㄅㄆㄇㄈ")
@@ -119,7 +119,7 @@ extension Tekkon {
   static let vowelOGCharacterSet = CharacterSet(charactersIn: "ㄛㄥ")
   static let vowelEICharacterSet = CharacterSet(charactersIn: "ㄟ")
 
-  // 動態佈局按鍵字符集，用於快速檢查
+  // 動態佈局按鍵字元集，用於快速檢查
   static let eten26KeysCharacterSet = CharacterSet(charactersIn: "dfhjklmnpqtw")
   static let hsuKeysCharacterSet = CharacterSet(charactersIn: "acdefghjklmns")
   static let starlightKeysCharacterSet = CharacterSet(charactersIn: "efgklmnt")
@@ -128,7 +128,7 @@ extension Tekkon {
   static let shortToneKeysCharacterSet = CharacterSet(charactersIn: "dfjs ")
   static let digitToneKeysCharacterSet = CharacterSet(charactersIn: "67890 ")
 
-  /// 優化的字符檢查函數
+  /// 優化的字元檢查函數
   static func characterMatches(_ char: String, in characterSet: CharacterSet) -> Bool {
     guard !char.isEmpty, let firstScalar = char.unicodeScalars.first else { return false }
     return characterSet.contains(firstScalar)

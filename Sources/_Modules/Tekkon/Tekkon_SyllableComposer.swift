@@ -22,7 +22,7 @@ extension Tekkon {
     /// 初期化一個新的注拼槽。可以藉由 @input 參數指定初期已經傳入的按鍵訊號。
     /// 還可以在初期化時藉由 @arrange 參數來指定注音排列（預設為「.ofDachen」大千佈局）。
     /// - Parameters:
-    ///   - input: 傳入的 String 內容，用以處理單個字符。
+    ///   - input: 傳入的 String 內容，用以處理單個字元。
     ///   - arrange: 要使用的注音排列。
     ///   - correction: 是否對錯誤的注音讀音組合做出自動糾正處理。
     public init(
@@ -160,7 +160,7 @@ extension Tekkon {
 
     // MARK: - Public Functions
 
-    /// 用於檢測「某個輸入字符訊號的合規性」的函式。
+    /// 用於偵測「某個輸入字元訊號的合規性」的函式。
     ///
     /// 注意：回傳結果會受到當前注音排列 parser 屬性的影響。
     /// - Parameters:
@@ -170,7 +170,7 @@ extension Tekkon {
       return inputValidityCheck(charStr: String(scalar))
     }
 
-    /// 用於檢測「某個輸入字符訊號的合規性」的函式。
+    /// 用於偵測「某個輸入字元訊號的合規性」的函式。
     ///
     /// 注意：回傳結果會受到當前注音排列 parser 屬性的影響。
     /// - Parameters:
@@ -287,7 +287,7 @@ extension Tekkon {
           if vowel =~ "ㄜ" { vowel <~ "ㄝ" }
           if vowel =~ "ㄝ" { thePhone <~ "ㄩ" }
         case "ㄅ", "ㄆ", "ㄇ", "ㄈ":
-          // 最佳化：避免檢查「ㄨㄛ」和「ㄨㄥ」時的字符串配置
+          // 最佳化：避免檢查「ㄨㄛ」和「ㄨㄥ」時的字串配置
           if semivowel =~ "ㄨ", vowel =~ "ㄛ" || vowel =~ "ㄥ" { semivowel.clear() }
         default: break
         }
@@ -369,7 +369,7 @@ extension Tekkon {
       }
     }
 
-    /// 用來檢測是否有調號的函式，預設情況下不判定聲調以外的內容的存無。
+    /// 用來偵測是否有調號的函式，預設情況下不判定聲調以外的內容的存無。
     /// - Parameters:
     ///   - withNothingElse: 追加判定「槽內是否僅有調號」。
     public func hasIntonation(withNothingElse: Bool = false) -> Bool {

@@ -4,9 +4,9 @@
 
 import Foundation
 
-// MARK: - 字符串拘留池
+// MARK: - StringInternPool
 
-/// 字符串拘留池，用於減少常用字符串的記憶體配置
+/// 字串拘留池，用於減少常用字串的記憶體配置
 @usableFromInline
 final class StringInternPool: @unchecked Sendable {
   // MARK: Internal
@@ -39,7 +39,7 @@ final class StringInternPool: @unchecked Sendable {
   private let lock = NSLock()
 }
 
-// MARK: - 對象池
+// MARK: - ObjectPool
 
 /// 用於頻繁配置臨時對象的對象池
 @usableFromInline
@@ -80,9 +80,9 @@ final class ObjectPool<T> {
   private let lock = NSLock()
 }
 
-// MARK: - 字符串操作快取
+// MARK: - StringOperationCache
 
-/// 用於頻繁計算的字符串操作快取
+/// 用於頻繁計算的字串操作快取
 @usableFromInline
 final class StringOperationCache: @unchecked Sendable {
   // MARK: Internal
