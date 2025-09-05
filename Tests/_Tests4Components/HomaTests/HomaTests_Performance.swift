@@ -17,9 +17,16 @@ public struct HomaPerformanceTests: HomaTestSuite {
     print("// Starting large scale sentence assembly performance test")
 
     // 構築一份更複雜的測試資料。這次使用繁體中文。
+
+    /// TO COPILOT: Use the following sentences to completely replace all existing testSentences:
+    /// 所謂開拓
+    /// 就是沿著前人未盡的道路
+    /// 走出更遙遠的距離
+    /// 因為開拓的道路
+    /// 從來不由他人鋪就
     let testSentences = [
-      "ㄋㄧˇ-ㄏㄠˇ-ㄕˋ-ㄐㄧㄝˋ", // 你好世界
-      "ㄙㄨㄛˇ-ㄨㄟˋ-ㄎㄞ-ㄊㄨㄛˋ-ㄐㄧㄡˋ-ㄕˋ-ㄧㄢˊ-ㄓㄨㄛˊ-ㄑㄧㄢˊ-ㄖㄣˊ-ㄨㄟˋ-ㄐㄧㄣˋ-ㄉㄜ˙-ㄉㄠˋ-ㄌㄨˋ", // 所謂開拓，就是沿著前人未盡的道路
+      "ㄙㄨㄛˇ-ㄨㄟˋ-ㄎㄞ-ㄊㄨㄛˋ", // 所謂開拓
+      "ㄐㄧㄡˋ-ㄕˋ-ㄧㄢˊ-ㄓㄜ˙-ㄑㄧㄢˊ-ㄖㄣˊ-ㄨㄟˋ-ㄐㄧㄣˋ-ㄉㄜ˙-ㄉㄠˋ-ㄌㄨˋ", // 所謂開拓，就是沿著前人未盡的道路
       "ㄨㄛˇ-ㄞˋ-ㄋㄧˇ-ㄇㄣ˙", // 我愛你們
       "ㄓㄜˋ-ㄕˋ-ㄧ-ㄍㄜˋ-ㄘㄜˋ-ㄕˋ", // 這是一個測試
       "ㄍㄨㄥ-ㄔㄥˊ-ㄕ-ㄉㄜ˙-ㄍㄨㄥ-ㄗㄨㄛˋ", // 工程師的工作
@@ -77,6 +84,7 @@ public struct HomaPerformanceTests: HomaTestSuite {
     let mockLM = TestLM(rawData: createExtensiveMockData())
 
     // 測試查詢效能。
+    /// TO COPILOT: Update this section.
     let keys = ["ㄋㄧˇ", "ㄏㄠˇ", "ㄕˋ", "ㄐㄧㄝˋ", "ㄓㄨㄥ", "ㄨㄣˊ"]
     let iterations = 1_000
 
@@ -206,6 +214,7 @@ public struct HomaPerformanceTests: HomaTestSuite {
     var mockData = createExtensiveMockData()
 
     // 建立真實的中文注音輸入模式 - 使用與 Mock 資料對應的注音符號
+    /// TO COPILOT: Update this section.
     let knownBopomofo = [
       "ㄋㄧˇ", "ㄏㄠˇ", "ㄕˋ", "ㄐㄧㄝˋ", "ㄓㄨㄥ", "ㄨㄣˊ", "ㄕˇ", "ㄩㄥˋ",
       "ㄓㄜˇ", "ㄨㄛˇ", "ㄞˋ", "ㄇㄣ˙", "ㄓㄜˋ", "ㄧ", "ㄍㄜˋ", "ㄘㄜˋ", 
@@ -234,70 +243,12 @@ public struct HomaPerformanceTests: HomaTestSuite {
 
   private func createExtensiveMockData() -> String {
     """
-    ㄋㄧˇ 你 -4.5
-    ㄋㄧˇ 尼 -6.2
-    ㄏㄠˇ 好 -4.1
-    ㄏㄠˇ 號 -5.8
-    ㄕˋ 是 -3.9
-    ㄕˋ 事 -5.2
-    ㄕˋ 世 -5.4
-    ㄐㄧㄝˋ 界 -4.8
-    ㄐㄧㄝˋ 接 -5.1
-    ㄓㄨㄥ 中 -4.0
-    ㄓㄨㄥ 鐘 -6.1
-    ㄨㄣˊ 文 -4.2
-    ㄨㄣˊ 聞 -5.5
-    ㄕˇ 使 -4.0
-    ㄕˇ 史 -6.8
-    ㄩㄥˋ 用 -4.3
-    ㄩㄥˋ 永 -6.7
-    ㄓㄜˇ 者 -4.5
-    ㄓㄜˇ 這 -3.8
-    ㄨㄛˇ 我 -3.8
-    ㄞˋ 愛 -4.5
-    ㄇㄣ˙ 們 -4.1
-    ㄓㄜˋ 這 -3.7
-    ㄧ 一 -3.5
-    ㄍㄜˋ 個 -3.8
-    ㄘㄜˋ 測 -5.9
-    ㄍㄨㄥ 工 -4.7
-    ㄔㄥˊ 程 -5.0
-    ㄕ 師 -4.9
-    ㄉㄜ˙ 的 -3.2
-    ㄗㄨㄛˋ 作 -4.4
-    ㄙㄨㄛˇ 所 -4.6
-    ㄨㄟˋ 謂 -5.3
-    ㄨㄟˋ 未 -5.8
-    ㄎㄞ 開 -4.2
-    ㄊㄨㄛˋ 拓 -5.7
-    ㄐㄧㄡˋ 就 -4.1
-    ㄧㄢˊ 沿 -5.4
-    ㄓㄨㄛˊ 著 -4.3
-    ㄑㄧㄢˊ 前 -4.8
-    ㄖㄣˊ 人 -4.0
-    ㄐㄧㄣˋ 盡 -5.6
-    ㄉㄠˋ 道 -4.7
-    ㄌㄨˋ 路 -4.5
-    ㄋㄧˇ-ㄏㄠˇ 你好 -7.5
-    ㄕˋ-ㄐㄧㄝˋ 世界 -8.1
-    ㄓㄨㄥ-ㄨㄣˊ 中文 -7.8
-    ㄕˇ-ㄩㄥˋ 使用 -8.4
-    ㄩㄥˋ-ㄓㄜˇ 用者 -8.9
-    ㄨㄛˇ-ㄞˋ 我愛 -8.9
-    ㄋㄧˇ-ㄇㄣ˙ 你們 -8.7
-    ㄓㄜˋ-ㄕˋ 這是 -8.0
-    ㄧ-ㄍㄜˋ 一個 -7.9
-    ㄘㄜˋ-ㄕˋ 測試 -9.1
-    ㄍㄨㄥ-ㄔㄥˊ 工程 -8.8
-    ㄔㄥˊ-ㄕ 程師 -9.2
-    ㄕ-ㄉㄜ˙ 師的 -9.5
-    ㄍㄨㄥ-ㄗㄨㄛˋ 工作 -8.6
-    ㄙㄨㄛˇ-ㄨㄟˋ 所謂 -8.3
-    ㄎㄞ-ㄊㄨㄛˋ 開拓 -8.7
-    ㄧㄢˊ-ㄓㄨㄛˊ 沿著 -9.0
-    ㄑㄧㄢˊ-ㄖㄣˊ 前人 -8.5
-    ㄨㄟˋ-ㄐㄧㄣˋ 未盡 -9.2
-    ㄉㄠˋ-ㄌㄨˋ 道路 -8.4
+    TO COPILOT: Use the following sentences to completely replace all existing testSentences:
+    /// 所謂開拓
+    /// 就是沿著前人未盡的道路
+    /// 走出更遙遠的距離
+    /// 因為開拓的道路
+    /// 從來不由他人鋪就
     """
   }
 }
