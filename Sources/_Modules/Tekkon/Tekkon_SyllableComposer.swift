@@ -76,8 +76,8 @@ extension Tekkon {
     /// 如果是要取不帶空格的注音的話，請使用「.getComposition()」而非「.value」。
     public var value: String {
       var result = String()
-      result.reserveCapacity(8) // Pre-allocate for typical Zhuyin syllable length
-      // Optimized: iterate through contiguous array for better cache locality
+      result.reserveCapacity(8) // 為典型注音音節長度預先配置
+      // 最佳化：迭代連續陣列以獲得更好的快取局部性
       for phonabet in phonabets where phonabet.isValid {
         result.unicodeScalars.append(phonabet.scalarValue)
       }
@@ -90,13 +90,13 @@ extension Tekkon {
     /// 注拼槽內容是否為空。
     public var isEmpty: Bool {
       guard !isPinyinMode else { return intonation.isEmpty && romajiBuffer.isEmpty }
-      // Optimized: check all phonabets in contiguous memory
+      // 最佳化：檢查連續記憶體中的所有注音符號
       return phonabets.allSatisfy(\.isEmpty)
     }
 
     /// 注拼槽內容是否可唸。
     public var isPronounceable: Bool {
-      // Optimized: check first 3 phonabets (consonant, semivowel, vowel) efficiently
+      // 最佳化：高效檢查前 3 個注音符號（聲、介、韻）
       phonabets.prefix(3).contains { !$0.isEmpty }
     }
 
@@ -151,7 +151,7 @@ extension Tekkon {
     /// 清除自身的內容，就是將聲介韻調全部清空。
     /// 嚴格而言，「注音排列」這個屬性沒有需要清空的概念，只能用 ensureParser 參數變更之。
     public mutating func clear() {
-      // Optimized: clear all phonabets in contiguous memory efficiently
+      // 最佳化：高效清除連續記憶體中的所有注音符號
       for i in phonabets.indices {
         phonabets[i].clear()
       }
@@ -287,7 +287,7 @@ extension Tekkon {
           if vowel =~ "ㄜ" { vowel <~ "ㄝ" }
           if vowel =~ "ㄝ" { thePhone <~ "ㄩ" }
         case "ㄅ", "ㄆ", "ㄇ", "ㄈ":
-          // Optimized: avoid string allocation for checking "ㄨㄛ" and "ㄨㄥ"
+          // 最佳化：避免檢查「ㄨㄛ」和「ㄨㄥ」時的字符串配置
           if semivowel =~ "ㄨ", vowel =~ "ㄛ" || vowel =~ "ㄥ" { semivowel.clear() }
         default: break
         }
@@ -361,7 +361,7 @@ extension Tekkon {
           romajiBuffer = String(romajiBuffer.dropLast())
         }
       } else {
-        // Optimized: iterate backwards through phonabets to find the last non-empty one
+        // 最佳化：向後迭代注音符號以找到最後一個非空的
         for i in phonabets.indices.reversed() where !phonabets[i].isEmpty {
           phonabets[i].clear()
           return
@@ -801,7 +801,7 @@ extension Tekkon {
     /// 動態佈局按鍵轉譯快取，用於提升效能
     private static let dynamicLayoutCache = DynamicLayoutCache()
 
-    /// Optimized phonabet storage using ContiguousArray for better cache locality and memory efficiency
+    /// 使用 ContiguousArray 的最佳化注音符號儲存，提供更好的快取局部性和記憶體效率
     private var phonabets: ContiguousArray<Phonabet>
   }
 }

@@ -4,7 +4,7 @@
 
 import Foundation
 
-// MARK: - DynamicLayoutCache
+// MARK: - 動態佈局快取
 
 /// 動態佈局效能快取，用於快取按鍵轉譯結果以提升動態佈局的輸入效能
 internal final class DynamicLayoutCache: @unchecked Sendable {
@@ -95,7 +95,7 @@ internal final class DynamicLayoutCache: @unchecked Sendable {
   private var cache: [CacheKey: Unicode.Scalar?] = [:]
 }
 
-// MARK: - CharacterSet Extensions for Performance
+// MARK: - 性能用字符集擴展
 
 extension String {
   /// 高效能字符檢查，使用 CharacterSet 取代 contains
@@ -104,7 +104,7 @@ extension String {
   }
 }
 
-// MARK: - Performance Constants
+// MARK: - 性能常數
 
 extension Tekkon {
   /// 高效能字符集，用於快速字符檢查

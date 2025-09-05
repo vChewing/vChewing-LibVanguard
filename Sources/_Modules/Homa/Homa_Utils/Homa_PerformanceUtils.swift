@@ -4,9 +4,9 @@
 
 import Foundation
 
-// MARK: - StringInternPool
+// MARK: - 字符串拘留池
 
-/// String interning pool to reduce memory allocations for frequently used strings
+/// 字符串拘留池，用於減少常用字符串的記憶體配置
 @usableFromInline
 final class StringInternPool: @unchecked Sendable {
   // MARK: Internal
@@ -39,9 +39,9 @@ final class StringInternPool: @unchecked Sendable {
   private let lock = NSLock()
 }
 
-// MARK: - ObjectPool
+// MARK: - 對象池
 
-/// Object pool for frequently allocated temporary objects
+/// 用於頻繁配置臨時對象的對象池
 @usableFromInline
 final class ObjectPool<T> {
   // MARK: Lifecycle
@@ -80,9 +80,9 @@ final class ObjectPool<T> {
   private let lock = NSLock()
 }
 
-// MARK: - StringOperationCache
+// MARK: - 字符串操作快取
 
-/// Cache for frequently computed string operations
+/// 用於頻繁計算的字符串操作快取
 @usableFromInline
 final class StringOperationCache: @unchecked Sendable {
   // MARK: Internal
@@ -101,7 +101,7 @@ final class StringOperationCache: @unchecked Sendable {
 
       let result = string.split(separator: separator).map(String.init)
 
-      // Prevent unbounded cache growth
+      // 防止快取無限制增長
       if splitCache.count < maxCacheSize {
         splitCache[key] = result
       }
@@ -121,7 +121,7 @@ final class StringOperationCache: @unchecked Sendable {
 
       let result = strings.joined(separator: separator)
 
-      // Prevent unbounded cache growth
+      // 防止快取無限制增長
       if joinCache.count < maxCacheSize {
         joinCache[key] = result
       }

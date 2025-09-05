@@ -2,7 +2,7 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-/// The namespace for this package.
+/// 此套件的命名空間。
 public enum Tekkon {
   // MARK: Public
 
@@ -27,9 +27,9 @@ public enum Tekkon {
   /// 引擎僅接受這些記號作為聲調
   public static let allowedIntonations: [Unicode.Scalar] = [" ", "ˊ", "ˇ", "ˋ", "˙"]
 
-  // MARK: - Performance-Optimized Scalar Sets for Hot Paths
+  // MARK: - 針對熱路徑的性能最佳化純量集合
 
-  /// Pre-computed sets for frequent comparisons to avoid string allocations
+  /// 針對頻繁比較的預計算集合，以避免字符串配置
   public static let scalarSet_BPMF: Set<Unicode.Scalar> = ["ㄅ", "ㄆ", "ㄇ", "ㄈ"]
   public static let scalarSet_NL: Set<Unicode.Scalar> = ["ㄋ", "ㄌ"]
   public static let scalarSet_U: Set<Unicode.Scalar> = ["ㄨ"]

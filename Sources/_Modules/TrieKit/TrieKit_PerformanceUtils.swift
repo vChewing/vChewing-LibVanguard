@@ -4,9 +4,9 @@
 
 import Foundation
 
-// MARK: - TrieStringPool
+// MARK: - 樹狀索引字符串拘留池
 
-/// String interning pool specifically optimized for trie operations
+/// 專為樹狀索引操作最佳化的字符串拘留池
 @usableFromInline
 final class TrieStringPool: @unchecked Sendable {
   // MARK: Internal
@@ -53,9 +53,9 @@ final class TrieStringPool: @unchecked Sendable {
   private let lock = NSLock()
 }
 
-// MARK: - TrieStringOperationCache
+// MARK: - 樹狀索引字符串操作快取
 
-/// Optimized string operations cache for trie-specific patterns
+/// 針對樹狀索引特定模式最佳化的字符串操作快取
 @usableFromInline
 final class TrieStringOperationCache: @unchecked Sendable {
   // MARK: Internal
@@ -73,7 +73,7 @@ final class TrieStringOperationCache: @unchecked Sendable {
 
       let result = string.split(separator: separator).map(String.init)
 
-      // Prevent unbounded cache growth
+      // 防止快取無限制增長
       if splitCache.count < maxCacheSize {
         splitCache[key] = result
       }
@@ -91,7 +91,7 @@ final class TrieStringOperationCache: @unchecked Sendable {
 
       let result = string.first?.description ?? ""
 
-      // Prevent unbounded cache growth
+      // 防止快取無限制增長
       if firstCharCache.count < maxCacheSize {
         firstCharCache[string] = result
       }
@@ -113,5 +113,5 @@ final class TrieStringOperationCache: @unchecked Sendable {
   private var splitCache: [String: [String]] = [:]
   private var firstCharCache: [String: String] = [:]
   private let lock = NSLock()
-  private let maxCacheSize = 2_000 // Larger cache for trie operations
+  private let maxCacheSize = 2_000 // 樹狀索引操作使用較大的快取
 }

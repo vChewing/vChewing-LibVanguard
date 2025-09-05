@@ -38,7 +38,7 @@ struct TekkonPerformanceTests {
       )
 
       // 效能期望：每次迭代應該在35ms以內完成（包含12個測試序列）
-      // Adjusted from 25ms to 35ms for better reliability across different environments
+      // 從 25ms 調整為 35ms 以在不同環境中提供更好的可靠性
       #expect(
         avgTime < 0.035,
         "Performance regression: \(parser.nameTag) took \(avgTimeStr)s per iteration"
@@ -50,7 +50,7 @@ struct TekkonPerformanceTests {
   @Test("[Tekkon] MemoryOptimizationTest")
   func testMemoryOptimization() async throws {
     let testSequences = ["ba", "pa", "ma", "fa", "da", "ta", "na", "la"]
-    let iterations = 50 // Increase iterations to make performance difference more significant
+    let iterations = 50 // 增加迭代次數以產生更顯著的性能差異
 
     // 測試物件重用 vs 重新建立
     let reuseStartTime = Date.now
@@ -81,9 +81,9 @@ struct TekkonPerformanceTests {
     print(" -> [Tekkon] Object reuse: \(reuseTimeStr)s vs recreation: \(recreateTimeStr)s")
     print(" -> [Tekkon] Memory optimization improvement: \(improvementStr)%")
 
-    // Allow for variance in performance measurement - within 50% is acceptable
-    // With ContiguousArray optimization, object creation is now very efficient,
-    // so reuse may not always show significant advantage
+    // 允許性能測量的變異性 - 50% 內是可接受的
+    // 經過 ContiguousArray 最佳化，物件建立現在非常高效，
+    // 因此重複使用可能並不總是顯示顯著優勢
     let performanceTolerance = recreateTime * 0.5
     let isReuseFasterOrComparable = reuseTime <= (recreateTime + performanceTolerance)
 

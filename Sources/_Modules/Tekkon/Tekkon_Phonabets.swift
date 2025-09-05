@@ -178,7 +178,7 @@ extension Tekkon {
 
     public var type: PhoneType = .null
 
-    /// This returns "~" if the phonabet is considered null.
+    /// 注音符號被視為空時回傳「~」。
     public private(set) var scalarValue: Unicode.Scalar = .init(unicodeScalarLiteral: "~")
 
     public var value: String {
@@ -186,12 +186,12 @@ extension Tekkon {
       return String(Character(scalarValue))
     }
 
-    /// Optimized character access without String allocation
+    /// 最佳化的字符存取，避免字符串配置
     public var character: Character? {
       isValid ? Character(scalarValue) : nil
     }
 
-    /// Optimized scalar access for performance-critical operations
+    /// 針對性能敏感操作的最佳化純量存取
     public var scalar: Unicode.Scalar? { isValid ? scalarValue : nil }
 
     public var isEmpty: Bool { type == .null }
@@ -209,31 +209,31 @@ extension Tekkon {
       lhs.isValid && lhs.scalarValue == rhs
     }
 
-    /// Optimized concatenation using scalars to avoid intermediate String allocations
+    /// 使用純量的最佳化串接，避免中間字符串配置
     public static func +++ (lhs: Self, rhs: Self) -> String {
       guard lhs.isValid, rhs.isValid else {
         return lhs.isValid ? String(Character(lhs.scalarValue)) :
           rhs.isValid ? String(Character(rhs.scalarValue)) : ""
       }
       var result = String()
-      result.reserveCapacity(4) // Most Chinese characters need 3-4 bytes in UTF-8
+      result.reserveCapacity(4) // 大部分中文字符在 UTF-8 中需要 3-4 位元組
       result.unicodeScalars.append(lhs.scalarValue)
       result.unicodeScalars.append(rhs.scalarValue)
       return result
     }
 
-    /// Fast scalar-based equality check avoiding String allocation
+    /// 基於純量的快速等值檢查，避免字符串配置
     public func equals(_ scalar: Unicode.Scalar) -> Bool {
       isValid && scalarValue == scalar
     }
 
-    /// Fast string equality check with pre-computed scalar
+    /// 使用預計算純量的快速字符串等值檢查
     public func equals(_ string: String) -> Bool {
       guard isValid, string.unicodeScalars.count == 1 else { return false }
       return scalarValue == string.unicodeScalars.first!
     }
 
-    /// Check if this phonabet is contained in a string of scalars (optimized)
+    /// 檢查此注音符號是否包含在純量字串中（最佳化）
     public func isContained(in scalars: Set<Unicode.Scalar>) -> Bool {
       isValid && scalars.contains(scalarValue)
     }

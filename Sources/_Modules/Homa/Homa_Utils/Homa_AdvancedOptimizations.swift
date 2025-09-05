@@ -4,9 +4,9 @@
 
 import Foundation
 
-// MARK: - Advanced Performance Optimizations
+// MARK: - 進階性能最佳化
 
-/// Specialized cache for bigram score calculations to avoid repeated sorting and lookup operations
+/// 專門用於雙字組評分計算的快取，避免重複的排序與查找操作
 @usableFromInline
 final class BigramScoreCache: @unchecked Sendable {
   // MARK: Lifecycle
@@ -29,7 +29,7 @@ final class BigramScoreCache: @unchecked Sendable {
   func setBigramScore(_ score: Double, for current: String, previous: String) {
     lock.withLock {
       if cache.count >= maxCacheSize {
-        // Simple LRU-like behavior: remove first entries when cache is full
+        // 簡易 LRU 式行為：當快取滿時移除最早的條目
         let keysToRemove = Array(cache.keys.prefix(maxCacheSize / 4))
         for key in keysToRemove {
           cache.removeValue(forKey: key)

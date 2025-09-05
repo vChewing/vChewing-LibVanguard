@@ -4,23 +4,23 @@
 
 import Foundation
 
-// MARK: - SIMDStringOps
+// MARK: - SIMD字符串操作
 
-/// SIMD-optimized string operations for better performance
+/// 為提升性能的 SIMD 最佳化字符串操作
 @usableFromInline
 enum SIMDStringOps {
-  /// Fast string comparison optimized for phonetic keys
+  /// 針對語音鍵最佳化的快速字符串比較
   @usableFromInline
   static func fastCompare(_ lhs: String, _ rhs: String) -> Bool {
-    // For short strings common in phonetic input, direct comparison is often fastest
+    // 對於語音輸入中常見的短字符串，直接比較通常是最快的
     guard lhs.count == rhs.count else { return false }
 
-    // For very short strings (common case), use direct comparison
+    // 對於非常短的字符串（常見情況），使用直接比較
     if lhs.count <= 8 {
       return lhs == rhs
     }
 
-    // For longer strings, use optimized comparison
+    // 對於較長的字符串，使用最佳化比較
     return lhs.withCString { lhsPtr in
       rhs.withCString { rhsPtr in
         memcmp(lhsPtr, rhsPtr, lhs.utf8.count) == 0
@@ -28,16 +28,16 @@ enum SIMDStringOps {
     }
   }
 
-  /// Fast hash computation for strings
+  /// 字符串的快速雜湊計算
   @usableFromInline
   static func fastHash(_ string: String) -> Int {
     var hasher = Hasher()
 
-    // Use more efficient hashing for common short strings
+    // 對常見的短字符串使用更高效的雜湊
     if string.count <= 16 {
       hasher.combine(string)
     } else {
-      // For longer strings, hash in chunks for better performance
+      // 對於較長的字符串，分塊雜湊以獲得更好的性能
       let utf8 = string.utf8
       var chunks = utf8.makeIterator()
       while let chunk = chunks.next() {
@@ -48,15 +48,15 @@ enum SIMDStringOps {
     return hasher.finalize()
   }
 
-  /// Optimized prefix checking for partial matching
+  /// 針對部分匹配的最佳化前綴檢查
   @usableFromInline
   static func hasPrefix(_ string: String, _ prefix: String) -> Bool {
     guard string.count >= prefix.count else { return false }
 
-    // Fast path for empty prefix
+    // 空前綴的快速路徑
     if prefix.isEmpty { return true }
 
-    // Use optimized implementation for common case
+    // 針對常見情況使用最佳化實作
     if prefix.count <= 4 {
       let stringPrefix = string.prefix(prefix.count)
       return String(stringPrefix) == prefix
@@ -66,9 +66,9 @@ enum SIMDStringOps {
   }
 }
 
-// MARK: - PhoneticTrieNode
+// MARK: - 語音樹狀節點
 
-/// A specialized trie node designed for phonetic input patterns
+/// 專為語音輸入模式設計的特化樹狀節點
 @usableFromInline
 struct PhoneticTrieNode {
   // MARK: Lifecycle
@@ -102,7 +102,7 @@ struct PhoneticTrieNode {
     let firstChar = String(key.first!)
     let remainder = String(key.dropFirst())
 
-    // Find or create child node
+    // 尋找或建立子節點
     for i in children.indices {
       if children[i].key == firstChar {
         children[i].node.insert(remainder, value: value)
@@ -110,12 +110,12 @@ struct PhoneticTrieNode {
       }
     }
 
-    // Create new child
+    // 建立新的子節點
     var newNode = Self()
     newNode.insert(remainder, value: value)
     children.append((key: firstChar, node: newNode))
 
-    // Keep children sorted for binary search
+    // 保持子節點排序以進行二元搜尋
     if children.count > 8 {
       children.sort { $0.key < $1.key }
     }
@@ -130,7 +130,7 @@ struct PhoneticTrieNode {
     let firstChar = String(key.first!)
     let remainder = String(key.dropFirst())
 
-    // Binary search for larger child arrays
+    // 對較大的子陣列進行二元搜尋
     if children.count > 8 {
       var left = 0
       var right = children.count - 1
@@ -150,7 +150,7 @@ struct PhoneticTrieNode {
       }
       return []
     } else {
-      // Linear search for small arrays
+      // 對小陣列進行線性搜尋
       for (childKey, childNode) in children {
         if childKey == firstChar {
           return childNode.search(remainder)
@@ -161,9 +161,9 @@ struct PhoneticTrieNode {
   }
 }
 
-// MARK: - AtomicCache
+// MARK: - 原子快取
 
-/// A simple lock-free cache using atomic operations
+/// 使用原子操作的簡單無鎖快取
 @usableFromInline
 struct AtomicCache<Key: Hashable, Value> {
   // MARK: Lifecycle
@@ -195,7 +195,7 @@ struct AtomicCache<Key: Hashable, Value> {
     let bucketIndex = hash & bucketMask
     let bucket = buckets[bucketIndex]
 
-    // Simple check without complex atomic operations for now
+    // 目前使用簡單檢查，不使用複雜的原子操作
     if let storedKey = bucket.key, storedKey == key {
       return bucket.value
     }
