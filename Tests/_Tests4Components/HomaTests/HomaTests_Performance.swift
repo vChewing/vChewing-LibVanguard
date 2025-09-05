@@ -19,14 +19,14 @@ public struct HomaPerformanceTests: HomaTestSuite {
     // 構築一份更複雜的測試資料。這次使用繁體中文。
 
     let testSentences = [
-      "ㄙㄨㄛˇ-ㄨㄟˋ-ㄎㄞ-ㄊㄨㄛˋ", // 所謂開拓
-      "ㄐㄧㄡˋ-ㄕˋ-ㄧㄢˊ-ㄓㄜ˙-ㄑㄧㄢˊ-ㄖㄣˊ-ㄨㄟˋ-ㄐㄧㄣˋ-ㄉㄜ˙-ㄉㄠˋ-ㄌㄨˋ", // 就是沿著前人未盡的道路
-      "ㄗㄡˇ-ㄔㄨ-ㄍㄥ-ㄧㄠˊ-ㄩㄢˇ-ㄉㄜ˙-ㄐㄩˋ-ㄌㄧˊ", // 走出更遙遠的距離
-      "ㄧㄣ-ㄨㄟˊ-ㄎㄞ-ㄊㄨㄛˋ-ㄉㄜ˙-ㄉㄠˋ-ㄌㄨˋ", // 因為開拓的道路
-      "ㄘㄨㄥˊ-ㄌㄞˊ-ㄅㄨˋ-ㄧㄡˊ-ㄊㄚ-ㄖㄣˊ-ㄆㄨ-ㄐㄧㄡˋ", // 從來不由他人鋪就
+      "suo3-wei4-kai1-tuo4", // 所謂開拓
+      "jiu4-shi4-yan2-zhe5-qian2-ren2-wei4-jin4-de5-dao4-lu4", // 就是沿著前人未盡的道路
+      "zou3-chu1-geng1-yao2-yuan3-de5-ju4-li2", // 走出更遙遠的距離
+      "yin1-wei2-kai1-tuo4-de5-dao4-lu4", // 因為開拓的道路
+      "cong2-lai2-bu4-you2-ta1-ren2-pu1-jiu4", // 從來不由他人鋪就
     ]
 
-    let mockLM = TestLM(rawData: createExtensiveMockData())
+    let mockLM = TestLM(rawData: strLMSampleDataTrailblazing)
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) },
       gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -75,10 +75,10 @@ public struct HomaPerformanceTests: HomaTestSuite {
   func testTrieOperationsStress() async throws {
     print("// Starting Trie operations stress test")
 
-    let mockLM = TestLM(rawData: createExtensiveMockData())
+    let mockLM = TestLM(rawData: strLMSampleDataTrailblazing)
 
     // 測試查詢效能。
-    let keys = ["ㄙㄨㄛˇ", "ㄨㄟˋ", "ㄎㄞ", "ㄊㄨㄛˋ", "ㄐㄧㄡˋ", "ㄕˋ"]
+    let keys = ["suo3", "wei4", "kai1", "tuo4", "jiu4", "shi4"]
     let iterations = 1_000
 
     let queryTime = Self.measureTime {
@@ -105,7 +105,7 @@ public struct HomaPerformanceTests: HomaTestSuite {
   func testMemoryUsage() async throws {
     print("// Starting memory usage test")
 
-    let mockLM = TestLM(rawData: createExtensiveMockData())
+    let mockLM = TestLM(rawData: strLMSampleDataTrailblazing)
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) },
       gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -204,15 +204,15 @@ public struct HomaPerformanceTests: HomaTestSuite {
 
   private func generateRealisticChineseInput() -> (keys: [String], mockData: String) {
     // 生成複雜的擬真語言模型資料。
-    var mockData = createExtensiveMockData()
+    var mockData = strLMSampleDataTrailblazing
 
     // 建立真實的中文注音輸入模式 - 使用與 Mock 資料對應的注音符號
     let knownBopomofo = [
       "ㄙㄨㄛˇ", "ㄨㄟˋ", "ㄎㄞ", "ㄊㄨㄛˋ", "ㄐㄧㄡˋ", "ㄕˋ",
-      "ㄧㄢˊ", "ㄓㄜ˙", "ㄑㄧㄢˊ", "ㄖㄣˊ", "ㄐㄧㄣˋ", "ㄉㄜ˙", 
-      "ㄉㄠˋ", "ㄌㄨˋ", "ㄗㄡˇ", "ㄔㄨ", "ㄍㄥ", "ㄧㄠˊ", 
-      "ㄩㄢˇ", "ㄐㄩˋ", "ㄌㄧˊ", "ㄧㄣ", "ㄨㄟˊ", "ㄘㄨㄥˊ", 
-      "ㄌㄞˊ", "ㄅㄨˋ", "ㄧㄡˊ", "ㄊㄚ", "ㄆㄨ"
+      "ㄧㄢˊ", "ㄓㄜ˙", "ㄑㄧㄢˊ", "ㄖㄣˊ", "ㄐㄧㄣˋ", "ㄉㄜ˙",
+      "ㄉㄠˋ", "ㄌㄨˋ", "ㄗㄡˇ", "ㄔㄨ", "ㄍㄥ", "ㄧㄠˊ",
+      "ㄩㄢˇ", "ㄐㄩˋ", "ㄌㄧˊ", "ㄧㄣ", "ㄨㄟˊ", "ㄘㄨㄥˊ",
+      "ㄌㄞˊ", "ㄅㄨˋ", "ㄧㄡˊ", "ㄊㄚ", "ㄆㄨ",
     ]
 
     // 建立一些雙元圖組合
@@ -231,70 +231,5 @@ public struct HomaPerformanceTests: HomaTestSuite {
     }
 
     return (keys: keys, mockData: mockData)
-  }
-
-  private func createExtensiveMockData() -> String {
-    """
-    ㄙㄨㄛˇ 所 -3.2
-    ㄙㄨㄛˇ 索 -6.1
-    ㄨㄟˋ 謂 -3.8
-    ㄨㄟˋ 為 -4.2
-    ㄨㄟˋ 位 -5.3
-    ㄎㄞ 開 -3.5
-    ㄎㄞ 凱 -5.9
-    ㄊㄨㄛˋ 拓 -4.1
-    ㄊㄨㄛˋ 托 -5.2
-    ㄐㄧㄡˋ 就 -3.7
-    ㄐㄧㄡˋ 舊 -5.4
-    ㄕˋ 是 -3.1
-    ㄕˋ 事 -4.8
-    ㄕˋ 世 -5.2
-    ㄧㄢˊ 沿 -4.3
-    ㄧㄢˊ 言 -5.1
-    ㄓㄜ˙ 著 -3.9
-    ㄓㄜ˙ 者 -4.7
-    ㄑㄧㄢˊ 前 -3.6
-    ㄑㄧㄢˊ 錢 -5.8
-    ㄖㄣˊ 人 -3.4
-    ㄖㄣˊ 仁 -6.2
-    ㄨㄟˋ 未 -4.1
-    ㄐㄧㄣˋ 盡 -4.5
-    ㄐㄧㄣˋ 進 -4.9
-    ㄉㄜ˙ 的 -2.8
-    ㄉㄠˋ 道 -3.7
-    ㄉㄠˋ 到 -4.3
-    ㄌㄨˋ 路 -4.2
-    ㄌㄨˋ 露 -6.1
-    ㄗㄡˇ 走 -3.9
-    ㄗㄡˇ 揍 -6.7
-    ㄔㄨ 出 -3.8
-    ㄔㄨ 初 -5.4
-    ㄍㄥ 更 -4.1
-    ㄍㄥ 耕 -6.3
-    ㄧㄠˊ 遙 -4.8
-    ㄧㄠˊ 搖 -5.9
-    ㄩㄢˇ 遠 -4.2
-    ㄩㄢˇ 院 -5.6
-    ㄐㄩˋ 距 -4.7
-    ㄐㄩˋ 巨 -5.3
-    ㄌㄧˊ 離 -4.1
-    ㄌㄧˊ 李 -5.8
-    ㄧㄣ 因 -3.8
-    ㄧㄣ 音 -5.2
-    ㄨㄟˊ 為 -3.5
-    ㄨㄟˊ 維 -5.7
-    ㄘㄨㄥˊ 從 -4.1
-    ㄘㄨㄥˊ 叢 -6.4
-    ㄌㄞˊ 來 -3.7
-    ㄌㄞˊ 萊 -5.9
-    ㄅㄨˋ 不 -3.2
-    ㄅㄨˋ 布 -5.1
-    ㄧㄡˊ 由 -4.3
-    ㄧㄡˊ 油 -5.4
-    ㄊㄚ 他 -3.6
-    ㄊㄚ 她 -4.1
-    ㄆㄨ 鋪 -4.9
-    ㄆㄨ 撲 -6.2
-    """
   }
 }
