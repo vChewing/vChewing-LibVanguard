@@ -203,7 +203,6 @@ struct TekkonTestsKeyboardArrangmentsDynamic {
     _ parserEnumerated: EnumeratedSequence<[Parser]>
       .Element
   ) async throws {
-    let idxRaw = parserEnumerated.offset
     let parser = parserEnumerated.element
     print(" -> [Tekkon] Preparing tests for dynamic keyboard handling...")
 
