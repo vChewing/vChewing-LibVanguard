@@ -3,6 +3,8 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 infix operator <~: AssignmentPrecedence
+infix operator +++: AdditionPrecedence
+infix operator =~: ComparisonPrecedence
 
 extension Tekkon {
   // MARK: - Dynamic Constants and Basic Enums
@@ -146,9 +148,9 @@ extension Tekkon {
 
   // MARK: - Phonabet Structure
 
-  /// 注音符號型別。本身與字串差不多，但卻只能被設定成一個注音符號字符。
+  /// 注音符號型別。本身與字串差不多，但卻只能被設定成一個注音符號字元。
   /// 然後會根據自身的 value 的內容值自動計算自身的 PhoneType 類型（聲介韻調假）。
-  /// 如果遇到被設為多個字符、或者字符不對的情況的話，value 會被清空、PhoneType 會變成 null。
+  /// 如果遇到被設為多個字元、或者字元不對的情況的話，value 會被清空、PhoneType 會變成 null。
   /// 賦值時最好直接重新 init 且一直用 let 來初期化 Phonabet。
   /// 其實 value 對外只讀，對內的話另有 valueStorage 代為存儲內容。這樣比較安全一些。
   @frozen
@@ -164,7 +166,7 @@ extension Tekkon {
       ensureType()
     }
 
-    /// 初期化，會根據傳入的 input 字串參數來自動判定自身的 PhoneType 類型屬性值。
+    /// 初期化，會根據傳入的 input Unicode Scalar 參數來自動判定自身的 PhoneType 類型屬性值。
     public init(_ input: Unicode.Scalar) {
       if allowedPhonabets.contains(input) {
         self.scalarValue = input
@@ -176,12 +178,21 @@ extension Tekkon {
 
     public var type: PhoneType = .null
 
+    /// 注音符號被視為空時回傳「~」。
     public private(set) var scalarValue: Unicode.Scalar = .init(unicodeScalarLiteral: "~")
 
     public var value: String {
       guard isValid else { return "" }
       return String(Character(scalarValue))
     }
+
+    /// 最佳化的字元存取，避免字串配置
+    public var character: Character? {
+      isValid ? Character(scalarValue) : nil
+    }
+
+    /// 針對效能敏感操作的最佳化純量存取
+    public var scalar: Unicode.Scalar? { isValid ? scalarValue : nil }
 
     public var isEmpty: Bool { type == .null }
     public var isValid: Bool { type != .null }
@@ -192,6 +203,39 @@ extension Tekkon {
 
     public static func + (lhs: Self, rhs: Self) -> String {
       lhs.value + rhs.value
+    }
+
+    public static func =~ (lhs: Tekkon.Phonabet, rhs: Unicode.Scalar) -> Bool {
+      lhs.isValid && lhs.scalarValue == rhs
+    }
+
+    /// 使用純量的最佳化串接，避免中間字串配置
+    public static func +++ (lhs: Self, rhs: Self) -> String {
+      guard lhs.isValid, rhs.isValid else {
+        return lhs.isValid ? String(Character(lhs.scalarValue)) :
+          rhs.isValid ? String(Character(rhs.scalarValue)) : ""
+      }
+      var result = String()
+      result.reserveCapacity(4) // 大部分中文字元在 UTF-8 中需要 3-4 位元組
+      result.unicodeScalars.append(lhs.scalarValue)
+      result.unicodeScalars.append(rhs.scalarValue)
+      return result
+    }
+
+    /// 基於純量的快速等值檢查，避免字串配置
+    public func equals(_ scalar: Unicode.Scalar) -> Bool {
+      isValid && scalarValue == scalar
+    }
+
+    /// 使用預計算純量的快速字串等值檢查
+    public func equals(_ string: String) -> Bool {
+      guard isValid, string.unicodeScalars.count == 1 else { return false }
+      return scalarValue == string.unicodeScalars.first!
+    }
+
+    /// 檢查此注音符號是否包含在純量字串中（最佳化）
+    public func isContained(in scalars: Set<Unicode.Scalar>) -> Bool {
+      isValid && scalars.contains(scalarValue)
     }
 
     /// 自我清空內容。

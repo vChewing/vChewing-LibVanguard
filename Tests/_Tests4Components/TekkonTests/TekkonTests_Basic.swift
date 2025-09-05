@@ -7,6 +7,7 @@ import Testing
 
 // MARK: - TekkonTestsBasic
 
+@MainActor
 @Suite(.serialized)
 struct TekkonTestsBasic {
   @Test("[Tekkon] TestCoverage")
