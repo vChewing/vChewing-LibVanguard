@@ -87,7 +87,7 @@ struct HybridPriorityQueue<T: Comparable> {
   private let isReversed: Bool
 
   private mutating func switchToHeap() {
-    heap = Heap(array: Array(sortedArray), sort: isReversed ? (>) : (<))
+    heap = Heap(array: Array(sortedArray), sort: isReversed ? { $0 > $1 } : { $0 < $1 })
     sortedArray.removeAll(keepingCapacity: true)
     usingArray = false
   }
