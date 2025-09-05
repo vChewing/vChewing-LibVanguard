@@ -259,20 +259,25 @@ extension Tekkon {
           if semivowel.isContained(in: Tekkon.scalarSet_U) { semivowel <~ "ㄩ" }
         case "ㄛ", "ㄥ":
           if phonabet == "ㄛ", semivowel.equals("ㄩ") { semivowel <~ "ㄨ" }
-          if consonant.isContained(in: Tekkon.scalarSet_BPMF), semivowel.equals("ㄨ") { semivowel.clear() }
+          if consonant.isContained(in: Tekkon.scalarSet_BPMF),
+             semivowel.equals("ㄨ") { semivowel.clear() }
         case "ㄟ":
-          if consonant.isContained(in: Tekkon.scalarSet_NL), semivowel.equals("ㄨ") { semivowel.clear() }
+          if consonant.isContained(in: Tekkon.scalarSet_NL),
+             semivowel.equals("ㄨ") { semivowel.clear() }
         case "ㄨ":
-          if consonant.isContained(in: Tekkon.scalarSet_BPMF), vowel.isContained(in: Tekkon.scalarSet_ENG) { vowel.clear() }
-          if consonant.isContained(in: Tekkon.scalarSet_NL), vowel.isContained(in: Tekkon.scalarSet_EI) { vowel.clear() }
+          if consonant.isContained(in: Tekkon.scalarSet_BPMF),
+             vowel.isContained(in: Tekkon.scalarSet_ENG) { vowel.clear() }
+          if consonant.isContained(in: Tekkon.scalarSet_NL),
+             vowel.isContained(in: Tekkon.scalarSet_EI) { vowel.clear() }
           if vowel.equals("ㄜ") { vowel <~ "ㄝ" }
           if vowel.equals("ㄝ") { thePhone <~ "ㄩ" }
         case "ㄅ", "ㄆ", "ㄇ", "ㄈ":
           // Optimized: avoid string allocation for checking "ㄨㄛ" and "ㄨㄥ"
-          if semivowel.equals("ㄨ") && (vowel.equals("ㄛ") || vowel.equals("ㄥ")) { semivowel.clear() }
+          if semivowel.equals("ㄨ"), vowel.equals("ㄛ") || vowel.equals("ㄥ") { semivowel.clear() }
         default: break
         }
-        if [.vowel, .intonation].contains(thePhone.type), consonant.isContained(in: Tekkon.scalarSet_ZhChShZCiSi) {
+        if [.vowel, .intonation].contains(thePhone.type),
+           consonant.isContained(in: Tekkon.scalarSet_ZhChShZCiSi) {
           switch (semivowel.scalar, consonant.scalar) {
           case ("ㄧ", _): semivowel.clear()
           case ("ㄩ", "ㄓ"), ("ㄩ", "ㄗ"): consonant <~ "ㄐ"
@@ -678,7 +683,8 @@ extension Tekkon {
           vowel.clear()
           strReturn = "ㄩ"
         default:
-          strReturn = (!semivowel.isEmpty || !consonant.isContained(in: Tekkon.scalarSet_JQX)) ? "ㄡ" : "ㄩ"
+          strReturn = (!semivowel.isEmpty || !consonant.isContained(in: Tekkon.scalarSet_JQX)) ?
+            "ㄡ" : "ㄩ"
         }
       case "u":
         switch (semivowel.scalar, vowel.scalar) {

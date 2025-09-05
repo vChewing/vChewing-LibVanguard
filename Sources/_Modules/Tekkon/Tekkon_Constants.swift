@@ -27,13 +27,8 @@ public enum Tekkon {
   /// 引擎僅接受這些記號作為聲調
   public static let allowedIntonations: [Unicode.Scalar] = [" ", "ˊ", "ˇ", "ˋ", "˙"]
 
-  /// 引擎僅接受這些記號作為注音（聲介韻調四個集合加起來）
-  public static var allowedPhonabets: [Unicode.Scalar] {
-    allowedConsonants + allowedSemivowels + allowedVowels + allowedIntonations
-  }
-  
   // MARK: - Performance-Optimized Scalar Sets for Hot Paths
-  
+
   /// Pre-computed sets for frequent comparisons to avoid string allocations
   public static let scalarSet_BPMF: Set<Unicode.Scalar> = ["ㄅ", "ㄆ", "ㄇ", "ㄈ"]
   public static let scalarSet_NL: Set<Unicode.Scalar> = ["ㄋ", "ㄌ"]
@@ -45,6 +40,11 @@ public enum Tekkon {
   public static let scalarSet_EI: Set<Unicode.Scalar> = ["ㄟ"]
   public static let scalarSet_E: Set<Unicode.Scalar> = ["ㄜ"]
   public static let scalarSet_EH: Set<Unicode.Scalar> = ["ㄝ"]
+
+  /// 引擎僅接受這些記號作為注音（聲介韻調四個集合加起來）
+  public static var allowedPhonabets: [Unicode.Scalar] {
+    allowedConsonants + allowedSemivowels + allowedVowels + allowedIntonations
+  }
 
   // MARK: Internal
 

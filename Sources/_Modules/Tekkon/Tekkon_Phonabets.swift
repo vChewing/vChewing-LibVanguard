@@ -189,7 +189,7 @@ extension Tekkon {
       guard isValid else { return Character("") }
       return Character(scalarValue)
     }
-    
+
     /// Optimized scalar access for performance-critical operations
     public var scalar: Unicode.Scalar { scalarValue }
 
@@ -203,12 +203,12 @@ extension Tekkon {
     public static func + (lhs: Self, rhs: Self) -> String {
       lhs.value + rhs.value
     }
-    
+
     /// Optimized concatenation using scalars to avoid intermediate String allocations
     public static func +++ (lhs: Self, rhs: Self) -> String {
-      guard lhs.isValid && rhs.isValid else {
-        return lhs.isValid ? String(Character(lhs.scalarValue)) : 
-               rhs.isValid ? String(Character(rhs.scalarValue)) : ""
+      guard lhs.isValid, rhs.isValid else {
+        return lhs.isValid ? String(Character(lhs.scalarValue)) :
+          rhs.isValid ? String(Character(rhs.scalarValue)) : ""
       }
       var result = String()
       result.reserveCapacity(4) // Most Chinese characters need 3-4 bytes in UTF-8
@@ -216,18 +216,18 @@ extension Tekkon {
       result.unicodeScalars.append(rhs.scalarValue)
       return result
     }
-    
+
     /// Fast scalar-based equality check avoiding String allocation
     public func equals(_ scalar: Unicode.Scalar) -> Bool {
       isValid && scalarValue == scalar
     }
-    
+
     /// Fast string equality check with pre-computed scalar
     public func equals(_ string: String) -> Bool {
       guard isValid, string.unicodeScalars.count == 1 else { return false }
       return scalarValue == string.unicodeScalars.first!
     }
-    
+
     /// Check if this phonabet is contained in a string of scalars (optimized)
     public func isContained(in scalars: Set<Unicode.Scalar>) -> Bool {
       isValid && scalars.contains(scalarValue)
