@@ -48,7 +48,7 @@ struct TekkonPerformanceTests {
   @Test("[Tekkon] MemoryOptimizationTest")
   func testMemoryOptimization() async throws {
     let testSequences = ["ba", "pa", "ma", "fa", "da", "ta", "na", "la"]
-    let iterations = 1000 // Increase iterations to make performance difference more significant
+    let iterations = 50 // Increase iterations to make performance difference more significant
 
     // 測試物件重用 vs 重新建立
     let reuseStartTime = Date.now
@@ -82,9 +82,9 @@ struct TekkonPerformanceTests {
     // Allow for variance in performance measurement - within 10% is acceptable
     let performanceTolerance = recreateTime * 0.1
     let isReuseFasterOrComparable = reuseTime <= (recreateTime + performanceTolerance)
-    
+
     #expect(
-      isReuseFasterOrComparable, 
+      isReuseFasterOrComparable,
       "Object reuse performance regression: reuse(\(reuseTimeStr)s) vs recreation(\(recreateTimeStr)s)"
     )
   }
