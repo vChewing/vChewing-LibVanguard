@@ -130,6 +130,94 @@ public struct HomaPerformanceTests: HomaTestSuite {
     #expect(testTime < 1.0, "Memory usage test should complete in under 1 second, took \(testTime)s")
   }
   
+  @Test("[Performance] Advanced Optimizations Benchmark")
+  func testAdvancedOptimizations() async throws {
+    print("// Starting advanced optimizations benchmark")
+    
+    // Test with a much larger and more realistic dataset
+    let testData = generateRealisticChineseInput()
+    let mockLM = TestLM(rawData: testData.mockData)
+    
+    var totalTime: Double = 0
+    let iterations = 200 // More iterations for better measurement
+    
+    // Warmup phase to fill caches
+    for _ in 0..<10 {
+      let assembler = Homa.Assembler(
+        gramQuerier: { mockLM.queryGrams($0) },
+        gramAvailabilityChecker: { mockLM.hasGrams($0) }
+      )
+      
+      for key in testData.keys.prefix(5) {
+        try? assembler.insertKey(key)
+      }
+      _ = assembler.assemble()
+    }
+    
+    // Actual benchmark
+    for iteration in 0..<iterations {
+      let keys = testData.keys
+      
+      let iterationTime = Self.measureTime {
+        let assembler = Homa.Assembler(
+          gramQuerier: { mockLM.queryGrams($0) },
+          gramAvailabilityChecker: { mockLM.hasGrams($0) }
+        )
+        
+        do {
+          for key in keys {
+            try assembler.insertKey(key)
+          }
+          _ = assembler.assemble()
+        } catch {
+          // Handle error
+        }
+      }
+      
+      totalTime += iterationTime
+      
+      if iteration % 50 == 0 {
+        print("// Iteration \(iteration), time: \(iterationTime)s")
+      }
+    }
+    
+    let averageTime = totalTime / Double(iterations)
+    print("// Advanced benchmark - Average time: \(averageTime)s")
+    print("// Advanced benchmark - Total time: \(totalTime)s for \(iterations) iterations")
+    
+    // More lenient performance assertion for this advanced test
+    #expect(averageTime < 0.02, "Advanced benchmark should be under 20ms on average, was \(averageTime)s")
+  }
+  
+  private func generateRealisticChineseInput() -> (keys: [String], mockData: String) {
+    // Create realistic Chinese phonetic input patterns
+    let commonPinyins = [
+      "wo3", "ni3", "ta1", "de5", "shi4", "zai4", "you3", "le5", "ren2",
+      "yi1", "ge4", "shang4", "lai2", "dou1", "mei2", "qu4", "hao3",
+      "kan4", "jiu4", "zhe4", "yao4", "hui4", "dao4", "shuo1", "hen3"
+    ]
+    
+    // Generate test keys - simulate typing a longer sentence
+    var keys: [String] = []
+    for _ in 0..<15 { // Longer input sequence
+      keys.append(commonPinyins.randomElement()!)
+    }
+    
+    // Generate comprehensive mock language model data
+    var mockData = createExtensiveMockData()
+    
+    // Add more bigram combinations for realistic performance testing
+    for i in 0..<commonPinyins.count {
+      for j in 0..<commonPinyins.count {
+        let bigram = "\(commonPinyins[i])-\(commonPinyins[j])"
+        let weight = -7.0 - Double.random(in: 0...2)
+        mockData += "\n\(bigram) 测试\(i)\(j) \(weight)"
+      }
+    }
+    
+    return (keys: keys, mockData: mockData)
+  }
+
   private func createExtensiveMockData() -> String {
     return """
     ni3 你 -4.5
