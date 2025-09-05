@@ -47,9 +47,9 @@ extension HomaTestSuite {
     }
   }
 
-  static func measureTime(_ task: @escaping () -> ()) -> Double {
+  static func measureTime(_ task: @escaping () throws -> ()) rethrows -> Double {
     let startTime = Date.now.timeIntervalSince1970
-    task()
+    try task()
     return Date.now.timeIntervalSince1970 - startTime
   }
 }
@@ -232,7 +232,7 @@ public final class SimpleTrie {
     public internal(set) var parentID: Int?
     public internal(set) var character: String = ""
     public internal(set) var readingKey: String = "" // 新增：存儲節點對應的讀音鍵
-    public internal(set) var children: [String: Int] = [:] // 新的結構：字符 -> 子節點ID映射
+    public internal(set) var children: [String: Int] = [:] // 新的結構：字元 -> 子節點ID映射
 
     public static func == (
       lhs: TNode,
@@ -322,9 +322,12 @@ extension SimpleTrie {
     var currentNode = root
     var currentNodeID = 0
 
-    let key = readings.joined(separator: readingSeparator.description)
+    let key = StringOperationCache.shared.getCachedJoin(
+      readings,
+      separator: readingSeparator.description
+    )
 
-    // 遍歷關鍵字的每個字符
+    // 遍歷關鍵字的每個字元
     key.forEach { char in
       let charStr = char.description
       if let childNodeID = currentNode.children[charStr],
@@ -423,10 +426,10 @@ extension SimpleTrie {
     }
 
     var currentNode = root
-    // 遍歷關鍵字的每個字符
+    // 遍歷關鍵字的每個字元
     for char in key {
       let charStr = char.description
-      // 查找對應字符的子節點
+      // 查找對應字元的子節點
       guard let childNodeID = currentNode.children[charStr] else { return [] }
       guard let childNode = nodes[childNodeID] else { return [] }
       // 更新當前節點
@@ -442,7 +445,10 @@ extension SimpleTrie {
     readings: [String],
     entry: Entry
   )] {
-    let readings = node.readingKey.split(separator: readingSeparator).map(\.description)
+    let readings = StringOperationCache.shared.getCachedSplit(
+      node.readingKey,
+      separator: Character(readingSeparator)
+    )
     return node.entries.map { (readings: readings, entry: $0) }
   }
 
@@ -476,7 +482,10 @@ extension SimpleTrie {
       // 從 keyChainIDMap 中查找所有鍵
       keyChainIDMap.forEach { keyChain, nodeIDs in
         // 只處理那些至少和首個查詢鍵相符的鍵鏈
-        let keyComponents = keyChain.split(separator: readingSeparator).map(\.description)
+        let keyComponents = StringOperationCache.shared.getCachedSplit(
+          keyChain,
+          separator: Character(readingSeparator)
+        )
 
         // 檢查長度是否相符
         guard keyComponents.count == keys.count else { return }
