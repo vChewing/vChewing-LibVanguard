@@ -48,9 +48,9 @@ extension TrieKitTestSuite {
     }
   }
 
-  static func measureTime(_ task: @escaping () -> ()) -> Double {
+  static func measureTime(_ task: @escaping () throws -> ()) rethrows -> Double {
     let startTime = Date.now.timeIntervalSince1970
-    task()
+    try task()
     return Date.now.timeIntervalSince1970 - startTime
   }
 }
