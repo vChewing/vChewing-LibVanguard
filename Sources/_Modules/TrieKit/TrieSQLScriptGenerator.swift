@@ -19,7 +19,7 @@ extension VanguardTrie {
 
       // 設定優化參數，提高大量資料匯入速度
       sqlCommands.append("""
-      -- 設定性能優化參數
+      -- 設定效能優化參數
       PRAGMA cache_size=10000;
       PRAGMA page_size=8192;
       PRAGMA temp_store=MEMORY;
@@ -140,7 +140,7 @@ extension VanguardTrie {
       }
     }
 
-    /// 為 SQL 字串轉義，確保包含特殊字符（如分號）的字串能正確處理
+    /// 為 SQL 字串轉義，確保包含特殊字元（如分號）的字串能正確處理
     private static func escapeSQLString(_ input: String) -> String {
       // SQL 字串中單引號需要用兩個單引號表示
       input.replacingOccurrences(of: "'", with: "''")

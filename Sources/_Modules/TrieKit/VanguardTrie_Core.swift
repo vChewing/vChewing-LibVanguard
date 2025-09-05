@@ -269,7 +269,7 @@ extension VanguardTrie.Trie {
     }
     let keyInitialsStr = keyCells.joined()
 
-    // 遍歷關鍵字的每個字符
+    // 遍歷關鍵字的每個字元
     readings.forEach { nodeUnitStr in
       if let childNodeID = currentNode.children[nodeUnitStr],
          let matchedNode = nodes[childNodeID] {

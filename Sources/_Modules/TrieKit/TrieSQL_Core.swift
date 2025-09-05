@@ -44,7 +44,7 @@ extension VanguardTrie {
       // 啟用延遲事務
       if sqlite3_exec(database, "PRAGMA synchronous=OFF;", nil, nil, nil) != SQLITE_OK ||
         sqlite3_exec(database, "PRAGMA journal_mode=MEMORY;", nil, nil, nil) != SQLITE_OK {
-        Self.printDebug("無法優化資料庫性能: \(String(cString: sqlite3_errmsg(database)))")
+        Self.printDebug("無法優化資料庫效能: \(String(cString: sqlite3_errmsg(database)))")
       }
 
       var transactionBegun = false
