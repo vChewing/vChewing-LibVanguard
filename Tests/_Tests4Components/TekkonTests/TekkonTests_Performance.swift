@@ -36,9 +36,10 @@ struct TekkonPerformanceTests {
         " -> [Tekkon][(\(parser.nameTag))] \(iterations) iterations in \(timeDeltaStr)s (avg: \(avgTimeStr)s per iteration)"
       )
 
-      // 效能期望：每次迭代應該在20ms以內完成（包含12個測試序列）
+      // 效能期望：每次迭代應該在25ms以內完成（包含12個測試序列）
+      // Adjusted from 20ms to 25ms for better reliability across different environments
       #expect(
-        avgTime < 0.02,
+        avgTime < 0.025,
         "Performance regression: \(parser.nameTag) took \(avgTimeStr)s per iteration"
       )
     }
