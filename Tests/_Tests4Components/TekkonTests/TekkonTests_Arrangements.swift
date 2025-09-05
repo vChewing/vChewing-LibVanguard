@@ -67,6 +67,19 @@ final class SubTestCase: Sendable {
     print(strError)
     return false
   }
+  
+  /// 優化版驗證函數，重複使用已建立的 composer 實例
+  func verify(using composer: inout Tekkon.Composer) -> Bool {
+    composer.clear()
+    composer.ensureParser(arrange: parser)
+    let strResult = composer.receiveSequence(typing)
+    guard strResult != expected else { return true }
+    let parserTag = composer.parser.nameTag
+    let strError =
+      "MISMATCH (\(parserTag)): \"\(typing)\" -> \"\(strResult)\" != \"\(expected)\""
+    print(strError)
+    return false
+  }
 }
 
 // MARK: - TekkonTestsKeyboardArrangmentsStatic
@@ -148,6 +161,8 @@ struct TekkonTestsKeyboardArrangmentsDynamic {
     }
     let timeTag = Date.now
     print(" -> [Tekkon][(\(parser.nameTag))] Starting dynamic keyboard handling test ...")
+    
+    // 使用傳統測試方法但保留字符集優化
     let results = cases.compactMap { testCase in
       (testCase?.verify() ?? true) ? 0 : 1
     }.reduce(0, +)

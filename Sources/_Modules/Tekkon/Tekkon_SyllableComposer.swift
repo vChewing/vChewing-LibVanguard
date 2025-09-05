@@ -57,6 +57,9 @@ extension Tekkon {
 
     /// 是否對錯誤的注音讀音組合做出自動糾正處理。
     public var phonabetCombinationCorrectionEnabled = false
+    
+    /// 動態佈局按鍵轉譯快取，用於提升效能
+    private static let dynamicLayoutCache = DynamicLayoutCache()
 
     /// 內容值，會直接按照正確的順序拼裝自己的聲介韻調內容、再回傳。
     /// 注意：直接取這個參數的內容的話，陰平聲調會成為一個空格。
@@ -403,32 +406,51 @@ extension Tekkon {
     ///   - key: 傳入的 String 訊號。
     internal mutating func translate(key: Unicode.Scalar) -> Unicode.Scalar? {
       guard !isPinyinMode else { return nil }
+      
+      // 對於動態佈局，優先使用快取 (暫時停用以避免問題)
+      // if parser.isDynamic {
+      //   switch Self.dynamicLayoutCache.get(parser: parser, key: key, composer: self) {
+      //   case .found(let cachedResult):
+      //     return cachedResult
+      //   case .notFound:
+      //     break
+      //   }
+      // }
+      
+      let result: Unicode.Scalar?
       switch parser {
       case .ofDachen:
-        return Tekkon.mapQwertyDachen[key]
+        result = Tekkon.mapQwertyDachen[key]
       case .ofDachen26:
-        return handleDachen26(key: key)
+        result = handleDachen26(key: key)
       case .ofETen:
-        return Tekkon.mapQwertyETenTraditional[key]
+        result = Tekkon.mapQwertyETenTraditional[key]
       case .ofHsu:
-        return handleHsu(key: key)
+        result = handleHsu(key: key)
       case .ofETen26:
-        return handleETen26(key: key)
+        result = handleETen26(key: key)
       case .ofIBM:
-        return Tekkon.mapQwertyIBM[key]
+        result = Tekkon.mapQwertyIBM[key]
       case .ofMiTAC:
-        return Tekkon.mapQwertyMiTAC[key]
+        result = Tekkon.mapQwertyMiTAC[key]
       case .ofSeigyou:
-        return Tekkon.mapSeigyou[key]
+        result = Tekkon.mapSeigyou[key]
       case .ofFakeSeigyou:
-        return Tekkon.mapFakeSeigyou[key]
+        result = Tekkon.mapFakeSeigyou[key]
       case .ofStarlight:
-        return handleStarlight(key: key)
+        result = handleStarlight(key: key)
       case .ofAlvinLiu:
-        return handleAlvinLiu(key: key)
+        result = handleAlvinLiu(key: key)
       default:
-        return nil
+        result = nil
       }
+      
+      // 將動態佈局結果存入快取 (暫時停用)
+      // if parser.isDynamic {
+      //   Self.dynamicLayoutCache.set(result, parser: parser, key: key, composer: self)
+      // }
+      
+      return result
     }
 
     /// 所有動態注音排列都會用到的共用糾錯處理步驟。
@@ -469,8 +491,6 @@ extension Tekkon {
     internal mutating func handleETen26(key: Unicode.Scalar) -> Unicode.Scalar? {
       guard var strReturn = Tekkon.mapETen26StaticKeys[key] else { return nil }
 
-      let keysToHandleHere = "dfhjklmnpqtw"
-
       switch key {
       case "d" where isPronounceable: strReturn = "˙"
       case "f" where isPronounceable: strReturn = "ˊ"
@@ -488,7 +508,7 @@ extension Tekkon {
       default: break
       }
 
-      if keysToHandleHere.doesHave(key) {
+      if "dfhjklmnpqtw".doesHave(key) {
         receiveKey(fromPhonabet: strReturn)
       }
 
@@ -508,7 +528,7 @@ extension Tekkon {
       if value == "ㄍ˙" { consonant <~ "ㄑ" }
 
       // 這些按鍵在上文處理過了，就不要再回傳了。
-      if keysToHandleHere.doesHave(key) { return nil }
+      if "dfhjklmnpqtw".doesHave(key) { return nil }
 
       // 回傳結果是空字串的話，不要緊，因為上文已經代處理過分配過程了。
       return strReturn
@@ -521,8 +541,6 @@ extension Tekkon {
     ///   - key: 傳入的 String 訊號。
     internal mutating func handleHsu(key: Unicode.Scalar) -> Unicode.Scalar? {
       guard var strReturn = Tekkon.mapHsuStaticKeys[key] else { return nil }
-
-      let keysToHandleHere = "acdefghjklmns"
 
       switch key {
       case "d" where isPronounceable: strReturn = "ˊ"
@@ -549,7 +567,7 @@ extension Tekkon {
       default: break
       }
 
-      if keysToHandleHere.doesHave(key) {
+      if "acdefghjklmns".doesHave(key) {
         receiveKey(fromPhonabet: strReturn)
       }
 
@@ -573,7 +591,7 @@ extension Tekkon {
       if value == "ㄔ˙" { consonant <~ "ㄑ" }
 
       // 這些按鍵在上文處理過了，就不要再回傳了。
-      if keysToHandleHere.doesHave(key) { return nil }
+      if "acdefghjklmns".doesHave(key) { return nil }
 
       // 回傳結果是空的話，不要緊，因為上文已經代處理過分配過程了。
       return strReturn
@@ -587,8 +605,6 @@ extension Tekkon {
     internal mutating func handleStarlight(key: Unicode.Scalar) -> Unicode.Scalar? {
       guard var strReturn = Tekkon.mapStarlightStaticKeys[key] else { return nil }
 
-      let keysToHandleHere = "efgklmnt"
-
       switch key {
       case "e" where "ㄧㄩ".doesHave(semivowel.value): strReturn = "ㄝ"
       case "f" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄠ"
@@ -601,7 +617,7 @@ extension Tekkon {
       default: break
       }
 
-      if keysToHandleHere.doesHave(key) {
+      if "efgklmnt".doesHave(key) {
         receiveKey(fromPhonabet: strReturn)
       }
 
@@ -619,7 +635,7 @@ extension Tekkon {
       }
 
       // 這些按鍵在上文處理過了，就不要再回傳了。
-      if keysToHandleHere.doesHave(key) { return nil }
+      if "efgklmnt".doesHave(key) { return nil }
 
       // 回傳結果是空的話，不要緊，因為上文已經代處理過分配過程了。
       return strReturn
@@ -691,8 +707,6 @@ extension Tekkon {
       // 前置處理專有特殊情形。
       if strReturn != "ㄦ" && !vowel.isEmpty { fixValue("ㄦ", "ㄌ") }
 
-      let keysToHandleHere = "dfjlegnhkbmc"
-
       switch key {
       case "d" where isPronounceable: strReturn = "˙"
       case "f" where isPronounceable: strReturn = "ˊ"
@@ -709,7 +723,7 @@ extension Tekkon {
       default: break
       }
 
-      if keysToHandleHere.doesHave(key) {
+      if "dfjlegnhkbmc".doesHave(key) {
         receiveKey(fromPhonabet: strReturn)
       }
 
@@ -731,7 +745,7 @@ extension Tekkon {
       }
 
       // 這些按鍵在上文處理過了，就不要再回傳了。
-      if keysToHandleHere.doesHave(key) { return nil }
+      if "dfjlegnhkbmc".doesHave(key) { return nil }
 
       // 回傳結果是空字串的話，不要緊，因為上文已經代處理過分配過程了。
       return strReturn
