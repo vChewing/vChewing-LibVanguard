@@ -82,6 +82,64 @@ final class SubTestCase: Sendable {
   }
 }
 
+// MARK: - TestCaseBatch
+
+/// 批量測試案例處理器，用於減少記憶體分配
+struct TestCaseBatch {
+  let parser: Tekkon.MandarinParser
+  let testData: [(typing: String, expected: String)]
+  
+  init(parser: Tekkon.MandarinParser, rawData: String) {
+    self.parser = parser
+    var cases: [(String, String)] = []
+    var isTitleLine = true
+    let parserIndex = Self.getParserIndex(parser)
+    
+    rawData.parse(splitee: "\n") { theRange in
+      guard !isTitleLine else {
+        isTitleLine = false
+        return
+      }
+      let cells = rawData[theRange].split(separator: " ")
+      guard cells.count > parserIndex else { return }
+      let expected = cells[0].replacingOccurrences(of: "_", with: " ")
+      let typing = cells[parserIndex].description.replacingOccurrences(of: "_", with: " ")
+      guard typing.first != "`" else { return }
+      cases.append((typing: typing, expected: expected))
+    }
+    self.testData = cases
+  }
+  
+  func runTests() -> Int {
+    var composer = Tekkon.Composer(arrange: parser)
+    var failures = 0
+    
+    for testCase in testData {
+      composer.clear()
+      let strResult = composer.receiveSequence(testCase.typing)
+      if strResult != testCase.expected {
+        let parserTag = composer.parser.nameTag
+        let strError = "MISMATCH (\(parserTag)): \"\(testCase.typing)\" -> \"\(strResult)\" != \"\(testCase.expected)\""
+        print(strError)
+        failures += 1
+      }
+    }
+    
+    return failures
+  }
+  
+  private static func getParserIndex(_ parser: Tekkon.MandarinParser) -> Int {
+    switch parser {
+    case .ofDachen26: return 1
+    case .ofETen26: return 2  
+    case .ofHsu: return 3
+    case .ofStarlight: return 4
+    case .ofAlvinLiu: return 5
+    default: return 1
+    }
+  }
+}
+
 // MARK: - TekkonTestsKeyboardArrangmentsStatic
 
 @Suite(.serialized)
@@ -140,35 +198,19 @@ struct TekkonTestsKeyboardArrangmentsDynamic {
   ) async throws {
     let idxRaw = parserEnumerated.offset
     let parser = parserEnumerated.element
-    var cases = [SubTestCase?]()
     print(" -> [Tekkon] Preparing tests for dynamic keyboard handling...")
-    var isTitleLine = true
-    testTable4DynamicLayouts.parse(splitee: "\n") { theRange in
-      guard !isTitleLine else {
-        isTitleLine = false
-        return
-      }
-      let cells = testTable4DynamicLayouts[theRange].split(separator: " ")
-      let expected = cells[0]
-      let idx = idxRaw + 1
-      let typing = cells[idx]
-      let newTestCase = SubTestCase(
-        parser: parser,
-        typing: typing.description,
-        expected: expected.description
-      )
-      cases.append(newTestCase)
-    }
+    
+    // 使用批量處理器以提升效能
+    let testBatch = TestCaseBatch(parser: parser, rawData: testTable4DynamicLayouts)
+    
     let timeTag = Date.now
     print(" -> [Tekkon][(\(parser.nameTag))] Starting dynamic keyboard handling test ...")
     
-    // 使用傳統測試方法但保留字符集優化
-    let results = cases.compactMap { testCase in
-      (testCase?.verify() ?? true) ? 0 : 1
-    }.reduce(0, +)
+    let failures = testBatch.runTests()
+    
     #expect(
-      results == 0,
-      "[Failure] \(parser.nameTag) failed from being handled correctly with \(results) bad results."
+      failures == 0,
+      "[Failure] \(parser.nameTag) failed from being handled correctly with \(failures) bad results."
     )
     let timeDelta = Date.now.timeIntervalSince1970 - timeTag.timeIntervalSince1970
     let timeDeltaStr = String(format: "%.4f", timeDelta)
