@@ -8,6 +8,7 @@ import Testing
 
 // MARK: - TekkonPerformanceTests
 
+@MainActor
 @Suite(.serialized)
 struct TekkonPerformanceTests {
   /// 性能基準測試 - 動態佈局處理效能

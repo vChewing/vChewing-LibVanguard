@@ -149,6 +149,7 @@ struct TestCaseBatch {
 
 // MARK: - TekkonTestsKeyboardArrangmentsStatic
 
+@MainActor
 @Suite(.serialized)
 struct TekkonTestsKeyboardArrangmentsStatic {
   static func checkEq(
@@ -192,6 +193,8 @@ struct TekkonTestsKeyboardArrangmentsStatic {
 
 // MARK: - TekkonTestsKeyboardArrangmentsDynamic
 
+@MainActor
+@Suite(.serialized)
 struct TekkonTestsKeyboardArrangmentsDynamic {
   typealias Parser = Tekkon.MandarinParser
 
