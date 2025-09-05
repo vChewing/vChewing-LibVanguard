@@ -67,7 +67,7 @@ final class SubTestCase: Sendable {
     print(strError)
     return false
   }
-  
+
   /// 優化版驗證函數，重複使用已建立的 composer 實例
   func verify(using composer: inout Tekkon.Composer) -> Bool {
     composer.clear()
@@ -86,15 +86,14 @@ final class SubTestCase: Sendable {
 
 /// 批量測試案例處理器，用於減少記憶體分配
 struct TestCaseBatch {
-  let parser: Tekkon.MandarinParser
-  let testData: [(typing: String, expected: String)]
-  
+  // MARK: Lifecycle
+
   init(parser: Tekkon.MandarinParser, rawData: String) {
     self.parser = parser
     var cases: [(String, String)] = []
     var isTitleLine = true
     let parserIndex = Self.getParserIndex(parser)
-    
+
     rawData.parse(splitee: "\n") { theRange in
       guard !isTitleLine else {
         isTitleLine = false
@@ -109,29 +108,37 @@ struct TestCaseBatch {
     }
     self.testData = cases
   }
-  
+
+  // MARK: Internal
+
+  let parser: Tekkon.MandarinParser
+  let testData: [(typing: String, expected: String)]
+
   func runTests() -> Int {
     var composer = Tekkon.Composer(arrange: parser)
     var failures = 0
-    
+
     for testCase in testData {
       composer.clear()
       let strResult = composer.receiveSequence(testCase.typing)
       if strResult != testCase.expected {
         let parserTag = composer.parser.nameTag
-        let strError = "MISMATCH (\(parserTag)): \"\(testCase.typing)\" -> \"\(strResult)\" != \"\(testCase.expected)\""
+        let strError =
+          "MISMATCH (\(parserTag)): \"\(testCase.typing)\" -> \"\(strResult)\" != \"\(testCase.expected)\""
         print(strError)
         failures += 1
       }
     }
-    
+
     return failures
   }
-  
+
+  // MARK: Private
+
   private static func getParserIndex(_ parser: Tekkon.MandarinParser) -> Int {
     switch parser {
     case .ofDachen26: return 1
-    case .ofETen26: return 2  
+    case .ofETen26: return 2
     case .ofHsu: return 3
     case .ofStarlight: return 4
     case .ofAlvinLiu: return 5
@@ -199,15 +206,15 @@ struct TekkonTestsKeyboardArrangmentsDynamic {
     let idxRaw = parserEnumerated.offset
     let parser = parserEnumerated.element
     print(" -> [Tekkon] Preparing tests for dynamic keyboard handling...")
-    
+
     // 使用批量處理器以提升效能
     let testBatch = TestCaseBatch(parser: parser, rawData: testTable4DynamicLayouts)
-    
+
     let timeTag = Date.now
     print(" -> [Tekkon][(\(parser.nameTag))] Starting dynamic keyboard handling test ...")
-    
+
     let failures = testBatch.runTests()
-    
+
     #expect(
       failures == 0,
       "[Failure] \(parser.nameTag) failed from being handled correctly with \(failures) bad results."

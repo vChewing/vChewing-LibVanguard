@@ -57,9 +57,6 @@ extension Tekkon {
 
     /// 是否對錯誤的注音讀音組合做出自動糾正處理。
     public var phonabetCombinationCorrectionEnabled = false
-    
-    /// 動態佈局按鍵轉譯快取，用於提升效能
-    private static let dynamicLayoutCache = DynamicLayoutCache()
 
     /// 內容值，會直接按照正確的順序拼裝自己的聲介韻調內容、再回傳。
     /// 注意：直接取這個參數的內容的話，陰平聲調會成為一個空格。
@@ -406,7 +403,7 @@ extension Tekkon {
     ///   - key: 傳入的 String 訊號。
     internal mutating func translate(key: Unicode.Scalar) -> Unicode.Scalar? {
       guard !isPinyinMode else { return nil }
-      
+
       // 對於動態佈局，優先使用快取 (暫時停用以避免問題)
       // if parser.isDynamic {
       //   switch Self.dynamicLayoutCache.get(parser: parser, key: key, composer: self) {
@@ -416,7 +413,7 @@ extension Tekkon {
       //     break
       //   }
       // }
-      
+
       let result: Unicode.Scalar?
       switch parser {
       case .ofDachen:
@@ -444,12 +441,12 @@ extension Tekkon {
       default:
         result = nil
       }
-      
+
       // 將動態佈局結果存入快取 (暫時停用)
       // if parser.isDynamic {
       //   Self.dynamicLayoutCache.set(result, parser: parser, key: key, composer: self)
       // }
-      
+
       return result
     }
 
@@ -773,6 +770,11 @@ extension Tekkon {
       }
       receiveKey(fromPhonabet: strWith)
     }
+
+    // MARK: Private
+
+    /// 動態佈局按鍵轉譯快取，用於提升效能
+    private static let dynamicLayoutCache = DynamicLayoutCache()
   }
 }
 
