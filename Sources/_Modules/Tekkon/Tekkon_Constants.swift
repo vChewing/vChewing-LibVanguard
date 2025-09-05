@@ -31,6 +31,20 @@ public enum Tekkon {
   public static var allowedPhonabets: [Unicode.Scalar] {
     allowedConsonants + allowedSemivowels + allowedVowels + allowedIntonations
   }
+  
+  // MARK: - Performance-Optimized Scalar Sets for Hot Paths
+  
+  /// Pre-computed sets for frequent comparisons to avoid string allocations
+  public static let scalarSet_BPMF: Set<Unicode.Scalar> = ["ㄅ", "ㄆ", "ㄇ", "ㄈ"]
+  public static let scalarSet_NL: Set<Unicode.Scalar> = ["ㄋ", "ㄌ"]
+  public static let scalarSet_U: Set<Unicode.Scalar> = ["ㄨ"]
+  public static let scalarSet_IU: Set<Unicode.Scalar> = ["ㄧ", "ㄩ"]
+  public static let scalarSet_JQX: Set<Unicode.Scalar> = ["ㄐ", "ㄑ", "ㄒ"]
+  public static let scalarSet_ZhChShZCiSi: Set<Unicode.Scalar> = ["ㄓ", "ㄔ", "ㄕ", "ㄗ", "ㄘ", "ㄙ"]
+  public static let scalarSet_ENG: Set<Unicode.Scalar> = ["ㄛ", "ㄥ"]
+  public static let scalarSet_EI: Set<Unicode.Scalar> = ["ㄟ"]
+  public static let scalarSet_E: Set<Unicode.Scalar> = ["ㄜ"]
+  public static let scalarSet_EH: Set<Unicode.Scalar> = ["ㄝ"]
 
   // MARK: Internal
 

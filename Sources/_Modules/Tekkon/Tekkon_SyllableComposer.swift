@@ -62,7 +62,13 @@ extension Tekkon {
     /// 注意：直接取這個參數的內容的話，陰平聲調會成為一個空格。
     /// 如果是要取不帶空格的注音的話，請使用「.getComposition()」而非「.value」。
     public var value: String {
-      consonant.value + semivowel.value + vowel.value + intonation.value
+      var result = String()
+      result.reserveCapacity(8) // Pre-allocate for typical Zhuyin syllable length
+      if consonant.isValid { result.unicodeScalars.append(consonant.scalarValue) }
+      if semivowel.isValid { result.unicodeScalars.append(semivowel.scalarValue) }
+      if vowel.isValid { result.unicodeScalars.append(vowel.scalarValue) }
+      if intonation.isValid { result.unicodeScalars.append(intonation.scalarValue) }
+      return result
     }
 
     /// 當前注拼槽是否處於拼音模式。
@@ -116,7 +122,7 @@ extension Tekkon {
     public func getInlineCompositionForDisplay(isHanyuPinyin: Bool = false) -> String {
       guard isPinyinMode else { return getComposition(isHanyuPinyin: isHanyuPinyin) }
       var toneReturned = ""
-      switch intonation.value {
+      switch intonation.scalar {
       case " ": toneReturned = "1"
       case "ˊ": toneReturned = "2"
       case "ˇ": toneReturned = "3"
@@ -247,26 +253,27 @@ extension Tekkon {
         case "ㄧ", "ㄩ":
           if vowel.value == "ㄜ" { vowel <~ "ㄝ" }
         case "ㄜ":
-          if "ㄨ".doesHave(semivowel.value) { semivowel <~ "ㄩ" }
-          if "ㄧㄩ".doesHave(semivowel.value) { thePhone <~ "ㄝ" }
+          if semivowel.isContained(in: Tekkon.scalarSet_U) { semivowel <~ "ㄩ" }
+          if semivowel.isContained(in: Tekkon.scalarSet_IU) { thePhone <~ "ㄝ" }
         case "ㄝ":
-          if "ㄨ".doesHave(semivowel.value) { semivowel <~ "ㄩ" }
+          if semivowel.isContained(in: Tekkon.scalarSet_U) { semivowel <~ "ㄩ" }
         case "ㄛ", "ㄥ":
-          if phonabet == "ㄛ", semivowel.value == "ㄩ" { semivowel <~ "ㄨ" }
-          if "ㄅㄆㄇㄈ".doesHave(consonant.value), semivowel.value == "ㄨ" { semivowel.clear() }
+          if phonabet == "ㄛ", semivowel.equals("ㄩ") { semivowel <~ "ㄨ" }
+          if consonant.isContained(in: Tekkon.scalarSet_BPMF), semivowel.equals("ㄨ") { semivowel.clear() }
         case "ㄟ":
-          if "ㄋㄌ".doesHave(consonant.value), semivowel.value == "ㄨ" { semivowel.clear() }
+          if consonant.isContained(in: Tekkon.scalarSet_NL), semivowel.equals("ㄨ") { semivowel.clear() }
         case "ㄨ":
-          if "ㄅㄆㄇㄈ".doesHave(consonant.value), "ㄛㄥ".doesHave(vowel.value) { vowel.clear() }
-          if "ㄋㄌ".doesHave(consonant.value), "ㄟ".doesHave(vowel.value) { vowel.clear() }
-          if "ㄜ".doesHave(vowel.value) { vowel <~ "ㄝ" }
-          if "ㄝ".doesHave(vowel.value) { thePhone <~ "ㄩ" }
+          if consonant.isContained(in: Tekkon.scalarSet_BPMF), vowel.isContained(in: Tekkon.scalarSet_ENG) { vowel.clear() }
+          if consonant.isContained(in: Tekkon.scalarSet_NL), vowel.isContained(in: Tekkon.scalarSet_EI) { vowel.clear() }
+          if vowel.equals("ㄜ") { vowel <~ "ㄝ" }
+          if vowel.equals("ㄝ") { thePhone <~ "ㄩ" }
         case "ㄅ", "ㄆ", "ㄇ", "ㄈ":
-          if ["ㄨㄛ", "ㄨㄥ"].contains(semivowel + vowel) { semivowel.clear() }
+          // Optimized: avoid string allocation for checking "ㄨㄛ" and "ㄨㄥ"
+          if semivowel.equals("ㄨ") && (vowel.equals("ㄛ") || vowel.equals("ㄥ")) { semivowel.clear() }
         default: break
         }
-        if [.vowel, .intonation].contains(thePhone.type), "ㄓㄔㄕㄗㄘㄙ".doesHave(consonant.value) {
-          switch (semivowel.value, consonant.value) {
+        if [.vowel, .intonation].contains(thePhone.type), consonant.isContained(in: Tekkon.scalarSet_ZhChShZCiSi) {
+          switch (semivowel.scalar, consonant.scalar) {
           case ("ㄧ", _): semivowel.clear()
           case ("ㄩ", "ㄓ"), ("ㄩ", "ㄗ"): consonant <~ "ㄐ"
           case ("ㄩ", "ㄔ"), ("ㄩ", "ㄘ"): consonant <~ "ㄑ"
@@ -603,7 +610,7 @@ extension Tekkon {
       guard var strReturn = Tekkon.mapStarlightStaticKeys[key] else { return nil }
 
       switch key {
-      case "e" where "ㄧㄩ".doesHave(semivowel.value): strReturn = "ㄝ"
+      case "e" where semivowel.isContained(in: Tekkon.scalarSet_IU): strReturn = "ㄝ"
       case "f" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄠ"
       case "g" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄥ"
       case "k" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄤ"
@@ -671,10 +678,10 @@ extension Tekkon {
           vowel.clear()
           strReturn = "ㄩ"
         default:
-          strReturn = (!semivowel.isEmpty || !"ㄐㄑㄒ".doesHave(consonant.value)) ? "ㄡ" : "ㄩ"
+          strReturn = (!semivowel.isEmpty || !consonant.isContained(in: Tekkon.scalarSet_JQX)) ? "ㄡ" : "ㄩ"
         }
       case "u":
-        switch (semivowel.value, vowel.value) {
+        switch (semivowel.scalar, vowel.scalar) {
         case ("ㄧ", "ㄚ"):
           semivowel.clear()
           vowel.clear()
@@ -709,7 +716,7 @@ extension Tekkon {
       case "f" where isPronounceable: strReturn = "ˊ"
       case "j" where isPronounceable: strReturn = "ˇ"
       case "l" where isPronounceable: strReturn = "ˋ"
-      case "e" where "ㄧㄩ".doesHave(semivowel.value): strReturn = "ㄝ"
+      case "e" where semivowel.isContained(in: Tekkon.scalarSet_IU): strReturn = "ㄝ"
       case "g" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄤ"
       case "n" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄣ"
       case "h" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄞ"
