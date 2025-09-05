@@ -147,22 +147,22 @@ extension Homa {
 
     /// 在游標位置插入給定的索引鍵。
     /// - Parameter key: 要插入的索引鍵。
-    public func insertKey(_ key: String) throws {
+    public func insertKey(_ key: String) throws(Homa.Exception) {
       try insertKeys([key])
     }
 
     /// 在游標位置插入給定的多個索引鍵。
     /// - Parameter keys: 要插入的多個索引鍵。
-    public func insertKeys(_ givenKeys: [String]) throws {
+    public func insertKeys(_ givenKeys: [String]) throws(Homa.Exception) {
       guard !givenKeys.isEmpty, givenKeys.allSatisfy({ !$0.isEmpty }) else {
-        throw Homa.Exception.givenKeyIsEmpty
+        throw .givenKeyIsEmpty
       }
       let gridBackup = spans
       var keyExistenceChecked = [String: Bool]()
       for (cursorAdvancedPosition, key) in givenKeys.enumerated() {
         if !(keyExistenceChecked[key] ?? false) {
           guard gramAvailabilityChecker([key]) else {
-            throw Homa.Exception.givenKeyHasNoResults
+            throw .givenKeyHasNoResults
           }
           keyExistenceChecked[key] = true
         }
@@ -184,10 +184,10 @@ extension Homa {
     /// 在護摩引擎所遵循的術語體系當中，「與文字輸入方向相反的方向」為向後（Rear），反之則為向前（Front）。
     /// 如果是朝著與文字輸入方向相反的方向砍的話，游標位置會自動遞減。
     /// - Parameter direction: 指定方向（相對於文字輸入方向而言）。
-    public func dropKey(direction: TypingDirection) throws {
+    public func dropKey(direction: TypingDirection) throws(Homa.Exception) {
       let isBackSpace: Bool = direction == .rear ? true : false
       guard cursor != (isBackSpace ? 0 : keys.count) else {
-        throw Homa.Exception.deleteKeyAgainstBorder
+        throw .deleteKeyAgainstBorder
       }
       keys.remove(at: cursor - (isBackSpace ? 1 : 0))
       cursor -= isBackSpace ? 1 : 0 // 在縮節之前。
@@ -222,7 +222,10 @@ extension Homa {
     /// - Parameters:
     ///   - direction: 指定方向（相對於文字輸入方向而言）。
     ///   - isMarker: 是否為標記游標。
-    public func moveCursorStepwise(to direction: TypingDirection, isMarker: Bool = false) throws {
+    public func moveCursorStepwise(
+      to direction: TypingDirection,
+      isMarker: Bool = false
+    ) throws(Homa.Exception) {
       let delta: Int = switch direction {
       case .front: 1
       case .rear: -1
@@ -252,15 +255,15 @@ extension Homa {
     public func jumpCursorBySpan(
       to direction: TypingDirection,
       isMarker: Bool = false
-    ) throws {
+    ) throws(Homa.Exception) {
       var target = isMarker ? marker : cursor
       switch (direction, target) {
       case (.front, length), (.rear, 0):
-        throw Homa.Exception.cursorAlreadyAtBorder
+        throw .cursorAlreadyAtBorder
       default: break
       }
       guard let currentRegion = assembledSentence.cursorRegionMap[target] else {
-        throw Homa.Exception.cursorRegionMapMatchingFailure
+        throw .cursorRegionMapMatchingFailure
       }
       let guardedCurrentRegion = min(assembledSentence.count - 1, currentRegion)
       let aRegionForward = max(currentRegion - 1, 0)
@@ -294,7 +297,7 @@ extension Homa {
     /// 根據當前狀況更新整個組字器的節點文脈。
     /// - Parameter updateExisting: 是否根據目前的語言模型的資料狀態來對既有節點更新其內部的單元圖陣列資料。
     /// 該特性可以用於「在選字窗內屏蔽了某個詞之後，立刻生效」這樣的軟體功能需求的實現。
-    public func assignNodes(updateExisting: Bool = false) throws {
+    public func assignNodes(updateExisting: Bool = false) throws(Homa.Exception) {
       let maxSpanLength = maxSpanLength
       let rangeOfPositions: Range<Int>
       if updateExisting {
@@ -332,7 +335,7 @@ extension Homa {
         }
       }
       queryBuffer.removeAll() // 手動清理，免得 ARC 拖時間。
-      guard nodesChangedCounter != 0 else { throw Homa.Exception.noNodesAssigned }
+      guard nodesChangedCounter != 0 else { throw .noNodesAssigned }
       assemble()
     }
 

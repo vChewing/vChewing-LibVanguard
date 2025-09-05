@@ -228,9 +228,9 @@ extension Homa.Node {
     value: String,
     previous: String? = nil,
     type: Homa.Node.OverrideType
-  ) throws
+  ) throws(Homa.Exception)
     -> Homa.Gram {
-    guard type != .none else { throw Homa.Exception.nothingOverriddenAtNode }
+    guard type != .none else { throw .nothingOverriddenAtNode }
     for (i, gram) in grams.enumerated() {
       if let keyArray, keyArray != gram.keyArray { continue }
       if value != gram.current { continue }
@@ -239,7 +239,7 @@ extension Homa.Node {
       currentOverrideType = type
       return gram
     }
-    throw Homa.Exception.nothingOverriddenAtNode
+    throw .nothingOverriddenAtNode
   }
 }
 
