@@ -37,7 +37,10 @@ extension Homa {
       // 初期化資料結構。
       var openSet = HybridPriorityQueue<PrioritizedState>(reversed: true)
       var visited = Set<SearchState>()
-      var bestScore = [Int: Double]() // 追蹤每個位置的最佳分數
+      var bestScore = ContiguousArray<Double>(
+        repeating: Double(Int32.min),
+        count: config.keys.count + 1
+      ) // 追蹤每個位置的最佳分數，使用陣列以提升快取效能
 
       // 初期化起始狀態。
       let leadingGram = Homa.Gram(keyArray: ["$LEADING"], current: "")
@@ -83,7 +86,7 @@ extension Homa {
           )
 
           // 如果該位置已有更優的權重分數，則跳過。
-          guard (bestScore[nextPos] ?? .init(Int32.min)) < newScore else { continue }
+          guard nextPos < bestScore.count, bestScore[nextPos] < newScore else { continue }
 
           let nextState = SearchState(
             gram: nextGram,

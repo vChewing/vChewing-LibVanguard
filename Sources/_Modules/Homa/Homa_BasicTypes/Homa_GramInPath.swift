@@ -112,7 +112,7 @@ extension Array where Element == Homa.GramInPath {
     return (self[rearNodeID], range)
   }
 
-  /// 檢測是否出現游標切斷組字區內字符的情況。
+  /// 偵測是否出現游標切斷組字區內字元的情況。
   ///
   /// 此處不需要針對 cursor 做邊界檢查。
   public func isCursorCuttingChar(cursor: Int) -> Bool {
