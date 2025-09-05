@@ -69,7 +69,10 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
         let hash = theNode.hashValue
         if !handledNodeHashes.contains(hash) {
           handledNodeHashes.insert(theNode.hashValue)
-          let nodeKeyArray = TrieStringOperationCache.shared.getCachedSplit(theNode.readingKey, separator: readingSeparator)
+          let nodeKeyArray = TrieStringOperationCache.shared.getCachedSplit(
+            theNode.readingKey,
+            separator: readingSeparator
+          )
           if nodeMeetsFilter(theNode, filter: filterType) {
             var matched: Bool = longerSpan
               ? nodeKeyArray.count > keyArray.count

@@ -38,7 +38,7 @@ extension Homa {
       var openSet = HybridPriorityQueue<PrioritizedState>(reversed: true)
       var visited = Set<SearchState>()
       var bestScore = ContiguousArray<Double>(
-        repeating: Double(Int32.min), 
+        repeating: Double(Int32.min),
         count: config.keys.count + 1
       ) // 追蹤每個位置的最佳分數，使用陣列以提升快取效能
 
@@ -86,7 +86,7 @@ extension Homa {
           )
 
           // 如果該位置已有更優的權重分數，則跳過。
-          guard nextPos < bestScore.count && bestScore[nextPos] < newScore else { continue }
+          guard nextPos < bestScore.count, bestScore[nextPos] < newScore else { continue }
 
           let nextState = SearchState(
             gram: nextGram,
