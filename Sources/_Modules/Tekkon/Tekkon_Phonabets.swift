@@ -4,6 +4,7 @@
 
 infix operator <~: AssignmentPrecedence
 infix operator +++: AdditionPrecedence
+infix operator =~: ComparisonPrecedence
 
 extension Tekkon {
   // MARK: - Dynamic Constants and Basic Enums
@@ -165,7 +166,7 @@ extension Tekkon {
       ensureType()
     }
 
-    /// 初期化，會根據傳入的 input 字串參數來自動判定自身的 PhoneType 類型屬性值。
+    /// 初期化，會根據傳入的 input Unicode Scalar 參數來自動判定自身的 PhoneType 類型屬性值。
     public init(_ input: Unicode.Scalar) {
       if allowedPhonabets.contains(input) {
         self.scalarValue = input
@@ -202,6 +203,10 @@ extension Tekkon {
 
     public static func + (lhs: Self, rhs: Self) -> String {
       lhs.value + rhs.value
+    }
+
+    public static func =~ (lhs: Tekkon.Phonabet, rhs: Unicode.Scalar) -> Bool {
+      lhs.isValid && lhs.scalarValue == rhs
     }
 
     /// Optimized concatenation using scalars to avoid intermediate String allocations
