@@ -79,7 +79,7 @@ extension Tekkon {
   }
 }
 
-/// 檢測字串是否包含半形英數內容
+/// 偵測字串是否包含半形英數內容
 extension String {
   fileprivate var isNotPureAlphanumerical: Bool {
     let x = unicodeScalars.map(\.value).filter {
@@ -121,8 +121,7 @@ extension StringProtocol {
   }
 
   func has(scalar target: Unicode.Scalar) -> Bool {
-    let targetStr = String(Character(target))
-    return has(string: targetStr)
+    unicodeScalars.contains(target)
   }
 
   func swapping(_ target: some StringProtocol, with newString: some StringProtocol) -> String {
