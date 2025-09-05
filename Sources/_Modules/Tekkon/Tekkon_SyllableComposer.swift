@@ -554,7 +554,7 @@ extension Tekkon {
       }
 
       // 後置修正
-      if consonant.equals("ㄍ") && intonation.equals("˙") { consonant <~ "ㄑ" }
+      if value == "ㄍ˙" { consonant <~ "ㄑ" }
 
       // 這些按鍵在上文處理過了，就不要再回傳了。
       if "dfhjklmnpqtw".doesHave(key) { return nil }
@@ -615,7 +615,7 @@ extension Tekkon {
       }
 
       // 後置修正
-      if consonant.equals("ㄔ") && intonation.equals("˙") { consonant <~ "ㄑ" }
+      if value == "ㄔ˙" { consonant <~ "ㄑ" }
 
       // 這些按鍵在上文處理過了，就不要再回傳了。
       if "acdefghjklmns".doesHave(key) { return nil }
