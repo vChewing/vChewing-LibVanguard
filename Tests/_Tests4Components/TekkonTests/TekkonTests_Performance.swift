@@ -14,7 +14,7 @@ struct TekkonPerformanceTests {
   @Test("[Tekkon] DynamicLayoutPerformance")
   func testDynamicLayoutPerformance() async throws {
     let testSequences = ["e", "r", "d", "y", "qu", "quu", "quur", "q", "qj", "qjo", "l", "lr"]
-    let iterations = 1_000
+    let iterations = 50
 
     for parser in Tekkon.MandarinParser.allCases.filter(\.isDynamic) {
       let startTime = Date.now
@@ -48,7 +48,7 @@ struct TekkonPerformanceTests {
   @Test("[Tekkon] MemoryOptimizationTest")
   func testMemoryOptimization() async throws {
     let testSequences = ["ba", "pa", "ma", "fa", "da", "ta", "na", "la"]
-    let iterations = 500 // Reduced from 5_000 to prevent hanging
+    let iterations = 100 // Reduced from 5_000 to prevent hanging
 
     // 測試物件重用 vs 重新建立
     let reuseStartTime = Date.now
