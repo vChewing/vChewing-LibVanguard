@@ -206,19 +206,19 @@ public struct HomaPerformanceTests: HomaTestSuite {
     // 生成複雜的擬真語言模型資料。
     var mockData = strLMSampleDataTrailblazing
 
-    // 建立真實的中文注音輸入模式 - 使用與 Mock 資料對應的注音符號
-    let knownBopomofo = [
-      "ㄙㄨㄛˇ", "ㄨㄟˋ", "ㄎㄞ", "ㄊㄨㄛˋ", "ㄐㄧㄡˋ", "ㄕˋ",
-      "ㄧㄢˊ", "ㄓㄜ˙", "ㄑㄧㄢˊ", "ㄖㄣˊ", "ㄐㄧㄣˋ", "ㄉㄜ˙",
-      "ㄉㄠˋ", "ㄌㄨˋ", "ㄗㄡˇ", "ㄔㄨ", "ㄍㄥ", "ㄧㄠˊ",
-      "ㄩㄢˇ", "ㄐㄩˋ", "ㄌㄧˊ", "ㄧㄣ", "ㄨㄟˊ", "ㄘㄨㄥˊ",
-      "ㄌㄞˊ", "ㄅㄨˋ", "ㄧㄡˊ", "ㄊㄚ", "ㄆㄨ",
+    // 建立真實的中文拼音輸入模式 - 使用與 Mock 資料對應的拼音讀音
+    let knownPinyin = [
+      "suo3", "wei4", "kai1", "tuo4", "jiu4", "shi4",
+      "yan2", "zhe5", "qian2", "ren2", "jin4", "de5",
+      "dao4", "lu4", "zou3", "chu1", "geng1", "yao2",
+      "yuan3", "ju4", "li2", "yin1", "wei2", "cong2",
+      "lai2", "bu4", "you2", "ta1", "pu1",
     ]
 
     // 建立一些雙元圖組合
-    for i in 0 ..< min(knownBopomofo.count, 10) {
-      for j in 0 ..< min(knownBopomofo.count, 10) {
-        let bigram = "\(knownBopomofo[i])-\(knownBopomofo[j])"
+    for i in 0 ..< min(knownPinyin.count, 10) {
+      for j in 0 ..< min(knownPinyin.count, 10) {
+        let bigram = "\(knownPinyin[i])-\(knownPinyin[j])"
         let weight = -7.0 - Double.random(in: 0 ... 2)
         mockData += "\n\(bigram) 測試\(i)\(j) \(weight)"
       }
@@ -227,7 +227,7 @@ public struct HomaPerformanceTests: HomaTestSuite {
     // 生成測試用讀音鍵值，以模擬長句輸入。只使用已知存在的讀音。
     var keys: [String] = []
     for _ in 0 ..< 15 { // Longer input sequence
-      keys.append(knownBopomofo.randomElement()!)
+      keys.append(knownPinyin.randomElement()!)
     }
 
     return (keys: keys, mockData: mockData)
