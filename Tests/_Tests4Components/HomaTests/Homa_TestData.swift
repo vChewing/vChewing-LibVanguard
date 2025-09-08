@@ -561,7 +561,8 @@ zhi1 zhi1 -8.941
 """
 
 let strLMSampleDataTrailblazing = """
-ㄙㄨㄛˇ 所 -3.2suo3 索 -6.1
+suo3 所 -3.2
+suo3 索 -6.1
 wei4 謂 -3.8
 wei4 為 -4.2
 wei4 位 -5.3
