@@ -82,7 +82,7 @@ extension Homa {
 
           // 計算新的權重分數。
           let newScore = currentState.distance + nextNode.getScore(
-            previous: currentState.gram?.current ?? ""
+            previous: currentState.gram.current
           )
 
           // 如果該位置已有更優的權重分數，則跳過。
@@ -108,9 +108,9 @@ extension Homa {
 
       while let state = current {
         // 排除起始和結束的虛擬節點。
-        if let stateGram = state.gram, stateGram !== leadingGram {
+        if state.gram !== leadingGram {
           pathGrams.insert(
-            .init(gram: stateGram, isOverridden: state.isOverridden),
+            .init(gram: state.gram, isOverridden: state.isOverridden),
             at: 0
           )
         }
@@ -151,9 +151,9 @@ extension Homa.PathFinder {
 
     // MARK: Internal
 
-    weak var gram: Homa.Gram? // 當前節點
+    let gram: Homa.Gram // 當前節點
     let position: Int // 在輸入串中的位置
-    weak var prev: SearchState? // 前一個狀態
+    let prev: SearchState? // 前一個狀態
     var distance: Double // 累計分數
     let isOverridden: Bool
 

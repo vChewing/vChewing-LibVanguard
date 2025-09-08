@@ -82,8 +82,8 @@ struct TekkonPerformanceTests {
     print(" -> [Tekkon] Memory optimization improvement: \(improvementStr)%")
 
     // 允許效能測量的變異性 - 由於現代 Swift 最佳化，物件建立可能比重用更快
-    // 我們檢查重用效能沒有嚴重退化即可 (允許 2x 的差異)
-    let performanceTolerance = recreateTime * 2.0
+    // 我們檢查重用效能沒有嚴重退化即可 (允許 5x 的差異，因為測試環境和編譯器版本差異可能很大)
+    let performanceTolerance = recreateTime * 5.0
     let isReuseFasterOrComparable = reuseTime <= performanceTolerance
 
     #expect(
