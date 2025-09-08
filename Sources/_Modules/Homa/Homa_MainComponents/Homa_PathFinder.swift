@@ -82,7 +82,7 @@ extension Homa {
 
           // 計算新的權重分數。
           let newScore = currentState.distance + nextNode.getScore(
-            previous: currentState.gram.current
+            previous: currentState.gram?.current ?? ""
           )
 
           // 如果該位置已有更優的權重分數，則跳過。
@@ -108,16 +108,18 @@ extension Homa {
 
       while let state = current {
         // 排除起始和結束的虛擬節點。
-        if state.gram !== leadingGram {
+        if let stateGram = state.gram, stateGram !== leadingGram {
           pathGrams.insert(
-            .init(gram: state.gram, isOverridden: state.isOverridden),
+            .init(gram: stateGram, isOverridden: state.isOverridden),
             at: 0
           )
         }
         current = state.prev
-        // 備註：此處不需要手動 ASAN，因為沒有參據循環（Retain Cycle）。
       }
       newassembledSentence = pathGrams
+      
+      // 手動 ASAN：批次清理整個 SearchState 樹以防止記憶體洩漏
+      finalState.batchCleanSearchStateTree()
     }
   }
 }
@@ -136,7 +138,7 @@ extension Homa.PathFinder {
     ///   - prev: 前一個狀態。
     ///   - distance: 到達此狀態的累計分數。
     init(
-      gram: Homa.Gram,
+      gram: Homa.Gram?,
       position: Int,
       prev: SearchState?,
       distance: Double = Double(Int.min),
@@ -151,11 +153,36 @@ extension Homa.PathFinder {
 
     // MARK: Internal
 
-    let gram: Homa.Gram // 當前節點
+    var gram: Homa.Gram? // 當前節點（強可空參據以支援手動位址清理）
     let position: Int // 在輸入串中的位置
-    let prev: SearchState? // 前一個狀態
+    var prev: SearchState? // 前一個狀態（可變以支援手動位址清理）
     var distance: Double // 累計分數
     let isOverridden: Bool
+
+    /// 手動位址清理：對整個 SearchState 樹進行批次清理
+    /// 使用頂點方法清理所有 gram 和 prev 參據以防止記憶體洩漏
+    func batchCleanSearchStateTree() {
+      var visited = Set<ObjectIdentifier>()
+      var stack = [self]
+      
+      while !stack.isEmpty {
+        let current = stack.removeLast()
+        let identifier = ObjectIdentifier(current)
+        
+        // 避免重複造訪同一個節點
+        guard !visited.contains(identifier) else { continue }
+        visited.insert(identifier)
+        
+        // 將前一個狀態加入堆疊以進行清理
+        if let prev = current.prev {
+          stack.append(prev)
+        }
+        
+        // 清理當前狀態的參據
+        current.gram = nil
+        current.prev = nil
+      }
+    }
 
     // MARK: - Hashable 協定實作
 
@@ -164,7 +191,9 @@ extension Homa.PathFinder {
     }
 
     func hash(into hasher: inout Hasher) {
-      hasher.combine(gram)
+      if let gram = gram {
+        hasher.combine(gram)
+      }
       hasher.combine(position)
     }
   }
