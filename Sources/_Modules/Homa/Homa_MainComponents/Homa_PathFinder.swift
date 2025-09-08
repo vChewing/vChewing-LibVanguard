@@ -151,9 +151,9 @@ extension Homa.PathFinder {
 
     // MARK: Internal
 
-    unowned let gram: Homa.Gram // 當前節點
+    let gram: Homa.Gram // 當前節點
     let position: Int // 在輸入串中的位置
-    unowned let prev: SearchState? // 前一個狀態
+    let prev: SearchState? // 前一個狀態
     var distance: Double // 累計分數
     let isOverridden: Bool
 
