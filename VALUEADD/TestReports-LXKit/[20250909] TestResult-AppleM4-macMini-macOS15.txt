@@ -1,0 +1,75 @@
+~/Repos/!vChewing/vChewing-LibVanguard> make test -- --filter "LXTest"
+swift test -c release --no-parallel --filter LXTest
+[1/1] Planning build
+Building for production...
+[1/1] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.23s)
+Test Suite 'Selected tests' started at 2025-09-09 22:40:48.450.
+Test Suite 'LibVanguardPackageTests.xctest' started at 2025-09-09 22:40:48.451.
+Test Suite 'LibVanguardPackageTests.xctest' passed at 2025-09-09 22:40:48.451.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2025-09-09 22:40:48.451.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+􀟈  Test run started.
+􀄵  Testing Library Version: 124.4
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite LXTests4LMPlainBPMF started.
+􀟈  Test "[LXKit] LMPlainBPMF_QueryTest" started.
+􁁛  Test "[LXKit] LMPlainBPMF_QueryTest" passed after 0.002 seconds.
+􁁛  Suite LXTests4LMPlainBPMF passed after 0.002 seconds.
+􀟈  Suite LXTests4Perceptor started.
+􀟈  Test "[LXKit] Perceptor_BasicPerceptionOps" started.
+Perceptor: 已完成新洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)
+􁁛  Test "[LXKit] Perceptor_BasicPerceptionOps" passed after 0.001 seconds.
+􀟈  Test "[LXKit] Perceptor_NewestAgainstRepeatedlyUsed" started.
+Perceptor: 已完成新洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)
+Perceptor: 已更新現有洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)
+Perceptor: 已更新現有洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)
+Perceptor: 已更新現有洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)
+􁁛  Test "[LXKit] Perceptor_NewestAgainstRepeatedlyUsed" passed after 0.001 seconds.
+􀟈  Test "[LXKit] Perceptor_LongTermMemoryDecay" started.
+Perceptor: 已完成新洞察: ((ㄔㄥˊ-ㄒㄧㄣˋ:誠信),(ㄓㄜˋ:這),ㄉㄧㄢˇ)
+􁁛  Test "[LXKit] Perceptor_LongTermMemoryDecay" passed after 0.001 seconds.
+􀟈  Test "[LXKit] Perceptor_LRUTable" started.
+Perceptor: 已完成新洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)
+Perceptor: 已完成新洞察: ((ㄆㄞˋ-ㄇㄥˊ:派蒙),(ㄉㄜ˙:的),ㄐㄧㄤˇ-ㄐㄧㄣ)
+Perceptor: 已完成新洞察: ((ㄍㄨㄛˊ-ㄅㄥ:國崩),(ㄉㄜ˙:的),ㄇㄠˋ-ㄗ˙)
+Perceptor: 已完成新洞察: ((ㄌㄟˊ-ㄉㄧㄢˋ-ㄐㄧㄤ-ㄐㄩㄣ:雷電將軍),(ㄉㄜ˙:的),ㄐㄧㄠˇ-ㄔㄡˋ)
+􁁛  Test "[LXKit] Perceptor_LRUTable" passed after 0.001 seconds.
+􀟈  Test "[LXKit] Perceptor_Homa_Integration_test" started.
+[Sitrep (SQL)] Hub booting time cost (SQL): 3.28ms.
+Perceptor: 已完成新洞察: (ㄧㄡ)
+Perceptor: 已完成新洞察: ((ㄧㄡ:幽),ㄉㄧㄝˊ)
+Perceptor: 已完成新洞察: ((ㄉㄧㄝˊ:蝶),(ㄋㄥˊ:能),ㄌㄧㄡˊ)
+Perceptor: 已完成新洞察: ((ㄋㄥˊ:能),(ㄌㄧㄡˊ:留),ㄧˋ-ㄌㄩˇ)
+Perceptor: 已完成新洞察: ((ㄌㄧㄡˊ:留),(ㄧˋ-ㄌㄩˇ:一縷),ㄈㄤ)
+true
+􁁛  Test "[LXKit] Perceptor_Homa_Integration_test" passed after 0.011 seconds.
+􁁛  Suite LXTests4Perceptor passed after 0.012 seconds.
+􀟈  Suite LXTests4TrieHub started.
+􀟈  Test "[LXKit] TrieHub_ConstructionAndQuery" started.
+􀟈  Passing 1 argument useSQL → false to "[LXKit] TrieHub_ConstructionAndQuery"
+[Sitrep (Plist)] Hub booting time cost (Plist): 13.95ms.
+􀟈  Passing 1 argument useSQL → true to "[LXKit] TrieHub_ConstructionAndQuery"
+[Sitrep (SQL)] Hub booting time cost (SQL): 0.24ms.
+􁁛  Test "[LXKit] TrieHub_ConstructionAndQuery" passed after 0.022 seconds.
+􀟈  Test "[LXKit] TrieHub_AssemblyingUsingFullMatch" started.
+􀟈  Passing 1 argument useSQL → false to "[LXKit] TrieHub_AssemblyingUsingFullMatch"
+[Sitrep (Plist)] Hub booting time cost (Plist): 13.9ms.
+[Sitrep (Plist)] Key insertion time cost on full match: 2.77ms.
+􀟈  Passing 1 argument useSQL → true to "[LXKit] TrieHub_AssemblyingUsingFullMatch"
+[Sitrep (SQL)] Hub booting time cost (SQL): 0.21ms.
+[Sitrep (SQL)] Key insertion time cost on full match: 7.23ms.
+􁁛  Test "[LXKit] TrieHub_AssemblyingUsingFullMatch" passed after 0.024 seconds.
+􀟈  Test "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops" started.
+􀟈  Passing 1 argument useSQL → false to "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops"
+[Sitrep (Plist)] Hub booting time cost (Plist): 13.34ms.
+[Sitrep (Plist)] Key insertion time cost on partial match: 4.91ms.
+􀟈  Passing 1 argument useSQL → true to "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops"
+[Sitrep (SQL)] Hub booting time cost (SQL): 0.17ms.
+[Sitrep (SQL)] Key insertion time cost on partial match: 9.76ms.
+􁁛  Test "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops" passed after 0.032 seconds.
+􁁛  Suite LXTests4TrieHub passed after 0.079 seconds.
+􁁛  Test run with 9 tests passed after 0.094 seconds.
+make: *** No rule to make target `--filter'.  Stop.
+~/Repos/!vChewing/vChewing-LibVanguard>                                               2 09/09/2025 10:40:48 PM
