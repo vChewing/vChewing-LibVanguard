@@ -46,9 +46,8 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
       while sqlite3_step(statement) == SQLITE_ROW {
         if let jsonData = sqlite3_column_text(statement, 0).map({ String(cString: $0) }) {
-          // 將 JSON 字串解析為 [Int]，然後轉換為 Set<Int>
-          if let data = jsonData.data(using: .utf8),
-             let setDecoded = try? jsonDecoder.decode(Set<Int>.self, from: data) {
+          // 使用高效能的特製 JSON 解析器來解析 Set<Int>
+          if let setDecoded = TrieHighFrequencyDecoder.decodeIntSet(from: jsonData) {
             nodeIDs.formUnion(setDecoded)
           }
         }
