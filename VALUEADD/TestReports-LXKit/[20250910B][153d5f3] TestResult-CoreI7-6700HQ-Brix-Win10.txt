@@ -1,0 +1,70 @@
+B:\GitRepos\vChewing-LibVanguard> swift test -c release --filter "LXKit"
+[1/1] Planning build
+Building for production...
+[12/12] Linking B:\GitRepos\vChewing-LibVanguard\.build\x86_64-unknown-windows-msvc\release\LibVanguardPackageTests.xctest
+Build complete! (39.60s)
+Test Suite 'Selected tests' started at 2025-09-09 17:51:42.480
+Test Suite 'Selected tests' passed at 2025-09-09 17:51:42.482
+         Executed 0 tests, with 0 failures (0 unexpected) in 0.0 (0.0) seconds
+◊ Test run started.
+→ Testing Library Version: 6.1.2 (d6b70f9ef9eb207)
+→ Target Platform: x86_64-unknown-windows-msvc
+◊ Suite LXTests4LMPlainBPMF started.
+◊ Suite LXTests4TrieHub started.
+◊ Suite LXTests4Perceptor started.
+◊ Test "[LXKit] LMPlainBPMF_QueryTest" started.
+◊ Test "[LXKit] TrieHub_ConstructionAndQuery" started.
+◊ Test "[LXKit] Perceptor_BasicPerceptionOps" started.
+◊ Passing 1 argument useSQL → false to "[LXKit] TrieHub_ConstructionAndQuery"
+√ Test "[LXKit] Perceptor_BasicPerceptionOps" passed after 0.001 seconds.
+◊ Test "[LXKit] Perceptor_NewestAgainstRepeatedlyUsed" started.
+√ Test "[LXKit] Perceptor_NewestAgainstRepeatedlyUsed" passed after 0.001 seconds.
+◊ Test "[LXKit] Perceptor_LongTermMemoryDecay" started.
+√ Test "[LXKit] Perceptor_LongTermMemoryDecay" passed after 0.001 seconds.
+◊ Test "[LXKit] Perceptor_LRUTable" started.
+√ Test "[LXKit] Perceptor_LRUTable" passed after 0.001 seconds.
+◊ Test "[LXKit] Perceptor_Homa_Integration_test" started.
+√ Test "[LXKit] LMPlainBPMF_QueryTest" passed after 0.017 seconds.
+√ Suite LXTests4LMPlainBPMF passed after 0.017 seconds.
+√ Test "[LXKit] Perceptor_Homa_Integration_test" passed after 0.050 seconds.
+√ Suite LXTests4Perceptor passed after 0.055 seconds.
+◊ Passing 1 argument useSQL → true to "[LXKit] TrieHub_ConstructionAndQuery"
+√ Test "[LXKit] TrieHub_ConstructionAndQuery" passed after 0.101 seconds.
+◊ Test "[LXKit] TrieHub_AssemblyingUsingFullMatch" started.
+◊ Passing 1 argument useSQL → false to "[LXKit] TrieHub_AssemblyingUsingFullMatch"
+◊ Passing 1 argument useSQL → true to "[LXKit] TrieHub_AssemblyingUsingFullMatch"
+√ Test "[LXKit] TrieHub_AssemblyingUsingFullMatch" passed after 0.098 seconds.
+◊ Test "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops" started.
+◊ Passing 1 argument useSQL → false to "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops"
+◊ Passing 1 argument useSQL → true to "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops" 
+√ Test "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops" passed after 0.134 seconds.    
+√ Suite LXTests4TrieHub passed after 0.336 seconds.
+√ Test run with 9 tests passed after 0.336 seconds.
+Perceptor: 已完成新洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)        
+Perceptor: 已完成新洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)        
+Perceptor: 已更新現有洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)      
+Perceptor: 已更新現有洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)      
+Perceptor: 已更新現有洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)      
+Perceptor: 已完成新洞察: ((ㄔㄥˊ-ㄒㄧㄣˋ:誠信),(ㄓㄜˋ:這),ㄉㄧㄢˇ)
+Perceptor: 已完成新洞察: ((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)        
+Perceptor: 已完成新洞察: ((ㄆㄞˋ-ㄇㄥˊ:派蒙),(ㄉㄜ˙:的),ㄐㄧㄤˇ-ㄐㄧㄣ)
+Perceptor: 已完成新洞察: ((ㄍㄨㄛˊ-ㄅㄥ:國崩),(ㄉㄜ˙:的),ㄇㄠˋ-ㄗ˙)
+Perceptor: 已完成新洞察: ((ㄌㄟˊ-ㄉㄧㄢˋ-ㄐㄧㄤ-ㄐㄩㄣ:雷電將軍),(ㄉㄜ˙:的),ㄐㄧㄠˇ-ㄔㄡˋ)
+[Sitrep (SQL)] Hub booting time cost (SQL): 17.14ms.
+Perceptor: 已完成新洞察: (ㄧㄡ)
+Perceptor: 已完成新洞察: ((ㄧㄡ:幽),ㄉㄧㄝˊ)
+Perceptor: 已完成新洞察: ((ㄉㄧㄝˊ:蝶),(ㄋㄥˊ:能),ㄌㄧㄡˊ)
+Perceptor: 已完成新洞察: ((ㄋㄥˊ:能),(ㄌㄧㄡˊ:留),ㄧˋ-ㄌㄩˇ)
+Perceptor: 已完成新洞察: ((ㄌㄧㄡˊ:留),(ㄧˋ-ㄌㄩˇ:一縷),ㄈㄤ)
+true
+[Sitrep (Plist)] Hub booting time cost (Plist): 74.08ms.
+[Sitrep (SQL)] Hub booting time cost (SQL): 3.01ms.
+[Sitrep (Plist)] Hub booting time cost (Plist): 57.88ms.
+[Sitrep (Plist)] Key insertion time cost on full match: 7.2ms.
+[Sitrep (SQL)] Hub booting time cost (SQL): 3.46ms.
+[Sitrep (SQL)] Key insertion time cost on full match: 28.45ms.
+[Sitrep (Plist)] Hub booting time cost (Plist): 67.74ms.
+[Sitrep (Plist)] Key insertion time cost on partial match: 13.34ms.
+[Sitrep (SQL)] Hub booting time cost (SQL): 3.01ms.
+[Sitrep (SQL)] Key insertion time cost on partial match: 37.58ms.
+B:\GitRepos\vChewing-LibVanguard>
