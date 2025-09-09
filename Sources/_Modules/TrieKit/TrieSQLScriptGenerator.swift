@@ -175,19 +175,17 @@ extension VanguardTrie {
       // 遍歷所有 keyInitials 和對應的節點 ID Set
       for (keyInitials, nodeIDs) in keyInitialsMap {
         let escapedKeyInitials = escapeSQLString(keyInitials)
-        // 將 Set<Int> 轉換為 JSON 字串
-        let jsonData = try? JSONEncoder().encode(nodeIDs)
-        if let jsonString = jsonData.map({ String(data: $0, encoding: .utf8) ?? "[]" }) {
-          let escapedJsonString = escapeSQLString(jsonString)
-          keyInitialsValues.append("('\(escapedKeyInitials)', '\(escapedJsonString)')")
+        // 將 Set<Int> 轉換為逗號分隔的字串（比 JSON 更快）
+        let nodeIDsString = nodeIDs.sorted().map(String.init).joined(separator: ",")
+        let escapedNodeIDsString = escapeSQLString(nodeIDsString)
+        keyInitialsValues.append("('\(escapedKeyInitials)', '\(escapedNodeIDsString)')")
 
-          // 批量插入
-          if keyInitialsValues.count >= batchSize {
-            sqlCommands.append(
-              "INSERT INTO keyinitials_id_map (keyinitials, node_ids) VALUES \(keyInitialsValues.joined(separator: ","));"
-            )
-            keyInitialsValues = []
-          }
+        // 批量插入
+        if keyInitialsValues.count >= batchSize {
+          sqlCommands.append(
+            "INSERT INTO keyinitials_id_map (keyinitials, node_ids) VALUES \(keyInitialsValues.joined(separator: ","));"
+          )
+          keyInitialsValues = []
         }
       }
 

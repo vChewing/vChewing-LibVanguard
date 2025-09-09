@@ -137,10 +137,21 @@ extension VanguardTrie {
         return nil
       }
 
+      // 啟用 SQLITE 最佳化功能
+      if !applyPerformanceOptimizations() {
+        return nil
+      }
+      
       // 讀取分隔符設定
       if !initializeSettings() {
         return nil
       }
+      
+      // 預編譯常用的 SQL 語句
+      prepareSQLStatements()
+      
+      // 預編譯常用的 SQL 語句
+      prepareSQLStatements()
     }
 
     /// 從實體 SQLite 檔案讀取並在記憶體內以唯讀模式運作
@@ -202,6 +213,11 @@ extension VanguardTrie {
     }
 
     deinit {
+      // 釋放預編譯的語句
+      if let stmt = preparedNodeQuery { sqlite3_finalize(stmt) }
+      if let stmt = preparedKeyInitialsExactQuery { sqlite3_finalize(stmt) }
+      if let stmt = preparedKeyInitialsLikeQuery { sqlite3_finalize(stmt) }
+      
       if !closedAndNullified {
         closeAndNullifyConnection()
       }
@@ -228,7 +244,13 @@ extension VanguardTrie {
     internal let queryBuffer4Node: QueryBuffer<TNode?> = .init()
     internal let queryBuffer4Nodes: QueryBuffer<[TNode]> = .init()
     internal let queryBuffer4NodeIDs: QueryBuffer<Set<Int>> = .init()
+    internal let entriesDecodeCache: QueryBuffer<[Trie.Entry]?> = .init()
     internal var database: OpaquePointer?
+    
+    // 預編譯的 SQL 語句以提升效能
+    internal var preparedNodeQuery: OpaquePointer?
+    internal var preparedKeyInitialsExactQuery: OpaquePointer?
+    internal var preparedKeyInitialsLikeQuery: OpaquePointer?
 
     /// 獲取表的行數
     /// - Parameter tableName: 表名
@@ -250,17 +272,26 @@ extension VanguardTrie {
 
     // MARK: - 輔助方法
 
-    /// 從 base64 字串解碼 entries
+    /// 從 base64 字串解碼 entries (with caching)
     internal func decodeEntriesFromBase64(_ base64String: String) -> [Trie.Entry]? {
+      // 首先檢查快取
+      if let cachedResult = entriesDecodeCache.get(key: base64String) {
+        return cachedResult
+      }
+      
       guard !base64String.isEmpty,
             let data = Data(base64Encoded: base64String) else {
+        entriesDecodeCache.set(key: base64String, value: nil)
         return nil
       }
 
       do {
-        return try plistDecoder.decode([Trie.Entry].self, from: data)
+        let result = try plistDecoder.decode([Trie.Entry].self, from: data)
+        entriesDecodeCache.set(key: base64String, value: result)
+        return result
       } catch {
         Self.printDebug("Error decoding entries: \(error)")
+        entriesDecodeCache.set(key: base64String, value: nil)
         return nil
       }
     }
@@ -268,6 +299,52 @@ extension VanguardTrie {
     // MARK: Private
 
     private let plistDecoder = PropertyListDecoder()
+    
+    /// 應用資料庫效能最佳化
+    private func applyPerformanceOptimizations() -> Bool {
+      let optimizations = [
+        "PRAGMA cache_size=10000",      // 增加快取大小
+        "PRAGMA temp_store=MEMORY",     // 暫存儲存在記憶體中
+        "PRAGMA mmap_size=268435456",   // 啟用記憶體映射 I/O (256MB)
+        "PRAGMA page_size=8192",        // 使用較大的頁面大小
+        "PRAGMA synchronous=NORMAL"      // 平衡效能與安全性
+      ]
+      
+      for optimization in optimizations {
+        if sqlite3_exec(database, optimization, nil, nil, nil) != SQLITE_OK {
+          Self.printDebug("Failed to apply optimization: \(optimization)")
+          // 繼續執行其他最佳化，不要因為一個失敗就中止
+        }
+      }
+      
+      return true
+    }
+    
+    /// 預編譯常用的 SQL 語句
+    private func prepareSQLStatements() {
+      // 預編譯節點查詢語句
+      let nodeQuery = """
+        SELECT id, reading_key, entries_blob
+        FROM nodes
+        WHERE id = ?
+        LIMIT 1
+        """
+      sqlite3_prepare_v2(database, nodeQuery, -1, &preparedNodeQuery, nil)
+      
+      // 預編譯精確匹配的鍵值初始查詢
+      let exactQuery = """
+        SELECT node_ids FROM keyinitials_id_map
+        WHERE keyinitials = ?
+        """
+      sqlite3_prepare_v2(database, exactQuery, -1, &preparedKeyInitialsExactQuery, nil)
+      
+      // 預編譯 LIKE 模式匹配的鍵值初始查詢
+      let likeQuery = """
+        SELECT node_ids FROM keyinitials_id_map
+        WHERE keyinitials LIKE ?
+        """
+      sqlite3_prepare_v2(database, likeQuery, -1, &preparedKeyInitialsLikeQuery, nil)
+    }
 
     private static func printDebug(
       _ items: Any...,
