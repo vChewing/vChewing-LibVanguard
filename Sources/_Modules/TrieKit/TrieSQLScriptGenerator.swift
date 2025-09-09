@@ -8,6 +8,15 @@ import Foundation
 
 extension VanguardTrie {
   public enum TrieSQLScriptGenerator {
+    // MARK: - 共享實例
+    
+    /// 共享的 PropertyListEncoder 實例，避免重複分配以提升效能
+    private static let sharedPlistEncoder: PropertyListEncoder = {
+      let encoder = PropertyListEncoder()
+      encoder.outputFormat = .binary
+      return encoder
+    }()
+    
     // MARK: Public
 
     /// 將 Trie 結構匯出為 SQL 腳本
@@ -151,9 +160,8 @@ extension VanguardTrie {
       if entries.isEmpty { return "" }
 
       do {
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .binary
-        let data = try encoder.encode(entries)
+        // 使用共享的 PropertyListEncoder 實例以提升效能
+        let data = try sharedPlistEncoder.encode(entries)
         return data.base64EncodedString()
       } catch {
         print("Error encoding entries: \(error)")
