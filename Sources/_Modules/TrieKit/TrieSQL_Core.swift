@@ -214,6 +214,8 @@ extension VanguardTrie {
     public private(set) var readingSeparator: Character = "-"
     public private(set) var closedAndNullified: Bool = false
 
+    public let jsonDecoder: JSONDecoder = .init()
+
     /// - Warning: 跑過之後這個 Trie 就無法再使用了。
     public func closeAndNullifyConnection() {
       if let db = database {
