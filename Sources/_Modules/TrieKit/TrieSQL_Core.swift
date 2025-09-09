@@ -14,7 +14,7 @@ extension VanguardTrie {
     /// 初始化 SQL 資料庫讀取器
     /// - Parameters:
     ///   - dbPath: SQLite 資料庫檔案路徑
-    ///   - useDFD: 是否使用硬碟直讀。
+    ///   - useDFD: 是否使用硬碟直讀。非 Apple Silicon Mac 的場合用了 DFD 可能會更慢。
     public convenience init?(dbPath: String, useDFD: Bool = false) {
       switch useDFD {
       case false: self.init(fromFileToMemory: dbPath)
