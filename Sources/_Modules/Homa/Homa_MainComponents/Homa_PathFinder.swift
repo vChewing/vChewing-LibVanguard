@@ -117,7 +117,7 @@ extension Homa {
         current = state.prev
       }
       newassembledSentence = pathGrams
-      
+
       // 手動 ASAN：批次清理整個 SearchState 樹以防止記憶體洩漏
       finalState.batchCleanSearchStateTree()
     }
@@ -159,35 +159,35 @@ extension Homa.PathFinder {
     var distance: Double // 累計分數
     let isOverridden: Bool
 
+    // MARK: - Hashable 協定實作
+
+    static func == (lhs: SearchState, rhs: SearchState) -> Bool {
+      lhs.gram === rhs.gram && lhs.position == rhs.position
+    }
+
     /// 手動位址清理：對整個 SearchState 樹進行批次清理
     /// 使用頂點方法清理所有 gram 和 prev 參據以防止記憶體洩漏
     func batchCleanSearchStateTree() {
       var visited = Set<ObjectIdentifier>()
       var stack = [self]
-      
+
       while !stack.isEmpty {
         let current = stack.removeLast()
         let identifier = ObjectIdentifier(current)
-        
+
         // 避免重複造訪同一個節點
         guard !visited.contains(identifier) else { continue }
         visited.insert(identifier)
-        
+
         // 將前一個狀態加入堆疊以進行清理
         if let prev = current.prev {
           stack.append(prev)
         }
-        
+
         // 清理當前狀態的參據
         current.gram = nil
         current.prev = nil
       }
-    }
-
-    // MARK: - Hashable 協定實作
-
-    static func == (lhs: SearchState, rhs: SearchState) -> Bool {
-      lhs.gram === rhs.gram && lhs.position == rhs.position
     }
 
     func hash(into hasher: inout Hasher) {
