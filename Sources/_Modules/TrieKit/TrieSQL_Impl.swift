@@ -28,32 +28,34 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     }
 
     var nodeIDs = Set<Int>()
-    
+    let escapedKeyInitials = keyInitialsStr.replacingOccurrences(of: "'", with: "''")
+
     let query = switch longerSpan {
-    case false: "SELECT node_ids FROM keyinitials_id_map WHERE keyinitials = ?"
-    case true: "SELECT node_ids FROM keyinitials_id_map WHERE keyinitials LIKE ? || '%'"
+    case false: """
+      SELECT node_ids FROM keyinitials_id_map
+      WHERE keyinitials = '\(escapedKeyInitials)'
+      """
+    case true: """
+      SELECT node_ids FROM keyinitials_id_map
+      WHERE keyinitials LIKE '\(escapedKeyInitials)%'
+      """
     }
 
     var statement: OpaquePointer?
 
     if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
-      defer { sqlite3_finalize(statement) }
-      
-      // 綁定參數，避免 SQL 注入並提升效能
-      _ = keyInitialsStr.withCString { cString in
-        sqlite3_bind_text(statement, 1, cString, -1, nil)
-      }
-      
       while sqlite3_step(statement) == SQLITE_ROW {
         if let jsonData = sqlite3_column_text(statement, 0).map({ String(cString: $0) }) {
-          // 使用高效能的特製 JSON 解析器來解析 Set<Int>
-          if let setDecoded = TrieHighFrequencyDecoder.decodeIntSet(from: jsonData) {
+          // 將 JSON 字串解析為 [Int]，然後轉換為 Set<Int>
+          if let data = jsonData.data(using: .utf8),
+             let setDecoded = try? jsonDecoder.decode(Set<Int>.self, from: data) {
             nodeIDs.formUnion(setDecoded)
           }
         }
       }
     }
 
+    sqlite3_finalize(statement)
     queryBuffer4NodeIDs.set(hashKey: formedKeyHash, value: nodeIDs)
     return nodeIDs.sorted()
   }
@@ -83,29 +85,25 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       longerSpan: longerSpan
     )
     guard !matchedNodeIDs.isEmpty else { return [] }
-    
-    // 使用批次查詢優化效能
-    let nodesBatch = getNodesBatch(matchedNodeIDs)
     var handledNodeHashes: Set<Int> = []
-    
-    let matchedNodes: [TNode] = matchedNodeIDs.compactMap { nodeID in
-      guard let theNode = nodesBatch[nodeID] else { return nil }
-      
-      let hash = theNode.hashValue
-      if !handledNodeHashes.contains(hash) {
-        handledNodeHashes.insert(theNode.hashValue)
-        let nodeKeyArray = theNode.readingKey.split(separator: readingSeparator)
-        if nodeMeetsFilter(theNode, filter: filterType) {
-          var matched: Bool = longerSpan
-            ? nodeKeyArray.count > keyArray.count
-            : nodeKeyArray.count == keyArray.count
-          switch partiallyMatch {
-          case true:
-            matched = matched && zip(nodeKeyArray, keyArray).allSatisfy { $0.hasPrefix($1) }
-          case false:
-            matched = matched && zip(nodeKeyArray, keyArray).allSatisfy(==)
+    let matchedNodes: [TNode] = matchedNodeIDs.compactMap {
+      if let theNode = getNode($0) {
+        let hash = theNode.hashValue
+        if !handledNodeHashes.contains(hash) {
+          handledNodeHashes.insert(theNode.hashValue)
+          let nodeKeyArray = theNode.readingKey.split(separator: readingSeparator)
+          if nodeMeetsFilter(theNode, filter: filterType) {
+            var matched: Bool = longerSpan
+              ? nodeKeyArray.count > keyArray.count
+              : nodeKeyArray.count == keyArray.count
+            switch partiallyMatch {
+            case true:
+              matched = matched && zip(nodeKeyArray, keyArray).allSatisfy { $0.hasPrefix($1) }
+            case false:
+              matched = matched && zip(nodeKeyArray, keyArray).allSatisfy(==)
+            }
+            return matched ? theNode : nil
           }
-          return matched ? theNode : nil
         }
       }
       return nil
@@ -162,74 +160,5 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
 
     queryBuffer4Node.set(hashKey: nodeID, value: node)
     return node
-  }
-  
-  /// 批次查詢多個節點，效能優於逐個查詢
-  /// - Parameter nodeIDs: 要查詢的節點 ID 陣列
-  /// - Returns: 節點字典，以 ID 為鍵值
-  internal func getNodesBatch(_ nodeIDs: [Int]) -> [Int: TNode] {
-    guard !nodeIDs.isEmpty else { return [:] }
-    
-    var result: [Int: TNode] = [:]
-    var uncachedIDs: [Int] = []
-    
-    // 先檢查快取
-    for nodeID in nodeIDs {
-      if let cachedNode = queryBuffer4Node.get(hashKey: nodeID) {
-        result[nodeID] = cachedNode
-      } else {
-        uncachedIDs.append(nodeID)
-      }
-    }
-    
-    guard !uncachedIDs.isEmpty else { return result }
-    
-    // 批次查詢未快取的節點
-    let placeholders = Array(repeating: "?", count: uncachedIDs.count).joined(separator: ",")
-    let query = """
-    SELECT id, reading_key, entries_blob
-    FROM nodes
-    WHERE id IN (\(placeholders))
-    """
-    
-    var statement: OpaquePointer?
-    guard sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK else {
-      sqlite3_finalize(statement)
-      return result
-    }
-    defer { sqlite3_finalize(statement) }
-    
-    // 綁定參數
-    for (index, nodeID) in uncachedIDs.enumerated() {
-      sqlite3_bind_int64(statement, Int32(index + 1), sqlite3_int64(nodeID))
-    }
-    
-    // 處理查詢結果
-    while sqlite3_step(statement) == SQLITE_ROW {
-      let id = Int(sqlite3_column_int64(statement, 0))
-      let readingKey = sqlite3_column_text(statement, 1).map { String(cString: $0) } ?? ""
-      
-      // 創建節點
-      let node = VanguardTrie.Trie.TNode(
-        id: id,
-        entries: [],
-        readingKey: readingKey
-      )
-      
-      // 解析詞條資料
-      if let blobPtr = sqlite3_column_text(statement, 2) {
-        let blobString = String(cString: blobPtr)
-        if !blobString.isEmpty, let entries = decodeEntriesFromBase64(blobString) {
-          if !entries.isEmpty {
-            node.entries = entries
-          }
-        }
-      }
-      
-      result[id] = node
-      queryBuffer4Node.set(hashKey: id, value: node)
-    }
-    
-    return result
   }
 }
