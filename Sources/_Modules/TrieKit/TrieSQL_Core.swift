@@ -260,7 +260,7 @@ extension VanguardTrie {
       }
 
       do {
-        return try plistDecoder.decode([Trie.Entry].self, from: data)
+        return try Self.sharedPlistDecoder.decode([Trie.Entry].self, from: data)
       } catch {
         Self.printDebug("Error decoding entries: \(error)")
         return nil
@@ -269,7 +269,8 @@ extension VanguardTrie {
 
     // MARK: Private
 
-    private let plistDecoder = PropertyListDecoder()
+    // 共享的解碼器實例，避免重複分配
+    private static let sharedPlistDecoder = PropertyListDecoder()
 
     private static func printDebug(
       _ items: Any...,
