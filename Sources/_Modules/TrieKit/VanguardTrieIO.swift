@@ -9,18 +9,6 @@ import Foundation
 extension VanguardTrie {
   /// 提供 Trie 資料結構的高效二進位序列化與反序列化功能
   public enum TrieIO {
-    // MARK: - 共享實例
-    
-    /// 共享的 PropertyListDecoder 實例，避免重複分配以提升效能
-    private static let sharedPlistDecoder = PropertyListDecoder()
-    
-    /// 共享的 PropertyListEncoder 實例，避免重複分配以提升效能
-    private static let sharedPlistEncoder: PropertyListEncoder = {
-      let encoder = PropertyListEncoder()
-      encoder.outputFormat = .binary
-      return encoder
-    }()
-    
     // MARK: - 例外型別
 
     /// Trie 輸入輸出操作可能發生的例外狀況
@@ -58,8 +46,10 @@ extension VanguardTrie {
     /// - Throws: 序列化過程中的例外狀況
     public static func serialize(_ trie: Trie) throws -> Data {
       do {
-        // 使用共享的 PropertyListEncoder 實例以提升效能
-        return try sharedPlistEncoder.encode(trie)
+        // 使用 PropertyListEncoder 序列化為二進位格式
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .binary
+        return try encoder.encode(trie)
       } catch {
         throw Exception.serializationFailed(error)
       }
@@ -71,8 +61,9 @@ extension VanguardTrie {
     /// - Throws: 反序列化過程中的例外狀況
     public static func deserialize(_ data: Data) throws -> Trie {
       do {
-        // 使用共享的 PropertyListDecoder 實例以提升效能
-        return try sharedPlistDecoder.decode(Trie.self, from: data)
+        // 使用 PropertyListDecoder 反序列化
+        let decoder = PropertyListDecoder()
+        return try decoder.decode(Trie.self, from: data)
       } catch {
         throw Exception.deserializationFailed(error)
       }
