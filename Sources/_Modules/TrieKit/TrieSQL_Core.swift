@@ -214,10 +214,16 @@ extension VanguardTrie {
     public private(set) var readingSeparator: Character = "-"
     public private(set) var closedAndNullified: Bool = false
 
-    public let jsonDecoder: JSONDecoder = .init()
-
     /// - Warning: 跑過之後這個 Trie 就無法再使用了。
     public func closeAndNullifyConnection() {
+      // 釋放快取的預編譯語句
+      for (_, statement) in cachedStatements {
+        if let stmt = statement {
+          sqlite3_finalize(stmt)
+        }
+      }
+      cachedStatements.removeAll()
+
       if let db = database {
         sqlite3_close_v2(db)
         database = nil
@@ -252,6 +258,23 @@ extension VanguardTrie {
 
     // MARK: - 輔助方法
 
+    /// 獲取或創建快取的預編譯語句
+    /// - Parameter query: SQL 查詢字串
+    /// - Returns: 預編譯的 SQLite 語句，如果失敗則返回 nil
+    internal func getCachedStatement(for query: String) -> OpaquePointer? {
+      if let cachedStatement = cachedStatements[query] {
+        return cachedStatement
+      }
+
+      var statement: OpaquePointer?
+      if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
+        cachedStatements[query] = statement
+        return statement
+      }
+
+      return nil
+    }
+
     /// 從 base64 字串解碼 entries
     internal func decodeEntriesFromBase64(_ base64String: String) -> [Trie.Entry]? {
       guard !base64String.isEmpty,
@@ -260,7 +283,7 @@ extension VanguardTrie {
       }
 
       do {
-        return try plistDecoder.decode([Trie.Entry].self, from: data)
+        return try sharedPlistDecoder.decode([Trie.Entry].self, from: data)
       } catch {
         Self.printDebug("Error decoding entries: \(error)")
         return nil
@@ -269,7 +292,11 @@ extension VanguardTrie {
 
     // MARK: Private
 
-    private let plistDecoder = PropertyListDecoder()
+    // 預編譯的 SQL 語句快取
+    private var cachedStatements: [String: OpaquePointer?] = [:]
+
+    // 共享的解碼器實例，避免重複分配
+    private let sharedPlistDecoder = PropertyListDecoder()
 
     private static func printDebug(
       _ items: Any...,
