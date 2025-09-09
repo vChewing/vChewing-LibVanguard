@@ -12,8 +12,8 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
   /// 根據 keychain 字串查詢節點 ID
   public func getNodeIDsForKeyArray(_ keyArray: [String], longerSpan: Bool) -> [Int] {
     guard !keyArray.isEmpty, keyArray.allSatisfy({ !$0.isEmpty }) else { return [] }
-    let keyInitialsStr = keyArray.compactMap { keyStr in
-      TrieStringPool.shared.internKey(TrieStringOperationCache.shared.getCachedFirstChar(keyStr))
+    let keyInitialsStr = keyArray.compactMap {
+      $0.first?.description
     }.joined()
 
     // 優化的快取鍵計算 - 使用更簡單的雜湊
@@ -24,41 +24,39 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     }
 
     var nodeIDs = Set<Int>()
-    
-    // 使用預編譯的語句以提升效能
-    let statement = longerSpan ? preparedKeyInitialsLikeQuery : preparedKeyInitialsExactQuery
-    guard let stmt = statement else {
-      return nodeIDs.sorted()
-    }
-    
-    // 重置語句狀態
-    sqlite3_reset(stmt)
-    sqlite3_clear_bindings(stmt)
-    
-    // 綁定參數
-    if longerSpan {
-      let pattern = keyInitialsStr + "%"
-      sqlite3_bind_text(stmt, 1, pattern, -1, nil)
-    } else {
-      sqlite3_bind_text(stmt, 1, keyInitialsStr, -1, nil)
+    let escapedKeyInitials = keyInitialsStr.replacingOccurrences(of: "'", with: "''")
+
+    let query = switch longerSpan {
+    case false: """
+      SELECT node_ids FROM keyinitials_id_map
+      WHERE keyinitials = '\(escapedKeyInitials)'
+      """
+    case true: """
+      SELECT node_ids FROM keyinitials_id_map
+      WHERE keyinitials LIKE '\(escapedKeyInitials)%'
+      """
     }
 
-    while sqlite3_step(stmt) == SQLITE_ROW {
-      if let nodeIDsText = sqlite3_column_text(stmt, 0).map({ String(cString: $0) }) {
-        if !nodeIDsText.isEmpty {
-          // 向後相容：支援舊的 JSON 格式和新的逗號分隔格式
-          if nodeIDsText.starts(with: "[") && nodeIDsText.hasSuffix("]") {
-            // 舊的 JSON 格式
-            if let data = nodeIDsText.data(using: .utf8),
-               let setDecoded = try? JSONDecoder().decode(Set<Int>.self, from: data) {
-              nodeIDs.formUnion(setDecoded)
-            }
-          } else {
-            // 新的逗號分隔格式（更快）
-            let nodeIDStrings = nodeIDsText.split(separator: ",")
-            for nodeIDString in nodeIDStrings {
-              if let nodeID = Int(nodeIDString) {
-                nodeIDs.insert(nodeID)
+    var statement: OpaquePointer?
+
+    if sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK {
+      while sqlite3_step(statement) == SQLITE_ROW {
+        if let nodeIDsText = sqlite3_column_text(statement, 0).map({ String(cString: $0) }) {
+          if !nodeIDsText.isEmpty {
+            // 向後相容：支援舊的 JSON 格式和新的逗號分隔格式
+            if nodeIDsText.starts(with: "[") && nodeIDsText.hasSuffix("]") {
+              // 舊的 JSON 格式
+              if let data = nodeIDsText.data(using: .utf8),
+                 let setDecoded = try? JSONDecoder().decode(Set<Int>.self, from: data) {
+                nodeIDs.formUnion(setDecoded)
+              }
+            } else {
+              // 新的逗號分隔格式（更快）
+              let nodeIDStrings = nodeIDsText.split(separator: ",")
+              for nodeIDString in nodeIDStrings {
+                if let nodeID = Int(nodeIDString) {
+                  nodeIDs.insert(nodeID)
+                }
               }
             }
           }
@@ -66,6 +64,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       }
     }
 
+    sqlite3_finalize(statement)
     queryBuffer4NodeIDs.set(hashKey: formedKeyHash, value: nodeIDs)
     return nodeIDs.sorted()
   }

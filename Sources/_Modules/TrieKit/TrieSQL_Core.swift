@@ -138,9 +138,10 @@ extension VanguardTrie {
       }
 
       // 啟用 SQLITE 最佳化功能
-      if !applyPerformanceOptimizations() {
-        return nil
-      }
+      // Temporarily disabled for debugging
+      // if !applyPerformanceOptimizations() {
+      //   return nil
+      // }
       
       // 讀取分隔符設定
       if !initializeSettings() {
