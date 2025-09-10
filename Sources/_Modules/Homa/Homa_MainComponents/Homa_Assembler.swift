@@ -360,9 +360,9 @@ extension Homa {
       var insertedIntel = Set<String>()
       let newResult: [Homa.Gram] = gramQuerier(keyArray).sorted {
         (
-          $1.keyArray.split(separator: "-").count, "\($0.keyArray)", $1.probability
+          $1.keyArray.count, "\($0.keyArray)", $1.probability
         ) < (
-          $0.keyArray.split(separator: "-").count, "\($1.keyArray)", $0.probability
+          $0.keyArray.count, "\($1.keyArray)", $0.probability
         )
       }.compactMap {
         let intel = "\($0.keyArray) \($0.value) \($0.previous ?? "")"
