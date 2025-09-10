@@ -283,7 +283,7 @@ extension Tekkon {
 
 // MARK: - Unicode.Scalar + Codable
 
-extension Unicode.Scalar: Codable {
+extension Unicode.Scalar: @retroactive Codable {
   public func encode(to encoder: any Encoder) throws {
     var container = encoder.singleValueContainer()
     try container.encode(value)
