@@ -80,9 +80,9 @@ extension Lexicon {
 
   private static func sortGrams(_ lhs: HomaGramTuple, _ rhs: HomaGramTuple) -> Bool {
     (
-      rhs.keyArray.split(separator: "-").count, "\(lhs.keyArray)", rhs.probability
+      rhs.keyArray.count, "\(lhs.keyArray)", rhs.probability
     ) < (
-      lhs.keyArray.split(separator: "-").count, "\(rhs.keyArray)", lhs.probability
+      lhs.keyArray.count, "\(rhs.keyArray)", lhs.probability
     )
   }
 
