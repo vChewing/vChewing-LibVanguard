@@ -86,7 +86,7 @@ final class SubTestCase: Sendable {
 // MARK: - TestCaseBatch
 
 /// 批量測試案例處理器，用於減少記憶體分配
-actor TestCaseBatch: Sendable {
+actor TestCaseBatch {
   // MARK: Lifecycle
 
   init(parser: Tekkon.MandarinParser, rawData: String) {
