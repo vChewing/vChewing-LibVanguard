@@ -251,8 +251,7 @@ public struct TrieKitTests: TrieKitTestSuite {
       let sqlScript = VanguardTrie.TrieSQLScriptGenerator.generate(trie)
       let sqlTrie = VanguardTrie.SQLTrie(sqlContent: sqlScript)
       guard let sqlTrie else {
-        assertionFailure("SQLTrie initialization failed.")
-        exit(1)
+        preconditionFailure("SQLTrie initialization failed.")
       }
       trieFinal = sqlTrie
       #expect(sqlTrie.getTableRowCount("config") ?? 0 > 0)
