@@ -99,8 +99,8 @@ extension Homa.Assembler {
 
 extension Homa.Assembler {
   func dumpUnigrams() -> String {
-    spans.map { currentSpan in
-      currentSpan.values.map { currentNode in
+    segments.map { currentSegment in
+      currentSegment.values.map { currentNode in
         currentNode.grams.map { currentGram in
           let readingChain = currentGram.keyArray.joined(separator: "-")
           let value = currentGram.current
