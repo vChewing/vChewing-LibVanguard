@@ -114,7 +114,7 @@ extension Perceptor {
       // 解析 key 用於衰減計算
       let keyCells = key.dropLast(1).dropFirst(1).split(separator: ",")
       let isUnigramKey = key.contains("(),(),") || keyCells.count == 1
-      let isSingleCharUnigram = isUnigramKey && isSpanLengthOne(key: frontEdgeReading)
+      let isSingleCharUnigram = isUnigramKey && isSegLengthOne(key: frontEdgeReading)
 
       for (candidate, override) in perception.overrides {
         let overrideScore = calculateWeight(
@@ -291,8 +291,8 @@ extension Perceptor {
 // MARK: - Other Non-Public Internal Methods
 
 extension Perceptor {
-  /// 判斷一個鍵是否為單漢字 (SpanLength == 1)
-  private func isSpanLengthOne(key: String) -> Bool {
+  /// 判斷一個鍵是否為單漢字 (SegLength == 1)
+  private func isSegLengthOne(key: String) -> Bool {
     !key.contains("-")
   }
 

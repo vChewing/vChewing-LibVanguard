@@ -68,14 +68,14 @@ extension Homa.Assembler {
 
     // 向後計算
     while cursor > rearBoundary {
-      try? jumpCursorBySpan(to: .rear)
+      try? jumpCursorBySegment(to: .rear)
     }
     rearBoundary = min(cursor, rearBoundary)
 
     // 還原游標，再向前計算
     cursor = cursorBackup
     while cursor < frontBoundary {
-      try? jumpCursorBySpan(to: .front)
+      try? jumpCursorBySegment(to: .front)
     }
     frontBoundary = min(max(cursor, frontBoundary), length)
 

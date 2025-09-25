@@ -5,9 +5,9 @@
 // MARK: - Homa.GramInPath
 
 extension Homa {
-  /// 假節點，便於將節點當中的任何對 assembler 外圍的有效資訊單獨拿出來以 Sendable 的形式傳遞。
+  /// 輕量化節點封裝，便於將節點內的有效資訊以 Sendable 形式獨立傳遞。
   ///
-  /// 該結構體的所有成員都不可變。
+  /// 該結構體的所有成員均為不可變狀態。
   @frozen
   public struct GramInPath: Codable, Hashable, Sendable {
     // MARK: Lifecycle
@@ -24,7 +24,7 @@ extension Homa {
 
     public var value: String { gram.current }
     public var score: Double { gram.probability }
-    public var spanLength: Int { gram.spanLength }
+    public var segLength: Int { gram.segLength }
     public var keyArray: [String] { gram.keyArray }
     public var isReadingMismatched: Bool { gram.isReadingMismatched }
 
@@ -54,7 +54,7 @@ extension Array where Element == Homa.GramInPath {
   /// 從一個節點陣列當中取出目前的索引鍵陣列。
   public var keyArrays: [[String]] { map(\.keyArray) }
 
-  /// 返回一連串的節點起點。結果為 (Result A, Result B) 辭典陣列。
+  /// 返回一連串的節點起點。結果為 (Result A, Result B) 字典陣列。
   /// Result A 以索引查座標，Result B 以座標查索引。
   private var gramBorderPointDictPair: (regionCursorMap: [Int: Int], cursorRegionMap: [Int: Int]) {
     // Result A 以索引查座標，Result B 以座標查索引。
@@ -73,18 +73,18 @@ extension Array where Element == Homa.GramInPath {
     return (resultA, resultB)
   }
 
-  /// 返回一個辭典，以座標查索引。允許以游標位置查詢其屬於第幾個幅位座標（從 0 開始算）。
+  /// 返回一個字典，以座標查索引。允許以游標位置查詢其屬於第幾個幅節座標（從 0 開始算）。
   public var cursorRegionMap: [Int: Int] { gramBorderPointDictPair.cursorRegionMap }
 
-  /// 總讀音單元數量。在絕大多數情況下，可視為總幅位長度。
+  /// 總讀音單元數量。在絕大多數情況下，可視為總幅節長度。
   public var totalKeyCount: Int { map(\.keyArray.count).reduce(0, +) }
 
   /// 根據給定的游標，返回其前後最近的節點邊界。
   /// - Parameter cursor: 給定的游標。
   public func contextRange(ofGivenCursor cursor: Int) -> Range<Int> {
     guard !isEmpty else { return 0 ..< 0 }
-    let frontestSpanLength = reversed()[0].keyArray.count
-    var nilReturn = (totalKeyCount - frontestSpanLength) ..< totalKeyCount
+    let frontestSegLength = reversed()[0].keyArray.count
+    var nilReturn = (totalKeyCount - frontestSegLength) ..< totalKeyCount
     if cursor >= totalKeyCount { return nilReturn } // 防呆
     let cursor = Swift.max(0, cursor) // 防呆
     nilReturn = cursor ..< cursor

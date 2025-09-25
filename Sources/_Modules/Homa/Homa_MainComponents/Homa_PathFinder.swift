@@ -3,14 +3,14 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 extension Homa.Assembler {
-  /// 爬軌函式，會以 Dijkstra 演算法更新當前組字器的 assembledSentence。
+  /// 組句函式，會以 Dijkstra 演算法更新當前組字器的 assembledSentence。
   ///
   /// 該演算法會在圖中尋找具有最高分數的路徑，即最可能的字詞組合。
   ///
   /// 該演算法所依賴的 HybridPriorityQueue 針對 Sandy Bridge 經過最佳化處理，
   /// 使得該演算法在 Sandy Bridge CPU 的電腦上比 DAG 演算法擁有更優的效能。
   ///
-  /// - Returns: 爬軌結果（已選字詞陣列）。
+  /// - Returns: 組句結果（已選字詞陣列）。
   @discardableResult
   public func assemble() -> [Homa.GramInPath] {
     Homa.PathFinder(config: config, assembledSentence: &assembledSentence)
@@ -24,7 +24,7 @@ extension Homa {
   final class PathFinder {
     // MARK: Lifecycle
 
-    /// 爬軌工具，會以 Dijkstra 演算法更新當前組字器的 assembledSentence。
+    /// 組句工具，會以 Dijkstra 演算法更新當前組字器的 assembledSentence。
     ///
     /// 該演算法會在圖中尋找具有最高分數的路徑，即最可能的字詞組合。
     ///
@@ -34,7 +34,7 @@ extension Homa {
     init(config: Homa.Config, assembledSentence: inout [Homa.GramInPath]) {
       var newassembledSentence = [Homa.GramInPath]()
       defer { assembledSentence = newassembledSentence }
-      guard !config.spans.isEmpty else { return }
+      guard !config.segments.isEmpty else { return }
 
       // 初期化資料結構。
       var openSet = HybridPriorityQueue<PrioritizedState>(reversed: true)
@@ -78,7 +78,7 @@ extension Homa {
         }
 
         // 處理下一個可能的節點。
-        for (length, nextNode) in config.spans[currentState.position] {
+        for (length, nextNode) in config.segments[currentState.position] {
           guard let nextGram = nextNode.currentGram else { continue }
           let nextPos = currentState.position + length
 
@@ -101,9 +101,9 @@ extension Homa {
           bestScore[nextPos] = newScore
           openSet.enqueue(PrioritizedState(state: nextState))
         }
-        
+
         // 即時記憶體最佳化：當 visited 集合過大時進行部分清理
-        if visited.count > 1000 { // 可調整的閾值
+        if visited.count > 1_000 { // 可調整的閾值
           Self.partialCleanVisitedStates(visited: &visited, keepRecentCount: 500)
         }
       }
@@ -150,15 +150,15 @@ extension Homa {
     ///   - visited: 已訪問的狀態集合
     ///   - keepRecentCount: 要保留的最近狀態數量
     private static func partialCleanVisitedStates(
-      visited: inout Set<SearchState>, 
+      visited: inout Set<SearchState>,
       keepRecentCount: Int
     ) {
       guard visited.count > keepRecentCount else { return }
-      
+
       // 按距離排序，保留分數較高的狀態
       let sortedStates = visited.sorted { $0.distance > $1.distance }
       let statesToRemove = Array(sortedStates.dropFirst(keepRecentCount))
-      
+
       // 先從 Set 中移除，再清理參據（避免 hash 不一致）
       for state in statesToRemove {
         visited.remove(state)
@@ -182,7 +182,7 @@ extension Homa {
         state.gram = nil
         state.prev = nil
       }
-      
+
       // 策略2: 直接清理 openSet 中剩餘的所有狀態
       while !openSet.isEmpty {
         if let prioritizedState = openSet.dequeue() {
@@ -235,10 +235,6 @@ extension Homa.PathFinder {
     var prev: SearchState? // 前一個狀態（可變以支援手動位址清理）
     var distance: Double // 累計分數
     let isOverridden: Bool
-    
-    // 用於穩定 hash 計算的不可變參據
-    private let originalGramRef: Homa.Gram? // 原始節點參據（不可變）
-    private let stableHash: Int // 預計算的穩定 hash 值
 
     // MARK: - Hashable 協定實作
 
@@ -256,7 +252,13 @@ extension Homa.PathFinder {
     func hash(into hasher: inout Hasher) {
       hasher.combine(stableHash)
     }
-    
+
+    // MARK: Private
+
+    // 用於穩定 hash 計算的不可變參據
+    private let originalGramRef: Homa.Gram? // 原始節點參據（不可變）
+    private let stableHash: Int // 預計算的穩定 hash 值
+
     private static func computeStableHash(gram: Homa.Gram?, position: Int) -> Int {
       var hasher = Hasher()
       if let gram = gram {

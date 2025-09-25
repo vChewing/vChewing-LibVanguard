@@ -84,13 +84,13 @@ extension LexiconGramSupplierProtocol {
       filterType: filterType
     )
     guard let rawResults else { return nil }
-    let prevSpanLength = previous.keyArray.count
+    let prevSegLength = previous.keyArray.count
     var results = [(keyArray: [String], value: String)]()
     var inserted = Set<Int>()
     rawResults.forEach { entry in
       let newResult = (
-        keyArray: Array(entry.keyArray[prevSpanLength...]),
-        value: entry.value.map(\.description)[prevSpanLength...].joined()
+        keyArray: Array(entry.keyArray[prevSegLength...]),
+        value: entry.value.map(\.description)[prevSegLength...].joined()
       )
       let theHash = "\(newResult)".hashValue
       guard !inserted.contains(theHash) else { return }
