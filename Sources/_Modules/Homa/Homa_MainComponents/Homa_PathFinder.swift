@@ -44,6 +44,15 @@ extension Homa {
         count: config.keys.count + 1
       ) // 追蹤每個位置的最佳分數，使用陣列以提升快取效能
 
+      var stateCleaningTasks: [() -> ()] = []
+      defer {
+        // 確保所有資料結構都被清理
+        stateCleaningTasks.forEach { $0() }
+        stateCleaningTasks.removeAll()
+        visited.removeAll()
+        bestScore.removeAll()
+      }
+
       // 初期化起始狀態。
       let leadingGram = Homa.Gram(keyArray: ["$LEADING"], current: "")
       let leadingState = SearchState(
@@ -51,7 +60,9 @@ extension Homa {
         position: 0,
         prev: nil,
         distance: 0,
-        isOverridden: false
+        isOverridden: false,
+        cleaningTaskRegister: &stateCleaningTasks,
+        pathFinder: self
       )
       openSet.enqueue(PrioritizedState(state: leadingState))
       bestScore[0] = 0
@@ -63,6 +74,7 @@ extension Homa {
       // 主要 Dijkstra 迴圈。
       while !openSet.isEmpty {
         guard let currentState = openSet.dequeue()?.state else { break }
+        stateCleaningTasks.append(currentState.cleanChainRecursively)
 
         // 如果已經造訪過具有更好分數的狀態，則跳過。
         if visited.contains(currentState) { continue }
@@ -95,27 +107,18 @@ extension Homa {
             position: nextPos,
             prev: currentState,
             distance: newScore,
-            isOverridden: nextNode.isOverridden
+            isOverridden: nextNode.isOverridden,
+            cleaningTaskRegister: &stateCleaningTasks,
+            pathFinder: self
           )
 
           bestScore[nextPos] = newScore
           openSet.enqueue(PrioritizedState(state: nextState))
         }
-
-        // 即時記憶體最佳化：當 visited 集合過大時進行部分清理
-        if visited.count > 1_000 { // 可調整的閾值
-          Self.partialCleanVisitedStates(visited: &visited, keepRecentCount: 500)
-        }
       }
 
       // 從最佳終止狀態重建路徑。
       guard let finalState = bestFinalState else {
-        // 即使沒有找到最佳狀態，也需要清理所有建立的 SearchState 物件
-        Self.batchCleanAllSearchStates(
-          visited: visited,
-          openSet: &openSet,
-          leadingState: leadingState
-        )
         return
       }
 
@@ -123,6 +126,10 @@ extension Homa {
       var current: SearchState? = finalState
 
       while let state = current {
+        defer {
+          state.prev = nil
+          state.gram = nil
+        }
         // 排除起始和結束的虛擬節點。
         if let stateGram = state.gram, stateGram !== leadingGram {
           pathGrams.insert(
@@ -131,77 +138,40 @@ extension Homa {
           )
         }
         current = state.prev
+        // 備註：此處不需要手動 ASAN，因為沒有參據循環（Retain Cycle）。
       }
-      newassembledSentence = pathGrams
 
-      // 手動 ASAN：批次清理所有 SearchState 物件以防止記憶體洩漏
-      // 包括 visited set 中的所有狀態、openSet 中剩餘的狀態，以及 leadingState
-      Self.batchCleanAllSearchStates(
-        visited: visited,
-        openSet: &openSet,
-        leadingState: leadingState
-      )
+      newassembledSentence = pathGrams
+      // 清理路徑重建過程中的臨時陣列
+      pathGrams.removeAll()
+    }
+
+    deinit {
+      #if DEBUG
+        if searchStateCreatedCount != searchStateDestroyedCount {
+          print(
+            "PathFinder 記憶體洩漏檢測: 建立了 \(searchStateCreatedCount) 個 SearchState，但只析構了 \(searchStateDestroyedCount) 個"
+          )
+        }
+      #endif
     }
 
     // MARK: Private
 
-    /// 部分清理已訪問狀態集合以控制記憶體使用
-    /// - Parameters:
-    ///   - visited: 已訪問的狀態集合
-    ///   - keepRecentCount: 要保留的最近狀態數量
-    private static func partialCleanVisitedStates(
-      visited: inout Set<SearchState>,
-      keepRecentCount: Int
-    ) {
-      guard visited.count > keepRecentCount else { return }
+    // MARK: Private
 
-      // 按距離排序，保留分數較高的狀態
-      let sortedStates = visited.sorted { $0.distance > $1.distance }
-      let statesToRemove = Array(sortedStates.dropFirst(keepRecentCount))
+    // MARK: - SearchState 記憶體追蹤
 
-      // 先從 Set 中移除，再清理參據（避免 hash 不一致）
-      for state in statesToRemove {
-        visited.remove(state)
-        state.gram = nil
-        state.prev = nil
-      }
-    }
-
-    /// 即時清理策略：直接清理各個資料結構，避免額外的 Set 集合
-    /// - Parameters:
-    ///   - visited: 已訪問的狀態集合
-    ///   - openSet: 優先序列中剩餘的狀態
-    ///   - leadingState: 初始狀態
-    private static func batchCleanAllSearchStates(
-      visited: Set<SearchState>,
-      openSet: inout HybridPriorityQueue<PrioritizedState>,
-      leadingState: SearchState
-    ) {
-      // 策略1: 直接清理 visited set 中的所有狀態
-      for state in visited {
-        state.gram = nil
-        state.prev = nil
-      }
-
-      // 策略2: 直接清理 openSet 中剩餘的所有狀態
-      while !openSet.isEmpty {
-        if let prioritizedState = openSet.dequeue() {
-          prioritizedState.state.gram = nil
-          prioritizedState.state.prev = nil
-        }
-      }
-
-      // 策略3: 清理 leadingState
-      leadingState.gram = nil
-      leadingState.prev = nil
-    }
+    private var searchStateCreatedCount: Int = 0
+    private var searchStateDestroyedCount: Int = 0
   }
 }
 
-// MARK: - 搜尋狀態相關定義
-
 extension Homa.PathFinder {
+  // MARK: - SearchState
+
   /// 用於追蹤搜尋過程中的狀態。
+  /// - Note: 採用弱引用設計以最佳化記憶體使用。
   private final class SearchState: Hashable {
     // MARK: Lifecycle
 
@@ -211,30 +181,54 @@ extension Homa.PathFinder {
     ///   - position: 在輸入串中的位置。
     ///   - prev: 前一個狀態。
     ///   - distance: 到達此狀態的累計分數。
+    ///   - isOverridden: 是否被覆寫。
+    ///   - cleaningTaskRegister: 登記自毀任務池。
+    ///   - pathFinder: PathFinder 實例，用於更新計數器。
     init(
       gram: Homa.Gram?,
       position: Int,
       prev: SearchState?,
       distance: Double = Double(Int.min),
-      isOverridden: Bool
+      isOverridden: Bool,
+      cleaningTaskRegister: inout [() -> ()],
+      pathFinder: Homa.PathFinder
     ) {
       self.gram = gram
       self.position = position
       self.prev = prev
       self.distance = distance
       self.isOverridden = isOverridden
+      self.pathFinder = pathFinder
       // 使用不可變的標識符來確保 hash 一致性
       self.originalGramRef = gram
       self.stableHash = Self.computeStableHash(gram: gram, position: position)
+      cleaningTaskRegister.append(cleanChainRecursively)
+      // 更新建立計數器
+      pathFinder.searchStateCreatedCount += 1
+      #if DEBUG
+        // 移除個別的建立訊息
+      #endif
+    }
+
+    deinit {
+      // 更新析構計數器
+      pathFinder?.searchStateDestroyedCount += 1
+      gram = nil
+      prev = nil
+      pathFinder = nil
+      #if DEBUG
+        // 移除個別的析構訊息
+      #endif
     }
 
     // MARK: Internal
 
-    var gram: Homa.Gram? // 當前節點（可變，用於清理）
+    weak var gram: Homa.Gram? // 當前節點（可變，用於清理）
     let position: Int // 在輸入串中的位置
-    var prev: SearchState? // 前一個狀態（可變以支援手動位址清理）
+    weak var prev: SearchState? // 前一個狀態（可變以支援手動位址清理）
     var distance: Double // 累計分數
     let isOverridden: Bool
+    weak var pathFinder: Homa.PathFinder? // PathFinder 弱引用
 
     // MARK: - Hashable 協定實作
 
@@ -242,11 +236,31 @@ extension Homa.PathFinder {
       lhs.originalGramRef === rhs.originalGramRef && lhs.position == rhs.position
     }
 
-    /// 清理單一 SearchState 的參據
-    /// 注意：由於新的清理策略是直接清理各個集合，這個方法現在主要用於向下相容
-    func cleanState() {
-      gram = nil
-      prev = nil
+    /// 清理整個 SearchState 鏈條，從當前節點開始向後遞歸清理
+    /// 採用深度優先遍歷策略，確保每個節點都被清理
+    func cleanChainRecursively() {
+      var visited = Set<ObjectIdentifier>()
+      var stack: [SearchState] = []
+      stack.append(self)
+
+      while !stack.isEmpty {
+        let current = stack.removeLast()
+        let currentId = ObjectIdentifier(current)
+
+        // 避免重複清理和無限循環
+        guard !visited.contains(currentId) else { continue }
+        visited.insert(currentId)
+
+        // 在清理前，將 prev 加入堆疊（如果存在）
+        if let prevState = current.prev {
+          stack.append(prevState)
+        }
+
+        // 清理當前節點
+        current.gram = nil
+        current.prev?.cleanChainRecursively()
+        current.prev = nil
+      }
     }
 
     func hash(into hasher: inout Hasher) {
@@ -256,7 +270,7 @@ extension Homa.PathFinder {
     // MARK: Private
 
     // 用於穩定 hash 計算的不可變參據
-    private let originalGramRef: Homa.Gram? // 原始節點參據（不可變）
+    private weak var originalGramRef: Homa.Gram? // 原始節點參據（不可變，弱引用）
     private let stableHash: Int // 預計算的穩定 hash 值
 
     private static func computeStableHash(gram: Homa.Gram?, position: Int) -> Int {
@@ -270,6 +284,8 @@ extension Homa.PathFinder {
       return hasher.finalize()
     }
   }
+
+  // MARK: - PrioritizedState
 
   /// 用於優先序列的狀態包裝結構
   private struct PrioritizedState: Comparable {
