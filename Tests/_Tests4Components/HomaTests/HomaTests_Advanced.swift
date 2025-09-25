@@ -93,7 +93,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     try readings.split(separator: " ").forEach {
       try assembler.insertKey($0.description)
     }
-    // 初始爬軌結果。
+    // 初始組句結果。
     let assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["大前天", "在", "科技", "公園", "超商"])
     var stack1A = [String]()
@@ -145,7 +145,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
       try readings.forEach {
         try assembler.insertKey($0.description)
       }
-      // 初始爬軌結果。
+      // 初始組句結果。
       let assembledSentence = assembler.assemble().compactMap(\.value)
       #expect(assembledSentence == ["科技", "公園"])
       // 測試候選字詞過濾。
@@ -209,7 +209,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     }
     #expect(assembler.length == 12)
     #expect(assembler.length == assembler.cursor)
-    // 初始爬軌結果。
+    // 初始組句結果。
     var assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["超商", "大前天", "為止", "還", "在", "賣", "荔枝"])
     // 測試 DumpDOT。
@@ -241,35 +241,35 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     #expect(perceptions.last?.candidate == "奶雞")
     // 測試游標跳轉。
     assembler.cursor = 10 // 向後
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .rear) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .rear) })
     #expect(assembler.cursor == 9)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .rear) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .rear) })
     #expect(assembler.cursor == 8)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .rear) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .rear) })
     #expect(assembler.cursor == 7)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .rear) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .rear) })
     #expect(assembler.cursor == 5)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .rear) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .rear) })
     #expect(assembler.cursor == 2)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .rear) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .rear) })
     #expect(assembler.cursor == 0)
-    #expect(Self.mustFail { try assembler.jumpCursorBySpan(to: .rear) })
+    #expect(Self.mustFail { try assembler.jumpCursorBySegment(to: .rear) })
     #expect(assembler.cursor == 0) // 接下來準備向前
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .front) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .front) })
     #expect(assembler.cursor == 2)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .front) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .front) })
     #expect(assembler.cursor == 5)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .front) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .front) })
     #expect(assembler.cursor == 7)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .front) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .front) })
     #expect(assembler.cursor == 8)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .front) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .front) })
     #expect(assembler.cursor == 9)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .front) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .front) })
     #expect(assembler.cursor == 10)
-    #expect(Self.mustDone { try assembler.jumpCursorBySpan(to: .front) })
+    #expect(Self.mustDone { try assembler.jumpCursorBySegment(to: .front) })
     #expect(assembler.cursor == 12)
-    #expect(Self.mustFail { try assembler.jumpCursorBySpan(to: .front) })
+    #expect(Self.mustFail { try assembler.jumpCursorBySegment(to: .front) })
     #expect(assembler.cursor == 12)
   }
 
@@ -279,7 +279,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   /// - 讀音輸入處理。
   /// - 組字器的基本組句功能。
   /// - 候選字詞覆寫功能。
-  /// - 在有雙元圖（Bigram）與僅有單元圖（Unigram）的情況下的爬軌結果對比測試。
+  /// - 在有雙元圖（Bigram）與僅有單元圖（Unigram）的情況下的組句結果對比測試。
   @Test("[Homa] Assember_AssembleAndOverride_FullMatch_WithBigram")
   func testAssembleWithBigramAndOverrideWithFullMatch() async throws {
     let readings: [Substring] = "you1 die2 neng2 liu2 yi4 lv3 fang1".split(separator: " ")
@@ -291,7 +291,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     try readings.forEach {
       try assembler.insertKey($0.description)
     }
-    // 初始爬軌結果。
+    // 初始組句結果。
     var assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。
@@ -562,7 +562,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     let readings: String = partialMatch ? rdSimp : rdFull
     let mockLM = TestLM(rawData: strLMSampleDataTechGuarden + "\n" + strLMSampleDataLitch)
 
-    // 此處無須刻意爬軌，因為 revolveCandidate 會在發現沒爬軌的時候自動爬一次軌。
+    // 此處無須刻意組句，因為 revolveCandidate 會在發現沒組句的時候自動爬一次軌。
     // 準備正式測試。
     let cases: [Homa.Assembler.CandidateCursor] = [.placedFront, .placedRear]
     try cases.forEach { candidateCursorType in

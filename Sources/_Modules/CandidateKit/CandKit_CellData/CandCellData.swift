@@ -12,11 +12,11 @@ public class CandidateCellData: Hashable {
 
   public init(
     key: String, displayedText: String,
-    spanLength spanningLength: Int? = nil, isSelected: Bool = false
+    segLength segmentLength: Int? = nil, isSelected: Bool = false
   ) {
     self.selectionKey = key
     self.displayedText = displayedText
-    self.spanLength = max(spanningLength ?? displayedText.count, 1)
+    self.segLength = max(segmentLength ?? displayedText.count, 1)
     self.isHighlighted = isSelected
   }
 
@@ -25,7 +25,7 @@ public class CandidateCellData: Hashable {
   public var locale = ""
   public var selectionKey: String
   public let displayedText: String
-  public var spanLength: Int
+  public var segLength: Int
   public var isHighlighted: Bool = false
   public var whichLine: Int = 0
   // 該候選字詞在資料池內的總索引編號
@@ -37,7 +37,7 @@ public class CandidateCellData: Hashable {
     let result = CandidateCellData(
       key: selectionKey,
       displayedText: displayedText,
-      spanLength: spanLength,
+      segLength: segLength,
       isSelected: isHighlighted
     )
     result.locale = locale

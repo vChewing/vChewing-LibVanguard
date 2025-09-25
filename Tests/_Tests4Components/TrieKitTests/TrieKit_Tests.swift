@@ -50,7 +50,7 @@ public struct TrieKitTests: TrieKitTestSuite {
     try readings.forEach {
       try assembler.insertKey($0.description)
     }
-    // 初始爬軌結果。
+    // 初始組句結果。
     var assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。

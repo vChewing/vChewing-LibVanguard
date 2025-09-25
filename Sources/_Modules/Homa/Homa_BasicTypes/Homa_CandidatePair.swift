@@ -26,7 +26,7 @@ extension Homa {
       (keyArray, value)
     }
 
-    public var spanLength: Int {
+    public var segLength: Int {
       keyArray.count
     }
 

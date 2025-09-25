@@ -5,18 +5,18 @@
 // MARK: - Homa.Assembler
 
 extension Homa {
-  /// 一個組字器用來在給定一系列的索引鍵的情況下（藉由一系列的觀測行為）返回一套資料值。
+  /// 進階組字引擎的核心處理單元，專門負責將輸入索引鍵序列轉換為最佳的資料值組合。
   ///
-  /// 用於輸入法的話，給定的索引鍵可以是注音、且返回的資料值都是漢語字詞組合。該組字器
-  /// 還可以用來對文章做分節處理：此時的索引鍵為漢字，返回的資料值則是漢語字詞分節組合。
+  /// 在輸入法應用場景中，處理器接收注音符號序列並產生最適合的中文詞彙組合。
+  /// 同時具備文本分析功能：將中文字符作為輸入，輸出經過語意最佳化的詞彙分段結果。
   public final class Assembler {
     // MARK: Lifecycle
 
-    /// 初期化一個組字器。
+    /// 建立組字引擎處理器實例。
     /// - Parameters:
-    ///   - gramQuerier: 元圖存取專用 API。
-    ///   - gramAvailabilityChecker: 元圖在庫檢查器。
-    ///   - config: 組態設定。
+    ///   - gramQuerier: 單元圖資料存取專用介面。
+    ///   - gramAvailabilityChecker: 單元圖資料可用性檢測介面。
+    ///   - config: 引擎配置參數。
     public init(
       gramQuerier: @escaping Homa.GramQuerier,
       gramAvailabilityChecker: @escaping Homa.GramAvailabilityChecker,
@@ -29,10 +29,10 @@ extension Homa {
       self.perceptor = perceptor
     }
 
-    /// 以指定組字器生成拷貝。
-    /// - Remark: 因為 Node 不是 Struct，所以會在 Assembler 被拷貝的時候無法被真實複製。
-    /// 這樣一來，Assembler 複製品當中的 Node 的變化會被反應到原先的 Assembler 身上。
-    /// 這在某些情況下會造成意料之外的混亂情況，所以需要引入一個拷貝用的建構子。
+    /// 複製指定的組字引擎處理器。
+    /// - Remark: 由於 Node 採用類別設計而非結構體，因此在 Assembler 複製過程中無法自動執行深層複製。
+    /// 這會導致複製後的 Assembler 實例中的 Node 變更會影響到原始的 Assembler 實例。
+    /// 為了避免此類非預期的互動影響，特別提供此複製建構函數。
     public init(from target: Assembler) {
       self.config = target.config.hardCopy
       self.gramQuerier = target.gramQuerier
@@ -42,12 +42,12 @@ extension Homa {
 
     // MARK: Public
 
-    /// 就文字輸入方向而言的方向。
+    /// 基於文字書寫習慣的方向性定義。
     public enum TypingDirection { case front, rear }
-    /// 軌格增減行為。
+    /// 軌格調整操作模式。
     public enum ResizeBehavior { case expand, shrink }
 
-    /// 元圖存取專用 API。
+    /// 單元圖資料存取專用介面。
     public var gramQuerier: Homa.GramQuerier
     /// 元圖在庫檢查器。
     public var gramAvailabilityChecker: Homa.GramAvailabilityChecker
@@ -56,7 +56,7 @@ extension Homa {
     /// 組態設定。
     public private(set) var config = Config()
 
-    /// 最近一次爬軌結果。
+    /// 最近一次組句結果。
     public var assembledSentence: [GramInPath] {
       get { config.assembledSentence }
       set { config.assembledSentence = newValue }
@@ -75,10 +75,10 @@ extension Homa {
       config.assembledSentence.keyArrays.flatMap(\.self)
     }
 
-    /// 該組字器的幅位單元陣列。
-    public private(set) var spans: [NodeSpan] {
-      get { config.spans }
-      set { config.spans = newValue }
+    /// 該組字器的幅節單元陣列。
+    public private(set) var segments: [Segment] {
+      get { config.segments }
+      set { config.segments = newValue }
     }
 
     /// 該組字器的敲字游標位置。
@@ -93,19 +93,19 @@ extension Homa {
       set { config.marker = newValue }
     }
 
-    /// 該軌格內可以允許的最大幅位長度。
-    public var maxSpanLength: Int {
-      get { config.maxSpanLength }
-      set { config.maxSpanLength = newValue }
+    /// 該軌格內可以允許的最大幅節長度。
+    public var maxSegLength: Int {
+      get { config.maxSegLength }
+      set { config.maxSegLength = newValue }
     }
 
     /// 該組字器的長度，組字器內已經插入的單筆索引鍵的數量，也就是內建漢字讀音的數量（唯讀）。
-    /// - Remark: 理論上而言，spans.count 也是這個數。
+    /// - Remark: 理論上而言，segments.count 也是這個數。
     /// 但是，為了防止萬一，就用了目前的方法來計算。
     public var length: Int { config.length }
 
     /// 組字器是否為空。
-    public var isEmpty: Bool { spans.isEmpty && keys.isEmpty }
+    public var isEmpty: Bool { segments.isEmpty && keys.isEmpty }
 
     /// 該組字器的硬拷貝。
     /// - Remark: 因為 Node 不是 Struct，所以會在 Assembler 被拷貝的時候無法被真實複製。
@@ -117,19 +117,19 @@ extension Homa {
     public func dumpDOT(verticalGraph: Bool = false) -> String {
       let rankDirection = verticalGraph ? "TB" : "LR"
       var strOutput = "digraph {\ngraph [ rankdir=\(rankDirection) ];\nBOS;\n"
-      spans.enumerated().forEach { p, span in
-        span.keys.sorted().forEach { ni in
-          guard let np = span[ni], let npValue = np.value else { return }
+      segments.enumerated().forEach { p, segment in
+        segment.keys.sorted().forEach { ni in
+          guard let np = segment[ni], let npValue = np.value else { return }
           if p == 0 { strOutput.append("BOS -> \(npValue);\n") }
           strOutput.append("\(npValue);\n")
-          if (p + ni) < spans.count {
-            let destinationSpan = spans[p + ni]
-            destinationSpan.keys.sorted().forEach { q in
-              guard let dnValue = destinationSpan[q]?.value else { return }
+          if (p + ni) < segments.count {
+            let destinationSegment = segments[p + ni]
+            destinationSegment.keys.sorted().forEach { q in
+              guard let dnValue = destinationSegment[q]?.value else { return }
               strOutput.append(npValue + " -> " + dnValue + ";\n")
             }
           }
-          guard (p + ni) == spans.count else { return }
+          guard (p + ni) == segments.count else { return }
           strOutput.append(npValue + " -> EOS;\n")
         }
       }
@@ -139,8 +139,8 @@ extension Homa {
 
     /// 重置包括游標在內的各項參數，且清空各種由組字器生成的內部資料。
     ///
-    /// 將已經被插入的索引鍵陣列與幅位單元陣列（包括其內的節點）全部清空。
-    /// 最近一次的爬軌結果陣列也會被清空。游標跳轉換算表也會被清空。
+    /// 將已經被插入的索引鍵陣列與幅節單元陣列（包括其內的節點）全部清空。
+    /// 最近一次的組句結果陣列也會被清空。游標跳轉換算表也會被清空。
     public func clear() {
       config.clear()
     }
@@ -157,7 +157,7 @@ extension Homa {
       guard !givenKeys.isEmpty, givenKeys.allSatisfy({ !$0.isEmpty }) else {
         throw .givenKeyIsEmpty
       }
-      let gridBackup = spans
+      let gridBackup = segments
       var keyExistenceChecked = [String: Bool]()
       for (cursorAdvancedPosition, key) in givenKeys.enumerated() {
         if !(keyExistenceChecked[key] ?? false) {
@@ -172,8 +172,8 @@ extension Homa {
       do {
         try assignNodes()
       } catch {
-        // 用來在 gramAvailabilityChecker() 結果不準確的時候防呆、恢復被搞壞的 spans。
-        spans = gridBackup
+        // 用來在 gramAvailabilityChecker() 結果不準確的時候防呆、恢復被搞壞的 segments。
+        segments = gridBackup
         throw error
       }
       cursor += givenKeys.count // 游標必須得在執行 assignNodes() 之後才可以變動。
@@ -239,11 +239,11 @@ extension Homa {
       }
       pos += delta
       if isCursorCuttingChar(isMarker: true) {
-        try jumpCursorBySpan(to: direction, isMarker: isMarker)
+        try jumpCursorBySegment(to: direction, isMarker: isMarker)
       }
     }
 
-    /// 按幅位來前後移動游標。
+    /// 按幅節來前後移動游標。
     ///
     /// 在護摩引擎所遵循的術語體系當中，「與文字輸入方向相反的方向」為向後（Rear），反之則為向前（Front）。
     /// - Parameters:
@@ -252,7 +252,7 @@ extension Homa {
     /// 具體用法可以是這樣：你在標記模式下，
     /// 如果出現了「副游標切了某個字音數量不相等的節點」的情況的話，
     /// 則直接用這個函式將副游標往前推到接下來的正常的位置上。
-    public func jumpCursorBySpan(
+    public func jumpCursorBySegment(
       to direction: TypingDirection,
       isMarker: Bool = false
     ) throws(Homa.Exception) {
@@ -269,21 +269,21 @@ extension Homa {
       let aRegionForward = max(currentRegion - 1, 0)
       let currentRegionBorderRear: Int = assembledSentence[
         0 ..< currentRegion
-      ].map(\.spanLength).reduce(0, +)
+      ].map(\.segLength).reduce(0, +)
       switch target {
       case currentRegionBorderRear:
         switch direction {
         case .front:
           target = (currentRegion > assembledSentence.count)
             ? keys.count
-            : assembledSentence[0 ... guardedCurrentRegion].map(\.spanLength).reduce(0, +)
+            : assembledSentence[0 ... guardedCurrentRegion].map(\.segLength).reduce(0, +)
         case .rear:
-          target = assembledSentence[0 ..< aRegionForward].map(\.spanLength).reduce(0, +)
+          target = assembledSentence[0 ..< aRegionForward].map(\.segLength).reduce(0, +)
         }
       default:
         switch direction {
         case .front:
-          target = currentRegionBorderRear + assembledSentence[guardedCurrentRegion].spanLength
+          target = currentRegionBorderRear + assembledSentence[guardedCurrentRegion].segLength
         case .rear:
           target = currentRegionBorderRear
         }
@@ -298,29 +298,30 @@ extension Homa {
     /// - Parameter updateExisting: 是否根據目前的語言模型的資料狀態來對既有節點更新其內部的單元圖陣列資料。
     /// 該特性可以用於「在選字窗內屏蔽了某個詞之後，立刻生效」這樣的軟體功能需求的實現。
     public func assignNodes(updateExisting: Bool = false) throws(Homa.Exception) {
-      let maxSpanLength = maxSpanLength
+      let maxSegLength = maxSegLength
       let rangeOfPositions: Range<Int>
       if updateExisting {
-        rangeOfPositions = spans.indices
+        rangeOfPositions = segments.indices
       } else {
-        let lowerbound = Swift.max(0, cursor - maxSpanLength)
-        let upperbound = Swift.min(cursor + maxSpanLength, keys.count)
+        let lowerbound = Swift.max(0, cursor - maxSegLength)
+        let upperbound = Swift.min(cursor + maxSegLength, keys.count)
         rangeOfPositions = lowerbound ..< upperbound
       }
       var nodesChangedCounter = 0
       var queryBuffer: [[String]: [Homa.Gram]] = [:]
       rangeOfPositions.forEach { position in
-        let rangeOfLengths = 1 ... min(maxSpanLength, rangeOfPositions.upperBound - position)
+        let rangeOfLengths = 1 ... min(maxSegLength, rangeOfPositions.upperBound - position)
         rangeOfLengths.forEach { theLength in
           guard position + theLength <= keys.count, position >= 0 else { return }
           let keyArraySliced = keys[position ..< (position + theLength)].map(\.description)
-          if (0 ..< spans.count).contains(position), let theNode = spans[position][theLength] {
+          if (0 ..< segments.count).contains(position),
+             let theNode = segments[position][theLength] {
             if !updateExisting { return }
             let queriedGrams = queryGrams(using: keyArraySliced, cache: &queryBuffer)
             // 自動銷毀無效的節點。
             if queriedGrams.isEmpty {
               if theNode.keyArray.count == 1 { return }
-              spans[position][theNode.spanLength] = nil
+              segments[position][theNode.segLength] = nil
             } else {
               theNode.syncingGrams(from: queriedGrams)
             }
@@ -329,8 +330,8 @@ extension Homa {
           }
           let queriedGrams = queryGrams(using: keyArraySliced, cache: &queryBuffer)
           guard !queriedGrams.isEmpty else { return }
-          // 這裡原本用 SpanUnit.addNode 來完成的，但直接當作辭典來互動的話也沒差。
-          spans[position][theLength] = .init(keyArray: keyArraySliced, grams: queriedGrams)
+          // 這裡原本用 SegmentUnit.addNode 來完成的，但直接當作字典來互動的話也沒差。
+          segments[position][theLength] = .init(keyArray: keyArraySliced, grams: queriedGrams)
           nodesChangedCounter += 1
         }
       }
@@ -380,63 +381,63 @@ extension Homa {
 // MARK: - Internal Methods (Maybe Public)
 
 extension Homa.Assembler {
-  /// 在該軌格的指定幅位座標擴增或減少一個幅位單元。
+  /// 在該軌格的指定幅節座標擴增或減少一個幅節單元。
   /// - Parameters:
-  ///   - location: 給定的幅位座標。
-  ///   - action: 指定是擴張還是縮減一個幅位。
+  ///   - location: 給定的幅節座標。
+  ///   - action: 指定是擴張還是縮減一個幅節。
   private func resizeGrid(at location: Int, do action: ResizeBehavior) {
-    let location = max(min(location, spans.count), 0) // 防呆
+    let location = max(min(location, segments.count), 0) // 防呆
     switch action {
     case .expand:
-      spans.insert(.init(), at: location)
-      if [0, spans.count].contains(location) { return }
+      segments.insert(.init(), at: location)
+      if [0, segments.count].contains(location) { return }
     case .shrink:
-      if spans.count == location { return }
-      spans.remove(at: location)
+      if segments.count == location { return }
+      segments.remove(at: location)
     }
     dropWreckedNodes(at: location)
   }
 
   /// 扔掉所有被 resizeGrid() 損毀的節點。
   ///
-  /// 拿新增幅位來打比方的話，在擴增幅位之前：
+  /// 拿新增幅節來打比方的話，在擴增幅節之前：
   /// ```
-  /// Span Index 0   1   2   3
+  /// Segment Index 0   1   2   3
   ///                (---)
   ///                (-------)
   ///            (-----------)
   /// ```
-  /// 在幅位座標 2 (SpanIndex = 2) 的位置擴增一個幅位之後:
+  /// 在幅節座標 2 (SegmentIndex = 2) 的位置擴增一個幅節之後:
   /// ```
-  /// Span Index 0   1   2   3   4
+  /// Segment Index 0   1   2   3   4
   ///                (---)
   ///                (XXX?   ?XXX) <-被扯爛的節點
   ///            (XXXXXXX?   ?XXX) <-被扯爛的節點
   /// ```
-  /// 拿縮減幅位來打比方的話，在縮減幅位之前：
+  /// 拿縮減幅節來打比方的話，在縮減幅節之前：
   /// ```
-  /// Span Index 0   1   2   3
+  /// Segment Index 0   1   2   3
   ///                (---)
   ///                (-------)
   ///            (-----------)
   /// ```
-  /// 在幅位座標 2 的位置就地砍掉一個幅位之後:
+  /// 在幅節座標 2 的位置就地砍掉一個幅節之後:
   /// ```
-  /// Span Index 0   1   2   3   4
+  /// Segment Index 0   1   2   3   4
   ///                (---)
   ///                (XXX? <-被砍爛的節點
   ///            (XXXXXXX? <-被砍爛的節點
   /// ```
-  /// - Parameter location: 給定的幅位座標。
+  /// - Parameter location: 給定的幅節座標。
   internal func dropWreckedNodes(at location: Int) {
-    let location = max(min(location, spans.count), 0) // 防呆
-    guard !spans.isEmpty else { return }
-    let affectedLength = maxSpanLength - 1
+    let location = max(min(location, segments.count), 0) // 防呆
+    guard !segments.isEmpty else { return }
+    let affectedLength = maxSegLength - 1
     let begin = max(0, location - affectedLength)
     guard location >= begin else { return }
     (begin ..< location).forEach { delta in
-      ((location - delta + 1) ... maxSpanLength).forEach { theLength in
-        spans[delta][theLength] = nil
+      ((location - delta + 1) ... maxSegLength).forEach { theLength in
+        segments[delta][theLength] = nil
       }
     }
   }

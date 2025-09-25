@@ -5,11 +5,11 @@
 // MARK: - Homa.Node.OverrideType
 
 extension Homa.Node {
-  /// 三種不同的針對一個節點的覆寫行為。
-  /// - none: 無覆寫行為。
-  /// - withTopGramScore: 僅用於 Bigram 的自動選取，但不如 withSpecified 那樣強效。
-  /// - withSpecified: 將該節點權重覆寫為 overridingScore，
-  /// 使其被爬軌函式所青睞、不受其他節點的影響。
+  /// 對節點執行的三種不同覆寫操作模式。
+  /// - none: 無任何覆寫操作。
+  /// - withTopGramScore: 專用於雙元圖的自動選取功能，但效力低於 withSpecified 模式。
+  /// - withSpecified: 強制覆寫節點權重為 overridingScore，
+  /// 確保組句函式優先選擇該節點且不受其他節點影響。
   public enum OverrideType: Int, Codable {
     case none = 0
     case withTopGramScore = 1
@@ -25,17 +25,17 @@ extension Homa {
 
     /// 生成一個字詞節點。
     ///
-    /// 一個節點由這些內容組成：幅位長度、索引鍵、以及一組元圖。幅位長度就是指這個
+    /// 一個節點由這些內容組成：幅節長度、索引鍵、以及一組元圖。幅節長度就是指這個
     /// 節點在組字器內橫跨了多少個字長。組字器負責構築自身的節點。對於由多個漢字組成
     /// 的詞，組字器會將多個讀音索引鍵合併為一個讀音索引鍵、據此向語言模組請求對應的
     /// 元圖結果陣列。舉例說，如果一個詞有兩個漢字組成的話，那麼讀音也是有兩個、其
-    /// 索引鍵也是由兩個讀音組成的，那麼這個節點的幅位長度就是 2。
+    /// 索引鍵也是由兩個讀音組成的，那麼這個節點的幅節長度就是 2。
     ///
     /// - Remark: 除非有必要，否則請盡量不要在 Assembler 外部直接與 Node 互動。
     /// GramInPath 是您理想的可互動物件。
     /// - Parameters:
     ///   - keyArray: 給定索引鍵陣列，不得為空。
-    ///   - spanLength: 給定幅位長度，一般情況下與給定索引鍵陣列內的索引鍵數量一致。
+    ///   - segLength: 給定幅節長度，一般情況下與給定索引鍵陣列內的索引鍵數量一致。
     ///   - grams: 給定元圖陣列，不得為空。
     internal init(keyArray: [String] = [], grams: [Homa.Gram] = []) {
       self.keyArray4Query = keyArray
@@ -61,12 +61,12 @@ extension Homa {
 
     // MARK: Public
 
-    /// 一個用以覆寫權重的數值。該數值之高足以改變爬軌函式對該節點的讀取結果。這裡用
-    /// 「0」可能看似足夠了，但仍會使得該節點的覆寫狀態有被爬軌函式忽視的可能。比方說
+    /// 一個用以覆寫權重的數值。該數值之高足以改變組句函式對該節點的讀取結果。這裡用
+    /// 「0」可能看似足夠了，但仍會使得該節點的覆寫狀態有被組句函式忽視的可能。比方說
     /// 要針對索引鍵「a b c」複寫的資料值為「A B C」，使用大寫資料值來覆寫節點。這時，
-    /// 如果這個獨立的 c 有一個可以拮抗權重的詞「bc」的話，可能就會導致爬軌函式的算法
-    /// 找出「A->bc」的爬軌途徑（尤其是當 A 和 B 使用「0」作為複寫數值的情況下）。這樣
-    /// 一來，「A-B」就不一定始終會是爬軌函式的青睞結果了。所以，這裡一定要用大於 0 的
+    /// 如果這個獨立的 c 有一個可以拮抗權重的詞「bc」的話，可能就會導致組句函式的算法
+    /// 找出「A->bc」的組句途徑（尤其是當 A 和 B 使用「0」作為複寫數值的情況下）。這樣
+    /// 一來，「A-B」就不一定始終會是組句函式的青睞結果了。所以，這裡一定要用大於 0 的
     /// 數（比如野獸常數），以讓「c」更容易單獨被選中。
     public internal(set) var overridingScore: Double = 114_514
 
@@ -122,8 +122,8 @@ extension Homa.Node: Equatable {
 }
 
 extension Homa.Node {
-  /// 幅位長度。
-  public var spanLength: Int { keyArray.count }
+  /// 幅節長度。
+  public var segLength: Int { keyArray.count }
 
   /// 該節點當前狀態所展示的鍵值配對。
   public var currentPair: Homa.CandidatePair? {

@@ -10,7 +10,7 @@ import Foundation
 // 讓 SQLTrie 遵循 VanguardTrieProtocol
 extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
   /// 根據 keychain 字串查詢節點 ID
-  public func getNodeIDsForKeyArray(_ keyArray: [String], longerSpan: Bool) -> [Int] {
+  public func getNodeIDsForKeyArray(_ keyArray: [String], longerSegment: Bool) -> [Int] {
     guard !keyArray.isEmpty, keyArray.allSatisfy({ !$0.isEmpty }) else { return [] }
     let keyInitialsStr = keyArray.compactMap {
       $0.first?.description
@@ -19,7 +19,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     let formedKeyHash: Int = {
       var hasher = Hasher()
       hasher.combine(keyInitialsStr)
-      hasher.combine(longerSpan)
+      hasher.combine(longerSegment)
       return hasher.finalize()
     }()
 
@@ -30,7 +30,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     var nodeIDs = Set<Int>()
     let escapedKeyInitials = keyInitialsStr.replacingOccurrences(of: "'", with: "''")
 
-    let query = switch longerSpan {
+    let query = switch longerSegment {
     case false: """
       SELECT node_ids FROM keyinitials_id_map
       WHERE keyinitials = '\(escapedKeyInitials)'
@@ -64,7 +64,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     keyArray: [String],
     filterType: EntryType,
     partiallyMatch: Bool,
-    longerSpan: Bool
+    longerSegment: Bool
   )
     -> [TNode] {
     let formedKeyHash: Int = {
@@ -72,7 +72,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       hasher.combine(keyArray)
       hasher.combine(filterType)
       hasher.combine(partiallyMatch)
-      hasher.combine(longerSpan)
+      hasher.combine(longerSegment)
       return hasher.finalize()
     }()
 
@@ -81,7 +81,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     // 接下來的步驟與 VanguardTrie.Trie 雷同。
     let matchedNodeIDs: [Int] = getNodeIDsForKeyArray(
       keyArray,
-      longerSpan: longerSpan
+      longerSegment: longerSegment
     )
     guard !matchedNodeIDs.isEmpty else { return [] }
     var handledNodeHashes: Set<Int> = []
@@ -92,7 +92,7 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
           handledNodeHashes.insert(theNode.hashValue)
           let nodeKeyArray = theNode.readingKey.split(separator: readingSeparator)
           if nodeMeetsFilter(theNode, filter: filterType) {
-            var matched: Bool = longerSpan
+            var matched: Bool = longerSegment
               ? nodeKeyArray.count > keyArray.count
               : nodeKeyArray.count == keyArray.count
             switch partiallyMatch {

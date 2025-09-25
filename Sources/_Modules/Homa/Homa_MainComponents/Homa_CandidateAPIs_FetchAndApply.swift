@@ -11,7 +11,7 @@ extension Homa.Assembler {
   /// - endAt 僅獲取在當前游標位置結束的節點內的候選字。
   public enum CandidateFetchFilter { case all, beginAt, endAt }
 
-  /// 返回在當前位置的所有候選字詞（以詞音配對的形式）。如果組字器內有幅位、且游標
+  /// 返回在當前位置的所有候選字詞（以詞音配對的形式）。如果組字器內有幅節、且游標
   /// 位於組字器的（文字輸入順序的）最前方（也就是游標位置的數值是最大合規數值）的
   /// 話，那麼這裡會對 location 的位置自動減去 1、以免去在呼叫該函式後再處理的麻煩。
   /// - Parameter location: 游標位置，必須是顯示的游標位置、不得做任何事先糾偏處理。
@@ -44,8 +44,8 @@ extension Homa.Assembler {
           guard theAnchor.location == location else { return }
         case .endAt:
           guard theNode.keyArray4Query.last == keyAtCursor else { return }
-          switch theNode.spanLength {
-          case 2... where theAnchor.location + theAnchor.node.spanLength - 1 != location: return
+          switch theNode.segLength {
+          case 2... where theAnchor.location + theAnchor.node.segLength - 1 != location: return
           default: break
           }
         }
@@ -60,10 +60,10 @@ extension Homa.Assembler {
     }
     return result.sorted {
       (
-        $0.pair.spanLength,
+        $0.pair.segLength,
         $0.pair.keyArray.joined(separator: "-")
       ) > (
-        $1.pair.spanLength,
+        $1.pair.segLength,
         $1.pair.keyArray.joined(separator: "-")
       )
     }
@@ -173,8 +173,8 @@ extension Homa.Assembler {
 
     // 更新重疊節點的覆寫權重
     let overriddenRange = overridden.location ..< min(
-      spans.count,
-      overridden.location + overridden.node.spanLength
+      segments.count,
+      overridden.location + overridden.node.segLength
     )
 
     for i in overriddenRange {
@@ -217,7 +217,7 @@ extension Homa.Assembler {
   }
 }
 
-// MARK: - Extending Assembler for NodeSpan.
+// MARK: - Extending Assembler for Segment.
 
 extension Homa.Assembler {
   /// 找出所有與該位置重疊的節點。其返回值為一個節錨陣列（包含節點、以及其起始位置）。
@@ -226,24 +226,24 @@ extension Homa.Assembler {
   internal func fetchOverlappingNodes(at givenLocation: Int) -> [(location: Int, node: Homa.Node)] {
     var results = [(location: Int, node: Homa.Node)]()
     let givenLocation = max(0, min(givenLocation, keys.count - 1))
-    guard spans.indices.contains(givenLocation) else { return results }
+    guard segments.indices.contains(givenLocation) else { return results }
 
     // 先獲取詀位置的所有單字節點
-    spans[givenLocation].keys.sorted().forEach { theSpanLength in
-      guard let node = spans[givenLocation][theSpanLength] else { return }
-      Self.insertAnchor(spanIndex: givenLocation, node: node, to: &results)
+    segments[givenLocation].keys.sorted().forEach { theSegLength in
+      guard let node = segments[givenLocation][theSegLength] else { return }
+      Self.insertAnchor(segmentIndex: givenLocation, node: node, to: &results)
     }
 
     // 再獲取以當前位置結尾的節點
-    let begin = givenLocation - min(givenLocation, maxSpanLength - 1)
+    let begin = givenLocation - min(givenLocation, maxSegLength - 1)
     (begin ..< givenLocation).forEach { theLocation in
       let neededLength = givenLocation - theLocation + 1
-      let maxAvailableLength = spans[theLocation].maxLength
+      let maxAvailableLength = segments[theLocation].maxLength
 
       guard neededLength <= maxAvailableLength else { return }
       (neededLength ... maxAvailableLength).forEach { theLength in
-        guard let node = spans[theLocation][theLength] else { return }
-        Self.insertAnchor(spanIndex: theLocation, node: node, to: &results)
+        guard let node = segments[theLocation][theLength] else { return }
+        Self.insertAnchor(segmentIndex: theLocation, node: node, to: &results)
       }
     }
 
@@ -251,13 +251,13 @@ extension Homa.Assembler {
   }
 
   /// 要在 fetchOverlappingNodes() 內使用的一個工具函式。
-  /// 按照節點幅位長度排序插入節點錨點。
+  /// 按照節點幅節長度排序插入節點錨點。
   /// - Parameters:
   ///   - location: 節點起始位置。
   ///   - node: 要插入的節點。
   ///   - targetContainer: 目標容器。
   private static func insertAnchor(
-    spanIndex location: Int, node: Homa.Node,
+    segmentIndex location: Int, node: Homa.Node,
     to targetContainer: inout [(location: Int, node: Homa.Node)]
   ) {
     guard !node.keyArray.joined().isEmpty else { return }
@@ -269,11 +269,11 @@ extension Homa.Assembler {
       return
     }
 
-    // 按節點幅位長度排序插入
+    // 按節點幅節長度排序插入
     var inserted = false
     targetContainer.indices.forEach { i in
       guard !inserted else { return }
-      if targetContainer[i].node.spanLength <= anchor.node.spanLength {
+      if targetContainer[i].node.segLength <= anchor.node.segLength {
         targetContainer.insert(anchor, at: i)
         inserted = true
       }

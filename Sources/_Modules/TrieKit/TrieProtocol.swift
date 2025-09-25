@@ -13,7 +13,7 @@ public protocol VanguardTrieProtocol {
 
   func getNodeIDsForKeyArray(
     _ keyArray: [String],
-    longerSpan: Bool
+    longerSegment: Bool
   ) -> [Int]
 
   func getNode(_ nodeID: Int) -> TNode?
@@ -22,7 +22,7 @@ public protocol VanguardTrieProtocol {
     keyArray: [String],
     filterType: EntryType,
     partiallyMatch: Bool,
-    longerSpan: Bool
+    longerSegment: Bool
   ) -> [TNode]
 }
 
@@ -46,7 +46,7 @@ extension VanguardTrieProtocol {
         keyArray: keysChopped,
         filterType: filterType,
         partiallyMatch: partiallyMatch,
-        longerSpan: false
+        longerSegment: false
       )
       return result
     }
@@ -82,7 +82,7 @@ extension VanguardTrieProtocol {
         keyArray: keyArray,
         filterType: filterType,
         partiallyMatch: partiallyMatch,
-        longerSpan: false
+        longerSegment: false
       )
       nodesFetched.forEach { currentNode in
         let currentNodeHash = currentNode.hashValue
@@ -133,7 +133,7 @@ extension VanguardTrieProtocol {
         keyArray: keys,
         filterType: filterType,
         partiallyMatch: partiallyMatch,
-        longerSpan: false
+        longerSegment: false
       ).isEmpty
     } else {
       !getNodes(
@@ -157,7 +157,7 @@ extension VanguardTrieProtocol {
         keyArray: keys,
         filterType: filterType,
         partiallyMatch: partiallyMatch,
-        longerSpan: false
+        longerSegment: false
       )
     } else {
       getNodes(
@@ -188,7 +188,7 @@ extension VanguardTrieProtocol {
 extension VanguardTrieProtocol {
   /// 關聯詞語檢索，返回 Gram Raw 結果，不去除重複結果。
   ///
-  /// 此處不以 anterior 作為參數，以免影響到之後的爬軌結果。
+  /// 此處不以 anterior 作為參數，以免影響到之後的組句結果。
   ///
   /// - Remark: 如果想只獲取沒有 anterior 的結果的話，請將 anterior 設定為空字串。
   public func queryAssociatedPhrasesAsGrams(
@@ -200,13 +200,13 @@ extension VanguardTrieProtocol {
     let keys = previous.keyArray
     guard !keys.isEmpty, keys.allSatisfy({ !$0.isEmpty }) else { return nil }
     guard !previous.value.isEmpty else { return nil }
-    let prevSpanLength = previous.keyArray.count
+    let prevSegLength = previous.keyArray.count
     // 此時獲取的結果已經有了完全相符的讀音前綴（包括前綴的幅長）。
     let nodes = getNodes(
       keyArray: previous.keyArray,
       filterType: filterType,
       partiallyMatch: false,
-      longerSpan: true
+      longerSegment: true
     )
     guard !nodes.isEmpty else { return nil }
     var resultsMap = [
@@ -220,7 +220,7 @@ extension VanguardTrieProtocol {
         // 故意略過那些 Entry Value 的長度不等於幅長的資料值。
         guard entry.value.count == nodeKeyArray.count else { return }
         // Value 的前綴也得與 previous.value 一致。
-        guard entry.value.prefix(prevSpanLength) == previous.value else { return }
+        guard entry.value.prefix(prevSegLength) == previous.value else { return }
         if let anteriorValue {
           if !anteriorValue.isEmpty {
             guard entry.previous == anteriorValue else { return }
@@ -282,12 +282,12 @@ extension VanguardTrieProtocol {
       filterType: filterType
     )
     guard let rawResults else { return nil }
-    let prevSpanLength = previous.keyArray.count
+    let prevSegLength = previous.keyArray.count
     var results = [(keyArray: [String], value: String)]()
     var inserted = Set<Int>()
     rawResults.forEach { entry in
-      let newKeyArray = Array(entry.keyArray[prevSpanLength...])
-      let newValue = entry.value.map(\.description)[prevSpanLength...].joined()
+      let newKeyArray = Array(entry.keyArray[prevSegLength...])
+      let newValue = entry.value.map(\.description)[prevSegLength...].joined()
       let newResult = (newKeyArray, newValue)
       let theHash = "\(newResult)".hashValue // 此處只能用基於 String 的 Hash。原因不明。
       guard !inserted.contains(theHash) else { return }

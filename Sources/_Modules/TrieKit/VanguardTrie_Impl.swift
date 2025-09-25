@@ -28,13 +28,13 @@ extension VanguardTrie.Trie.Entry {
 
 extension VanguardTrie.Trie: VanguardTrieProtocol {
   /// 根據 keychain 字串查詢節點 ID
-  public func getNodeIDsForKeyArray(_ keyArray: [String], longerSpan: Bool) -> [Int] {
+  public func getNodeIDsForKeyArray(_ keyArray: [String], longerSegment: Bool) -> [Int] {
     guard !keyArray.isEmpty, keyArray.allSatisfy({ !$0.isEmpty }) else { return [] }
     let keyInitialsStr = keyArray.compactMap { keyStr in
       TrieStringPool.shared.internKey(TrieStringOperationCache.shared.getCachedFirstChar(keyStr))
     }.joined()
     var matchedNodeIDs: Set<Int> = []
-    if longerSpan {
+    if longerSegment {
       keyInitialsIDMap.forEach { thisKey, value in
         if thisKey.hasPrefix(keyInitialsStr) {
           matchedNodeIDs.formUnion(value)
@@ -55,12 +55,12 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
     keyArray: [String],
     filterType: EntryType,
     partiallyMatch: Bool,
-    longerSpan: Bool
+    longerSegment: Bool
   )
     -> [TNode] {
     let matchedNodeIDs: [Int] = getNodeIDsForKeyArray(
       keyArray,
-      longerSpan: longerSpan
+      longerSegment: longerSegment
     )
     guard !matchedNodeIDs.isEmpty else { return [] }
     var handledNodeHashes: Set<Int> = []
@@ -74,7 +74,7 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
             separator: readingSeparator
           )
           if nodeMeetsFilter(theNode, filter: filterType) {
-            var matched: Bool = longerSpan
+            var matched: Bool = longerSegment
               ? nodeKeyArray.count > keyArray.count
               : nodeKeyArray.count == keyArray.count
             switch partiallyMatch {

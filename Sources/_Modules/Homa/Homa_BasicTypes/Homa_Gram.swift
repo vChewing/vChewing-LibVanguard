@@ -5,8 +5,8 @@
 // MARK: - Homa.Gram
 
 extension Homa {
-  /// 護摩組字引擎專用的元圖類型，可以是單元圖、也可以是雙元圖。
-  /// - Remark: 護摩組字引擎所利用的雙元圖資料不包含讀音。此處故意使用 class 而非 struct 是因為其記憶體位址有特殊之用途。
+  /// 進階組字引擎專屬的語法單位類型，支援單元語法與雙元語法結構。
+  /// - Remark: 進階組字引擎所運用的雙元語法資料不包含讀音資訊。此處刻意採用 class 而非 struct 設計，是因為其記憶體位址具有特殊用途。
   public final class Gram: Codable, CustomStringConvertible, Equatable, Sendable, Hashable {
     // MARK: Lifecycle
 
@@ -95,7 +95,7 @@ extension Homa {
     }
 
     /// 幅長。
-    public var spanLength: Int {
+    public var segLength: Int {
       keyArray.count
     }
 
