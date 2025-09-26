@@ -322,10 +322,7 @@ extension SimpleTrie {
     var currentNode = root
     var currentNodeID = 0
 
-    let key = StringOperationCache.shared.getCachedJoin(
-      readings,
-      separator: readingSeparator.description
-    )
+    let key = readings.joined(separator: readingSeparator)
 
     // 遍歷關鍵字的每個字元
     key.forEach { char in
@@ -445,10 +442,7 @@ extension SimpleTrie {
     readings: [String],
     entry: Entry
   )] {
-    let readings = StringOperationCache.shared.getCachedSplit(
-      node.readingKey,
-      separator: Character(readingSeparator)
-    )
+    let readings = node.readingKey.split(separator: readingSeparator).map(String.init)
     return node.entries.map { (readings: readings, entry: $0) }
   }
 
@@ -482,10 +476,7 @@ extension SimpleTrie {
       // 從 keyChainIDMap 中查找所有鍵
       keyChainIDMap.forEach { keyChain, nodeIDs in
         // 只處理那些至少和首個查詢鍵相符的鍵鏈
-        let keyComponents = StringOperationCache.shared.getCachedSplit(
-          keyChain,
-          separator: Character(readingSeparator)
-        )
+        let keyComponents = keyChain.split(separator: readingSeparator).map(String.init)
 
         // 檢查長度是否相符
         guard keyComponents.count == keys.count else { return }

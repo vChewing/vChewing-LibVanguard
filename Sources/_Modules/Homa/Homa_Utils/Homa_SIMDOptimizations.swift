@@ -2,8 +2,6 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-import Foundation
-
 // MARK: - SIMDStringOps
 
 /// 為提升效能的 SIMD 最佳化字串操作
@@ -21,11 +19,7 @@ enum SIMDStringOps {
     }
 
     // 對於較長的字串，使用最佳化比較
-    return lhs.withCString { lhsPtr in
-      rhs.withCString { rhsPtr in
-        memcmp(lhsPtr, rhsPtr, lhs.utf8.count) == 0
-      }
-    }
+    return fastHash(lhs) == fastHash(rhs)
   }
 
   /// 字串的快速雜湊計算
@@ -137,14 +131,13 @@ struct PhoneticTrieNode {
 
       while left <= right {
         let mid = (left + right) / 2
-        let comparison = children[mid].key.compare(firstChar)
+        let midKey = children[mid].key
 
-        switch comparison {
-        case .orderedSame:
+        if midKey == firstChar {
           return children[mid].node.search(remainder)
-        case .orderedAscending:
+        } else if midKey < firstChar {
           left = mid + 1
-        case .orderedDescending:
+        } else {
           right = mid - 1
         }
       }
