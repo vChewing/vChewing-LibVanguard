@@ -69,7 +69,7 @@ final class SubTestCase: Sendable {
     return false
   }
 
-  /// 優化版驗證函數，重複使用已建立的 composer 實例
+  /// 優化版驗證函數，重複使用已建立的 composer 副本
   func verify(using composer: inout Tekkon.Composer) -> Bool {
     composer.clear()
     composer.ensureParser(arrange: parser)

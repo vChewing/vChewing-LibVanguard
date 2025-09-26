@@ -12,7 +12,7 @@ extension Homa {
   public final class Assembler {
     // MARK: Lifecycle
 
-    /// 建立組字引擎處理器實例。
+    /// 建立組字引擎處理器副本。
     /// - Parameters:
     ///   - gramQuerier: 單元圖資料存取專用介面。
     ///   - gramAvailabilityChecker: 單元圖資料可用性檢測介面。
@@ -31,7 +31,7 @@ extension Homa {
 
     /// 複製指定的組字引擎處理器。
     /// - Remark: 由於 Node 採用類別設計而非結構體，因此在 Assembler 複製過程中無法自動執行深層複製。
-    /// 這會導致複製後的 Assembler 實例中的 Node 變更會影響到原始的 Assembler 實例。
+    /// 這會導致複製後的 Assembler 副本中的 Node 變更會影響到原始的 Assembler 副本。
     /// 為了避免此類非預期的互動影響，特別提供此複製建構函數。
     public init(from target: Assembler) {
       self.config = target.config.hardCopy
@@ -344,7 +344,7 @@ extension Homa {
 
     /// 從元圖存取專用 API 將獲取的結果轉為元圖、以供 Nodes 使用。
     ///
-    /// 此處故意針對不同的 Nodes 單獨建立 Gram 實例，是為了確保它們的記憶體位置不同。
+    /// 此處故意針對不同的 Nodes 單獨建立 Gram 副本，是為了確保它們的記憶體位置不同。
     /// 便於其他函式直接比對記憶體位置（也就是用「===」與「!==」來比對）。
     /// - Parameters:
     ///   - keyArray: 讀音陣列。

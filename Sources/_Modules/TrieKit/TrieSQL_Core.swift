@@ -11,7 +11,7 @@ extension VanguardTrie {
   public final class SQLTrie {
     // MARK: Lifecycle
 
-    /// 初始化 SQL 資料庫讀取器
+    /// 初期化 SQL 資料庫讀取器
     /// - Parameters:
     ///   - dbPath: SQLite 資料庫檔案路徑
     ///   - useDFD: 是否使用硬碟直讀。非 Apple Silicon Mac 的場合用了 DFD 可能會更慢。
@@ -22,7 +22,7 @@ extension VanguardTrie {
       }
     }
 
-    /// 從 SQL 腳本內容初始化記憶體中的資料庫
+    /// 從 SQL 腳本內容初期化記憶體中的資料庫
     /// - Parameter sqlContent: SQL 腳本內容
     /// - Warning: 該 Constructor 可能會非常慢。
     /// 實際使用時建議還是直接用另一個 Constructor 直接讀取 SQLite 檔案。
@@ -34,7 +34,7 @@ extension VanguardTrie {
         return nil
       }
 
-      // 禁用外鍵約束，以避免初始化期間的問題
+      // 禁用外鍵約束，以避免初期化期間的問題
       if sqlite3_exec(database, "PRAGMA foreign_keys=OFF;", nil, nil, nil) != SQLITE_OK {
         Self.printDebug("無法禁用外鍵約束: \(String(cString: sqlite3_errmsg(database)))")
         closeAndNullifyConnection()
@@ -110,15 +110,15 @@ extension VanguardTrie {
         Self.printDebug("無法重新啟用外鍵約束: \(String(cString: sqlite3_errmsg(database)))")
       }
 
-      // 初始化設定 - 直接調用相同的方法以確保一致性
+      // 初期化設定 - 直接調用相同的方法以確保一致性
       if !initializeSettings() {
-        Self.printDebug("無法初始化分隔符設定")
+        Self.printDebug("無法初期化分隔符設定")
         closeAndNullifyConnection()
         return nil
       }
     }
 
-    /// 初始化 SQL 資料庫讀取器
+    /// 初期化 SQL 資料庫讀取器
     /// - Parameters:
     ///   - dbPath: SQLite 資料庫檔案路徑。
     private init?(dbPath4DFD dbPath: String) {
@@ -176,7 +176,7 @@ extension VanguardTrie {
       // 準備備份物件
       let backup = sqlite3_backup_init(memoryDB, "main", sourceDB, "main")
       guard backup != nil else {
-        Self.printDebug("無法初始化備份程序")
+        Self.printDebug("無法初期化備份程序")
         sqlite3_close(memoryDB)
         return nil
       }
@@ -191,7 +191,7 @@ extension VanguardTrie {
         return nil
       }
 
-      // 將記憶體資料庫設定為此實例的資料庫
+      // 將記憶體資料庫設定為此副本的資料庫
       self.database = memoryDB
 
       // 讀取分隔符設定
@@ -295,7 +295,7 @@ extension VanguardTrie {
     // 預編譯的 SQL 語句快取
     private var cachedStatements: [String: OpaquePointer?] = [:]
 
-    // 共享的解碼器實例，避免重複分配
+    // 共享的解碼器副本，避免重複分配
     private let sharedPlistDecoder = PropertyListDecoder()
 
     private static func printDebug(
@@ -310,8 +310,8 @@ extension VanguardTrie {
       #endif
     }
 
-    /// 初始化資料庫設定
-    /// - Returns: 是否成功初始化
+    /// 初期化資料庫設定
+    /// - Returns: 是否成功初期化
     private func initializeSettings() -> Bool {
       // 檢查必要表是否存在
       let requiredTables = ["nodes", "keyinitials_id_map"]
