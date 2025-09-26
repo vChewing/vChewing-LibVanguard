@@ -158,8 +158,6 @@ extension Homa {
 
     // MARK: Private
 
-    // MARK: Private
-
     // MARK: - SearchState 記憶體追蹤
 
     private var searchStateCreatedCount: Int = 0
