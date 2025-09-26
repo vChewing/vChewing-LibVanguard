@@ -101,7 +101,6 @@ extension Array where Element == Homa.GramInPath {
   /// 在陣列內以給定游標位置找出對應的節點。
   /// - Parameters:
   ///   - cursor: 給定游標位置。
-  ///   - outCursorAheadOfNode: 找出的節點的前端位置。
   /// - Returns: 查找結果。
   public func findGram(at cursor: Int) -> (gram: Homa.GramInPath, range: Range<Int>)? {
     guard !isEmpty else { return nil }

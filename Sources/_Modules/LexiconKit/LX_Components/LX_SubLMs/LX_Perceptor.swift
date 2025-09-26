@@ -109,7 +109,7 @@ extension Perceptor {
 
       let perception: Perception = kvPair.perception
       var candidates: [GramTuple] = .init()
-      var currentHighScore: Double = threshold // 初始化為閾值
+      var currentHighScore: Double = threshold // 初期化為閾值
 
       // 解析 key 用於衰減計算
       let keyCells = key.dropLast(1).dropFirst(1).split(separator: ",")

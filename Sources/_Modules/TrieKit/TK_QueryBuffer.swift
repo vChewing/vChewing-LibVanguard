@@ -8,7 +8,7 @@ import Foundation
 public final class QueryBuffer<T> {
   // MARK: Lifecycle
 
-  /// 以特定的過期時間間隔初始化 QueryBuffer
+  /// 以特定的過期時間間隔初期化 QueryBuffer
   /// - Parameter expirationInterval: 條目過期的秒數（預設值：7）
   public init(expirationInterval: TimeInterval = 7.0) {
     self.expirationInterval = expirationInterval
