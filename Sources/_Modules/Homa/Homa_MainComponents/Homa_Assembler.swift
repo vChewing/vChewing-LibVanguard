@@ -321,7 +321,7 @@ extension Homa {
             // 自動銷毀無效的節點。
             if queriedGrams.isEmpty {
               if theNode.keyArray.count == 1 { return }
-              segments[position][theNode.segLength] = nil
+              segments[position][theLength] = nil
             } else {
               theNode.syncingGrams(from: queriedGrams)
             }
@@ -338,6 +338,30 @@ extension Homa {
       queryBuffer.removeAll() // 手動清理，免得 ARC 拖時間。
       guard nodesChangedCounter != 0 else { throw .noNodesAssigned }
       assemble()
+    }
+
+    /// 生成所有節點的覆寫狀態鏡照。
+    /// - Returns: 節點 ID 與覆寫狀態的對應字典。
+    public func generateNodeOverrideStatusMirror() -> [FIUUID: Homa.NodeOverrideStatus] {
+      var result: [FIUUID: Homa.NodeOverrideStatus] = [:]
+      for segment in segments {
+        for (_, node) in segment {
+          result[node.id] = node.overrideStatus
+        }
+      }
+      return result
+    }
+
+    /// 從鏡照資料恢復所有節點的覆寫狀態。
+    /// - Parameter mirror: 節點 ID 與覆寫狀態的對應字典。
+    public func restoreNodeOverrideStatusFromMirror(_ mirror: [FIUUID: Homa.NodeOverrideStatus]) {
+      for segment in segments {
+        for (_, node) in segment {
+          if let status = mirror[node.id] {
+            node.overrideStatus = status
+          }
+        }
+      }
     }
 
     // MARK: Private
