@@ -38,6 +38,7 @@ extension Homa {
     ///   - segLength: 給定幅節長度，一般情況下與給定索引鍵陣列內的索引鍵數量一致。
     ///   - grams: 給定元圖陣列，不得為空。
     internal init(keyArray: [String] = [], grams: [Homa.Gram] = []) {
+      self.id = FIUUID()
       self.keyArray4Query = keyArray
       self.grams = grams
       self.allActualKeyArraysCached = Set(grams.map(\.keyArray))
@@ -50,6 +51,7 @@ extension Homa {
     /// 這樣一來，Assembler 複製品當中的 Node 的變化會被反應到原先的 Assembler 身上。
     /// 這在某些情況下會造成意料之外的混亂情況，所以需要引入一個拷貝用的建構子。
     internal init(node: Node) {
+      self.id = FIUUID()
       self.overridingScore = node.overridingScore
       self.keyArray4Query = node.keyArray4Query
       self.allActualKeyArraysCached = node.allActualKeyArraysCached
@@ -60,6 +62,9 @@ extension Homa {
     }
 
     // MARK: Public
+
+    /// 節點的唯一識別符。
+    public let id: FIUUID
 
     /// 一個用以覆寫權重的數值。該數值之高足以改變組句函式對該節點的讀取結果。這裡用
     /// 「0」可能看似足夠了，但仍會使得該節點的覆寫狀態有被組句函式忽視的可能。比方說
@@ -78,6 +83,27 @@ extension Homa {
     public private(set) var bigramMap: [String: [Homa.Gram]]
     /// 該節點目前的覆寫狀態種類。
     public private(set) var currentOverrideType: OverrideType
+
+    /// 節點覆寫狀態。
+    public var overrideStatus: Homa.NodeOverrideStatus {
+      get {
+        .init(
+          overridingScore: overridingScore,
+          currentOverrideType: currentOverrideType,
+          currentUnigramIndex: currentGramIndex
+        )
+      }
+      set {
+        overridingScore = newValue.overridingScore
+        // 防範 GramIndex 溢出，如果溢出則重設覆寫狀態
+        if newValue.currentUnigramIndex >= 0, newValue.currentUnigramIndex < grams.count {
+          currentOverrideType = newValue.currentOverrideType
+          currentGramIndex = newValue.currentUnigramIndex
+        } else {
+          reset()
+        }
+      }
+    }
 
     /// 當前候選字詞的真實完整索引鍵陣列。
     public var keyArray: [String] { currentGram?.keyArray ?? keyArray4Query }
@@ -103,6 +129,7 @@ extension Homa.Node: Hashable {
   /// 預設雜湊函式。
   /// - Parameter hasher: 目前物件的雜湊碼。
   public func hash(into hasher: inout Hasher) {
+    hasher.combine(id)
     hasher.combine(overridingScore)
     hasher.combine(keyArray4Query)
     hasher.combine(grams)
@@ -117,7 +144,14 @@ extension Homa.Node: Hashable {
 
 extension Homa.Node: Equatable {
   public static func == (lhs: Homa.Node, rhs: Homa.Node) -> Bool {
-    lhs.hashValue == rhs.hashValue
+    // 基於功能內容的等價性比較，排除 ID 字段
+    lhs.overridingScore == rhs.overridingScore &&
+      lhs.keyArray4Query == rhs.keyArray4Query &&
+      lhs.grams == rhs.grams &&
+      lhs.bigramMap == rhs.bigramMap &&
+      lhs.currentOverrideType == rhs.currentOverrideType &&
+      lhs.currentGramIndex == rhs.currentGramIndex &&
+      lhs.allActualKeyArraysCached == rhs.allActualKeyArraysCached
   }
 }
 
@@ -251,5 +285,38 @@ extension Array where Element == Homa.Node {
       guard let gram = node.currentGram else { return nil }
       return .init(gram: gram, isOverridden: node.isOverridden)
     }
+  }
+}
+
+// MARK: - Homa.NodeOverrideStatus
+
+extension Homa {
+  /// 節點覆寫狀態結構，用於輕量化狀態鏡照。
+  public struct NodeOverrideStatus: Codable, Hashable {
+    // MARK: Lifecycle
+
+    /// 建構子。
+    /// - Parameters:
+    ///   - overridingScore: 覆寫分數。
+    ///   - currentOverrideType: 當前覆寫類型。
+    ///   - currentUnigramIndex: 當前單元圖索引。
+    public init(
+      overridingScore: Double = 114_514,
+      currentOverrideType: Homa.Node.OverrideType = .none,
+      currentUnigramIndex: Int = 0
+    ) {
+      self.overridingScore = overridingScore
+      self.currentOverrideType = currentOverrideType
+      self.currentUnigramIndex = currentUnigramIndex
+    }
+
+    // MARK: Public
+
+    /// 覆寫分數。
+    public var overridingScore: Double
+    /// 當前覆寫類型。
+    public var currentOverrideType: Homa.Node.OverrideType
+    /// 當前單元圖索引。
+    public var currentUnigramIndex: Int
   }
 }
