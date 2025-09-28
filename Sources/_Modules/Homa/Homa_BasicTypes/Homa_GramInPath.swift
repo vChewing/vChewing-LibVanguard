@@ -44,7 +44,7 @@ extension Homa {
 
 extension Array where Element == Homa.GramInPath {
   /// 從一個節點陣列當中取出目前的選字字串陣列。
-  public var values: [String] { compactMap(\.value) }
+  public var values: [String] { map(\.value) }
 
   /// 從一個節點陣列當中取出目前的索引鍵陣列。
   public func joinedKeys(by separator: String) -> [String] {
