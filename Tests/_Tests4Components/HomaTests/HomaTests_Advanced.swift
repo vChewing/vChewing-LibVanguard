@@ -562,6 +562,29 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     let readings: String = partialMatch ? rdSimp : rdFull
     let mockLM = TestLM(rawData: strLMSampleDataTechGuarden + "\n" + strLMSampleDataLitch)
 
+    struct CandidateIdentity: Hashable {
+      let pair: Homa.CandidatePair
+      let gramID: ObjectIdentifier
+
+      init(pair: Homa.CandidatePair, gram: Homa.Gram) {
+        self.pair = pair
+        self.gramID = ObjectIdentifier(gram)
+      }
+
+      func hash(into hasher: inout Hasher) {
+        hasher.combine(gramID)
+      }
+
+      static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.gramID == rhs.gramID
+      }
+
+      var debugSummary: String {
+        let keys = pair.keyArray.joined(separator: "-")
+        return "\(pair.value) (\(keys)) @ \(String(describing: gramID))"
+      }
+    }
+
     // 此處無須刻意組句，因為 revolveCandidate 會在發現沒組句的時候自動爬一次軌。
     // 準備正式測試。
     let cases: [Homa.Assembler.CandidateCursor] = [.placedFront, .placedRear]
@@ -579,11 +602,29 @@ public struct HomaTestsAdvanced: HomaTestSuite {
       )
       try (0 ... assembler.length).forEach { pos in
         assembler.cursor = pos
+        let minimumRevolvesPerCandidate = 25
         var doRevolve = true
-        var revolvedCandidates = [Homa.CandidatePair]()
-        var allCandidates = [Homa.CandidatePairWeighted]() // 記錄所有候選字
-        var previouslyRevolvedCandidate: Homa.CandidatePair?
+        var candidateRevolveCounts = [CandidateIdentity: Int]()
+        var allCandidates = [(candidate: Homa.CandidatePairWeighted, identity: CandidateIdentity)]()
+        var previouslyRevolvedCandidate: CandidateIdentity?
         var debugIntelBuilder = [String]()
+        var hasValidatedCandidateTotal = false
+
+        func resolveIdentity(for pair: Homa.CandidatePair) -> CandidateIdentity? {
+          let candidateCursorPos = assembler.getLogicalCandidateCursorPosition(
+            forCursor: candidateCursorType
+          )
+          let gramAtCursor = assembler.assembledSentence.findGram(at: candidateCursorPos)?.gram
+          let matchedGram = gramAtCursor?.gram ?? assembler.assembledSentence.first {
+            $0.keyArray == pair.keyArray && $0.value == pair.value
+          }?.gram
+          #expect(
+            matchedGram != nil,
+            Comment(stringLiteral: "未能在位置 \(pos) 找到候選 \(pair.value) 的 Gram 參考。")
+          )
+          guard let matchedGram else { return nil }
+          return CandidateIdentity(pair: pair, gram: matchedGram)
+        }
         do {
           revolvementTaskAtThisPos: while doRevolve {
             var fetchedCandidates: [Homa.CandidatePairWeighted] = []
@@ -592,74 +633,87 @@ public struct HomaTestsAdvanced: HomaTestSuite {
               counterClockwise: false
             ) { debugIntel in
               debugIntelBuilder.append(debugIntel)
-            } candidateArrayHandler: { _ in
-              fetchedCandidates = fetchedCandidates
+            } candidateArrayHandler: { candidates in
+              fetchedCandidates = candidates
             }
 
             // 記錄這次的候選字
-            allCandidates.append(currentRevolved.0)
-
             let currentRevolvedPair = currentRevolved.0.pair
-            if revolvedCandidates.contains(currentRevolvedPair) {
-              // 若發現重複，檢查詳細情況
-              if revolvedCandidates.count != currentRevolved.total {
-                print("=== 偵測到不一致: 位置 \(pos), 游標類型 \(candidateCursorType) ===")
-                print("已輪替數量: \(revolvedCandidates.count), 報告總數: \(currentRevolved.total)")
-                print("當前候選字: \(currentRevolved.0.pair.value)")
-
-                // 獲取該位置的所有候選字，進行對比分析
-                let filter: Homa.Assembler.CandidateFetchFilter =
-                  candidateCursorType == .placedFront ? .endAt : .beginAt
-                let allAvailableCandidates = assembler.fetchCandidates(at: pos, filter: filter)
-                print("fetchCandidates 結果數量: \(allAvailableCandidates.count)")
-
-                // 檢查是否有重複候選字未被正確過濾
-                var seenValues = Set<String>()
-                var duplicateFound = false
-                for candidate in allAvailableCandidates {
-                  let valueStr = "\(candidate.pair)"
-                  if !seenValues.insert(valueStr).inserted {
-                    print("發現重複候選字值: \(valueStr)")
-                    duplicateFound = true
-                  }
-                }
-                if !duplicateFound {
-                  print("未發現重複候選字值")
-                }
-
-                // 比較已輪替的候選字和所有可用候選字
-                print("已輪替的候選字:")
-                for (idx, candidate) in allCandidates.enumerated() {
-                  print(
-                    "[\(idx)] \(candidate.pair.value) (\(candidate.pair.keyArray.joined(separator: "-"))) \(candidate.weight)"
-                  )
-                }
-
-                print("選字窗的候選字：")
-                for (idx, candidate) in fetchedCandidates.enumerated() {
-                  print(
-                    "[\(idx)] \(candidate.pair.value) (\(candidate.pair.keyArray.joined(separator: "-"))) \(candidate.weight)"
-                  )
-                }
-              }
-              #expect(
-                revolvedCandidates.count == currentRevolved.total,
-                Comment(stringLiteral: """
-                位置:\(pos), 已輪替:\(revolvedCandidates.count), \
-                報告總數:\(currentRevolved.total), 選字游標類型：\(candidateCursorType)
-                """)
-              )
-              doRevolve = false
-            }
-            #expect(
-              previouslyRevolvedCandidate != currentRevolvedPair,
-              Comment(stringLiteral: "\(currentRevolvedPair)")
-            )
-            guard previouslyRevolvedCandidate != currentRevolvedPair else {
+            guard let identity = resolveIdentity(for: currentRevolvedPair) else {
               break revolvementTaskAtThisPos
             }
-            previouslyRevolvedCandidate = currentRevolvedPair
-            revolvedCandidates.append(currentRevolvedPair)
+            allCandidates.append((currentRevolved.0, identity))
+            let newCount = candidateRevolveCounts[identity, default: 0] + 1
+            candidateRevolveCounts[identity] = newCount
+            let uniqueCandidateCount = candidateRevolveCounts.count
+
+            if newCount > 1 {
+              // 若發現重複，檢查詳細情況（僅於首次重複時進行詳查）
+              if !hasValidatedCandidateTotal {
+                if uniqueCandidateCount != currentRevolved.total {
+                  print("=== 偵測到不一致: 位置 \(pos), 游標類型 \(candidateCursorType) ===")
+                  print("候選識別數量: \(uniqueCandidateCount), 報告總數: \(currentRevolved.total)")
+                  print("當前候選字: \(currentRevolved.0.pair.value)")
+
+                  // 獲取該位置的所有候選字，進行對比分析
+                  let filter: Homa.Assembler.CandidateFetchFilter =
+                    candidateCursorType == .placedFront ? .endAt : .beginAt
+                  let allAvailableCandidates = assembler.fetchCandidates(at: pos, filter: filter)
+                  print("fetchCandidates 結果數量: \(allAvailableCandidates.count)")
+
+                  // 檢查是否有重複候選字未被正確過濾
+                  var seenValues = Set<String>()
+                  var duplicateFound = false
+                  for candidate in allAvailableCandidates {
+                    let valueStr = "\(candidate.pair)"
+                    if !seenValues.insert(valueStr).inserted {
+                      print("發現重複候選字值: \(valueStr)")
+                      duplicateFound = true
+                    }
+                  }
+                  if !duplicateFound {
+                    print("未發現重複候選字值")
+                  }
+
+                  // 比較已輪替的候選字和所有可用候選字
+                  print("已輪替的候選字:")
+                  for (idx, record) in allCandidates.enumerated() {
+                    let candidate = record.candidate
+                    print(
+                      "[\(idx)] \(candidate.pair.value) (\(candidate.pair.keyArray.joined(separator: "-"))) \(candidate.weight) @ \(record.identity.debugSummary)"
+                    )
+                  }
+
+                  print("選字窗的候選字：")
+                  for (idx, candidate) in fetchedCandidates.enumerated() {
+                    print(
+                      "[\(idx)] \(candidate.pair.value) (\(candidate.pair.keyArray.joined(separator: "-"))) \(candidate.weight)"
+                    )
+                  }
+                }
+                #expect(
+                  uniqueCandidateCount == currentRevolved.total,
+                  Comment(stringLiteral: """
+                  位置:\(pos), 已輪替:\(uniqueCandidateCount), \
+                  報告總數:\(currentRevolved.total), 選字游標類型：\(candidateCursorType)
+                  """)
+                )
+                hasValidatedCandidateTotal = true
+              }
+            }
+            #expect(
+              previouslyRevolvedCandidate != identity,
+              Comment(stringLiteral: "\(identity.debugSummary)")
+            )
+            guard previouslyRevolvedCandidate != identity else {
+              break revolvementTaskAtThisPos
+            }
+            previouslyRevolvedCandidate = identity
+            let metMinimumRevolves = uniqueCandidateCount == currentRevolved.total
+              && candidateRevolveCounts.values.allSatisfy { $0 >= minimumRevolvesPerCandidate }
+            if metMinimumRevolves {
+              doRevolve = false
+            }
           }
         } catch {
           print(debugIntelBuilder.joined(separator: "\n"))
