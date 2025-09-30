@@ -198,6 +198,7 @@ extension Homa {
     /// 獲取當前標記得範圍。這個函式只能是函式、而非只讀變數。
     /// - Returns: 當前標記範圍。
     public func currentMarkedRange() -> Range<Int> {
+      // 這必須得是 `[A,B)` 型區間，因為這是用來從 assembledSentence 拿取 KeySequenceSlice 時所使用的。
       min(cursor, marker) ..< max(cursor, marker)
     }
 
