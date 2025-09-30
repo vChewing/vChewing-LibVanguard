@@ -342,26 +342,14 @@ extension Homa {
 
     /// 生成所有節點的覆寫狀態鏡照。
     /// - Returns: 節點 ID 與覆寫狀態的對應字典。
-    public func generateNodeOverrideStatusMirror() -> [FIUUID: Homa.NodeOverrideStatus] {
-      var result: [FIUUID: Homa.NodeOverrideStatus] = [:]
-      for segment in segments {
-        for (_, node) in segment {
-          result[node.id] = node.overrideStatus
-        }
-      }
-      return result
+    public func createNodeOverrideStatusMirror() -> [FIUUID: Homa.NodeOverrideStatus] {
+      config.createNodeOverrideStatusMirror()
     }
 
     /// 從鏡照資料恢復所有節點的覆寫狀態。
     /// - Parameter mirror: 節點 ID 與覆寫狀態的對應字典。
-    public func restoreNodeOverrideStatusFromMirror(_ mirror: [FIUUID: Homa.NodeOverrideStatus]) {
-      for segment in segments {
-        for (_, node) in segment {
-          if let status = mirror[node.id] {
-            node.overrideStatus = status
-          }
-        }
-      }
+    public func restoreFromNodeOverrideStatusMirror(_ mirror: [FIUUID: Homa.NodeOverrideStatus]) {
+      config.restoreFromNodeOverrideStatusMirror(mirror)
     }
 
     // MARK: Private

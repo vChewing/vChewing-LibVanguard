@@ -112,7 +112,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     try assembler.insertKeys(["a", "b", "c"])
 
     // Generate mirror before any changes
-    let originalMirror = assembler.generateNodeOverrideStatusMirror()
+    let originalMirror = assembler.createNodeOverrideStatusMirror()
     #expect(!originalMirror.isEmpty)
 
     // Modify some node states (we'll modify the first available node we find)
@@ -135,17 +135,17 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     }
 
     // Generate new mirror after changes
-    let modifiedMirror = assembler.generateNodeOverrideStatusMirror()
+    let modifiedMirror = assembler.createNodeOverrideStatusMirror()
 
     // Verify the change is reflected in the mirror
     #expect(modifiedMirror[nodeId]?.overridingScore == 777.0)
     #expect(modifiedMirror[nodeId]?.currentOverrideType == .withSpecified)
 
     // Reset using original mirror
-    assembler.restoreNodeOverrideStatusFromMirror(originalMirror)
+    assembler.restoreFromNodeOverrideStatusMirror(originalMirror)
 
     // Verify restoration
-    let restoredMirror = assembler.generateNodeOverrideStatusMirror()
+    let restoredMirror = assembler.createNodeOverrideStatusMirror()
     #expect(restoredMirror[nodeId]?.overridingScore == originalMirror[nodeId]?.overridingScore)
     #expect(
       restoredMirror[nodeId]?.currentOverrideType == originalMirror[nodeId]?
