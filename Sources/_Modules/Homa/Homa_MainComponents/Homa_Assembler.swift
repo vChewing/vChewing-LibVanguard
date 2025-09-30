@@ -212,9 +212,10 @@ extension Homa {
     ///   - direction: 指定方向（相對於文字輸入方向而言）。
     ///   - isMarker: 是否為標記游標。
     public func isCursorAtEdge(direction: TypingDirection, isMarker: Bool = false) -> Bool {
+      let pos = isMarker ? marker : cursor
       switch direction {
-      case .front: cursor == length
-      case .rear: cursor == 0
+      case .front: return pos == length
+      case .rear: return pos == 0
       }
     }
 
@@ -238,7 +239,7 @@ extension Homa {
         throw Exception.cursorAlreadyAtBorder
       }
       pos += delta
-      if isCursorCuttingChar(isMarker: true) {
+      if isCursorCuttingChar(isMarker: isMarker) {
         try jumpCursorBySegment(to: direction, isMarker: isMarker)
       }
     }
