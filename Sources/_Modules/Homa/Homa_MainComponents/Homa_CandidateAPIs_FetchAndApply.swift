@@ -17,7 +17,8 @@ extension Homa.Assembler {
   /// - Parameter location: 游標位置，必須是顯示的游標位置、不得做任何事先糾偏處理。
   /// - Returns: 候選字音配對陣列。
   public func fetchCandidates(
-    at givenLocation: Int? = nil, filter givenFilter: CandidateFetchFilter = .all
+    at givenLocation: Int? = nil,
+    filter givenFilter: CandidateFetchFilter = .all
   )
     -> [Homa.CandidatePairWeighted] {
     var result = [Homa.CandidatePairWeighted]()
@@ -78,14 +79,19 @@ extension Homa.Assembler {
   ///   - overrideType: 指定覆寫行為。
   /// - Throws: 如果沒有找到相符的節點或無法覆寫，拋出適當的異常。
   public func overrideCandidate(
-    _ candidate: Homa.CandidatePair, at location: Int,
-    type overrideType: Homa.Node.OverrideType = .withSpecified
+    _ candidate: Homa.CandidatePair,
+    at location: Int,
+    type overrideType: Homa.Node.OverrideType = .withSpecified,
+    enforceRetokenization: Bool = false,
+    perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
   ) throws(Homa.Exception) {
     try overrideCandidateAgainst(
       keyArray: candidate.keyArray,
       at: location,
       value: candidate.value,
-      type: overrideType
+      type: overrideType,
+      enforceRetokenization: enforceRetokenization,
+      perceptionHandler: perceptionHandler
     )
   }
 
@@ -99,9 +105,19 @@ extension Homa.Assembler {
   /// - Returns: 該操作是否成功執行。
   public func overrideCandidateLiteral(
     _ candidate: String,
-    at location: Int, overrideType type: Homa.Node.OverrideType = .withSpecified
+    at location: Int,
+    overrideType type: Homa.Node.OverrideType = .withSpecified,
+    enforceRetokenization: Bool = false,
+    perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
   ) throws(Homa.Exception) {
-    try overrideCandidateAgainst(keyArray: nil, at: location, value: candidate, type: type)
+    try overrideCandidateAgainst(
+      keyArray: nil,
+      at: location,
+      value: candidate,
+      type: type,
+      enforceRetokenization: enforceRetokenization,
+      perceptionHandler: perceptionHandler
+    )
   }
 
   // MARK: Internal implementations.
@@ -117,7 +133,9 @@ extension Homa.Assembler {
     keyArray: [String]?,
     at location: Int,
     value: String,
-    type: Homa.Node.OverrideType
+    type: Homa.Node.OverrideType,
+    enforceRetokenization: Bool,
+    perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
   ) throws(Homa.Exception) {
     let location = max(min(location, keys.count), 0) // 防呆
     let effectiveLocation = min(keys.count - 1, location)
@@ -129,9 +147,12 @@ extension Homa.Assembler {
       throw .nothingOverriddenAtNode
     }
 
+    let shouldObserve = perceptionHandler != nil || perceptor != nil
+    let previouslyAssembled: [Homa.GramInPath] = shouldObserve ? assemble() : []
+    let cursorBeforeOverride = min(keys.count, location)
+
     // 尋找相符的節點
     var overridden: (location: Int, node: Homa.Node)?
-    var overriddenGram: Homa.Gram?
     var lastError: Homa.Exception?
 
     for anchor in arrOverlappedNodes {
@@ -141,7 +162,7 @@ extension Homa.Assembler {
       }
 
       do {
-        overriddenGram = try anchor.node.selectOverrideGram(
+        _ = try anchor.node.selectOverrideGram(
           keyArray: keyArray,
           value: value,
           type: type
@@ -154,31 +175,55 @@ extension Homa.Assembler {
     }
 
     // 如果沒有找到相符的節點，拋出錯誤
-    guard let overridden, let overriddenGram else {
+    guard let overridden else {
       throw lastError ?? .nothingOverriddenAtNode
     }
 
     defer {
-      // 捕獲感知結果並傳往給定的 perceptor API。
-      // 這裡不能用 .lastIndex，因為實證之後發現是無效的。
-      var assembledSentence = assemble()
-      prepare4Perception: if let perceptor {
-        while assembledSentence.last?.gram !== overriddenGram {
-          assembledSentence.removeLast()
+      let currentAssembled = assemble()
+      if shouldObserve {
+        let intel = Homa.makePerceptionObservation(
+          previouslyAssembled: previouslyAssembled,
+          currentAssembled: currentAssembled,
+          cursor: cursorBeforeOverride
+        )
+        if let intel {
+          if let perceptionHandler {
+            perceptionHandler(intel)
+          }
+          perceptor?(intel)
         }
-        guard !assembledSentence.isEmpty else { break prepare4Perception }
-        perceptor(assembledSentence.suffix(3))
       }
     }
 
     // 更新重疊節點的覆寫權重
-    let overriddenRange = overridden.location ..< min(
-      segments.count,
-      overridden.location + overridden.node.segLength
-    )
+    let overriddenRange =
+      overridden
+        .location ..< min(
+          segments.count,
+          overridden.location + overridden.node.segLength
+        )
 
     for i in overriddenRange {
       let overlappingNodes = fetchOverlappingNodes(at: i)
+
+      if enforceRetokenization {
+        let overriddenNodeRef = overridden.node
+        let demotionScore = -Swift.max(1.0, Swift.abs(overriddenNodeRef.overridingScore))
+        for anchor in overlappingNodes
+          where anchor.node !== overriddenNodeRef
+          && anchor.location <= overridden.location {
+          if shouldResetNode(anchor: anchor.node, overriddenNode: overriddenNodeRef) {
+            anchor.node.reset()
+          }
+          anchor.node.overrideStatus = .init(
+            overridingScore: demotionScore,
+            currentOverrideType: .withSpecified,
+            currentUnigramIndex: anchor.node.currentGramIndex
+          )
+        }
+        continue
+      }
 
       for anchor in overlappingNodes where anchor.node != overridden.node {
         // 檢查是否需要重設節點
@@ -203,7 +248,8 @@ extension Homa.Assembler {
   /// - Returns: 是否需要重設
   private func shouldResetNode(anchor: Homa.Node, overriddenNode: Homa.Node) -> Bool {
     guard let anchorValue = anchor.value,
-          let overriddenValue = overriddenNode.value else {
+          let overriddenValue = overriddenNode.value
+    else {
       return false
     }
 
@@ -257,7 +303,8 @@ extension Homa.Assembler {
   ///   - node: 要插入的節點。
   ///   - targetContainer: 目標容器。
   private static func insertAnchor(
-    segmentIndex location: Int, node: Homa.Node,
+    segmentIndex location: Int,
+    node: Homa.Node,
     to targetContainer: inout [(location: Int, node: Homa.Node)]
   ) {
     guard !node.keyArray.joined().isEmpty else { return }

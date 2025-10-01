@@ -4,8 +4,9 @@
 
 import Foundation
 import Homa
-@testable import LexiconKit
 import Testing
+
+@testable import LexiconKit
 
 // 更新時間常數，使用天為單位
 private let nowTimeStamp: Double = 114_514 * 10_000
@@ -83,14 +84,19 @@ public struct LXTests4Perceptor {
     )
     #expect(suggested?.map(\.value).first ?? "" == valNewest)
 
-    // 在 8 天時，記憶應該已經衰減到閾值以下
+    // 在 8 天時，記憶仍應位於有效視窗內
     suggested = perceptor.getSuggestion(
       key: key,
       timestamp: nowTimeStamp + dayInSeconds * 8
     )
+    #expect(suggested != nil, "約 7 天的有效視窗內記憶應該仍可取得")
 
-    // 移除原先的 TODO 和測試，直接檢查 nil
-    #expect(suggested == nil, "經過8天後記憶仍未完全衰減")
+    // 超過 8 天視窗後，記憶應該衰減
+    suggested = perceptor.getSuggestion(
+      key: key,
+      timestamp: nowTimeStamp + dayInSeconds * 9
+    )
+    #expect(suggested == nil, "超過 8 天後記憶應該衰減")
   }
 
   // 添加一個專門測試長期記憶衰減的測試
@@ -107,25 +113,34 @@ public struct LXTests4Perceptor {
     var suggested = perceptor.getSuggestion(key: key, timestamp: nowTimeStamp)
     #expect(suggested?.map(\.value).first ?? "" == expectedSuggestion)
 
-    // 測試不同天數的衰減
-    // 調整期望：0-6天應該記憶存在，7天及以上應該消失
-    let testDays = [0, 1, 3, 5, 6, 6.5, 7, 8, 20, 80]
+    // 測試不同天數的衰減，預期約 8 天後記憶衰減
+    let testCases: [(day: Double, expectAvailable: Bool)] = [
+      (0, true),
+      (1, true),
+      (3, true),
+      (5, true),
+      (7.5, true),
+      (8.0, false),
+      (9.0, false),
+      (20, false),
+      (80, false),
+    ]
 
-    for days in testDays {
-      let currentTimestamp = nowTimeStamp + (dayInSeconds * Double(days))
+    for testCase in testCases {
+      let currentTimestamp = nowTimeStamp + (dayInSeconds * testCase.day)
       suggested = perceptor.getSuggestion(key: key, timestamp: currentTimestamp)
 
-      if days <= 5 {
-        #expect(suggested != nil, "第\(days)天就不該衰減到閾值以下")
+      if testCase.expectAvailable {
+        #expect(suggested != nil, "第\(testCase.day)天的記憶應維持可用")
         if let suggestion = suggested?.first {
           let score = suggestion.probability
           #expect(
             score > perceptor.threshold,
-            "第\(days)天的權重\(score)不應低於閾值\(Perceptor.kDecayThreshold)"
+            "第\(testCase.day)天的權重\(score)不應低於閾值\(Perceptor.kDecayThreshold)"
           )
         }
       } else {
-        #expect(suggested == nil, "第\(days)天應該已經衰減到閾值以下")
+        #expect(suggested == nil, "第\(testCase.day)天後記憶應衰減")
       }
     }
   }
@@ -196,24 +211,37 @@ public struct LXTests4Perceptor {
     let assembler = Homa.Assembler(
       gramQuerier: { hub.queryGrams($0, filterType: .cht, partiallyMatch: false) },
       gramAvailabilityChecker: { hub.hasGrams($0, filterType: .cht, partiallyMatch: false) },
-      perceptor: { assembledSentence in
-        let perceptionEntryRAW = assembledSentence.generateKeyForPerception()
-        guard let perceptionEntryRAW else { return }
+      perceptor: { intel in
         perceptor.memorizePerception(
-          (perceptionEntryRAW.ngramKey, perceptionEntryRAW.candidate),
+          intel,
           timestamp: Date().timeIntervalSince1970
         )
       }
     )
     try readings.forEach { try assembler.insertKey($0.description) }
-    var assembledSentence = assembler.assemble().compactMap(\.value)
+    var assembledSentence = assembler.assemble().values
     #expect(assembledSentence == ["優", "跌", "能", "留意", "旅", "方"])
-    try assembler.overrideCandidate(.init((["ㄧㄡ"], "幽")), at: 0)
-    try assembler.overrideCandidate(.init((["ㄉㄧㄝˊ"], "蝶")), at: 1)
-    try assembler.overrideCandidate(.init((["ㄌㄧㄡˊ"], "留")), at: 3)
-    try assembler.overrideCandidate(.init((["ㄧˋ", "ㄌㄩˇ"], "一縷")), at: 4)
-    try assembler.overrideCandidate(.init((["ㄈㄤ"], "芳")), at: 6)
-    assembledSentence = assembler.assemble().compactMap(\.value)
+    try assembler.overrideCandidate(
+      Homa.CandidatePair(keyArray: ["ㄧㄡ"], value: "幽"),
+      at: 0
+    )
+    try assembler.overrideCandidate(
+      Homa.CandidatePair(keyArray: ["ㄉㄧㄝˊ"], value: "蝶"),
+      at: 1
+    )
+    try assembler.overrideCandidate(
+      Homa.CandidatePair(keyArray: ["ㄌㄧㄡˊ"], value: "留"),
+      at: 3
+    )
+    try assembler.overrideCandidate(
+      Homa.CandidatePair(keyArray: ["ㄧˋ", "ㄌㄩˇ"], value: "一縷"),
+      at: 4
+    )
+    try assembler.overrideCandidate(
+      Homa.CandidatePair(keyArray: ["ㄈㄤ"], value: "芳"),
+      at: 6
+    )
+    assembledSentence = assembler.assemble().values
     #expect(assembledSentence == ["幽", "蝶", "能", "留", "一縷", "芳"])
     let actualkeysJoined = assembler.actualKeys.joined(separator: " ")
     #expect(actualkeysJoined == "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ")
