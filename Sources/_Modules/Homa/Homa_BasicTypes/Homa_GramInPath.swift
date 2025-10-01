@@ -42,6 +42,92 @@ extension Homa {
   }
 }
 
+// MARK: - Perception Observation
+
+extension Homa {
+  /// 觀測上下文類型。
+  public enum POMObservationScenario: String, Codable, Sendable {
+    /// 同長度更換。
+    case sameLenSwap
+    /// 短詞變長詞。
+    case shortToLong
+    /// 長詞變短詞。
+    case longToShort
+  }
+
+  /// 觀測上下文情形。
+  public struct PerceptionIntel: Codable, Hashable, Sendable {
+    /// N-gram 索引鍵。
+    public let ngramKey: String
+    /// 候選字。
+    public let candidate: String
+    /// 頭部讀音。
+    public let headReading: String
+    /// 觀測場景。
+    public let scenario: POMObservationScenario
+    /// 是否需強制高分覆寫。
+    public let forceHighScoreOverride: Bool
+    /// 語言模型分數。
+    public let scoreFromLM: Double
+  }
+
+  /// 根據候選字覆寫行為前後的組句結果，在指定游標位置得出觀測上下文之情形。
+  /// - Parameters:
+  ///   - previouslyAssembled: 候選字覆寫行為前的組句結果。
+  ///   - currentAssembled: 候選字覆寫行為後的組句結果。
+  ///   - cursor: 游標。
+  /// - Returns: 觀測上下文結果。
+  public static func makePerceptionObservation(
+    previouslyAssembled: [Homa.GramInPath],
+    currentAssembled: [Homa.GramInPath],
+    cursor: Int
+  )
+    -> PerceptionIntel? {
+    guard !previouslyAssembled.isEmpty, !currentAssembled.isEmpty else { return nil }
+
+    guard let afterHit = currentAssembled.findGram(at: cursor) else { return nil }
+    let current = afterHit.gram
+    let currentLen = current.segLength
+    if currentLen > 3 { return nil }
+
+    let border1 = afterHit.range.upperBound - 1
+    let border2 = previouslyAssembled.totalKeyCount - 1
+    let innerIndex = Swift.max(0, Swift.min(border1, border2))
+    guard let beforeHit = previouslyAssembled.findGram(at: innerIndex) else { return nil }
+    let prevHead = beforeHit.gram
+    let prevLen = prevHead.segLength
+
+    let isBreakingUp = (currentLen == 1 && prevLen > 1)
+    let isShortToLong = (currentLen > prevLen)
+    let scenario: POMObservationScenario =
+      switch (isBreakingUp, isShortToLong) {
+      case (true, _): .longToShort
+      case (false, true): .shortToLong
+      case (false, false): .sameLenSwap
+      }
+    let forceHSO = isShortToLong
+
+    let keySource = isBreakingUp ? currentAssembled : previouslyAssembled
+    let keyCursorRaw = Swift.max(
+      afterHit.range.lowerBound,
+      Swift.min(cursor, afterHit.range.upperBound - 1)
+    )
+    guard keySource.totalKeyCount > 0 else { return nil }
+    let keyCursor = Swift.max(0, Swift.min(keyCursorRaw, keySource.totalKeyCount - 1))
+
+    guard let keyGen = keySource.generateKeyForPerception(cursor: keyCursor) else { return nil }
+
+    return .init(
+      ngramKey: keyGen.ngramKey,
+      candidate: current.value,
+      headReading: keyGen.headReading,
+      scenario: scenario,
+      forceHighScoreOverride: forceHSO,
+      scoreFromLM: current.score
+    )
+  }
+}
+
 extension Array where Element == Homa.GramInPath {
   /// 從一個節點陣列當中取出目前的選字字串陣列。
   public var values: [String] { map(\.value) }

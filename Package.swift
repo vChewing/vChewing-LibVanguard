@@ -98,6 +98,7 @@ let package = Package(
       name: "LexiconKit",
       dependencies: buildTargetDependencies {
         "TrieKit"
+        "Homa"
       },
       path: "./Sources/_Modules/LexiconKit"
     )
