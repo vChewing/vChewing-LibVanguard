@@ -2,7 +2,7 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-// 下述測試內容有通過，但效能問題堪憂，已經停用且風存在此。該效能問題出在 SQLTrie 的 Constructor 上。
+// 下述測試內容有通過，但效能問題堪憂，已經停用且封存在此。該效能問題出在 SQLTrie 的 Constructor 上。
 //
 // extension FactoryTrieDBType {
 //   func getFactorySQLDemoFileContent4Tests() -> String {
