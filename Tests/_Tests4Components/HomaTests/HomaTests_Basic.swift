@@ -2,8 +2,23 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-@testable import Homa
+import HomaSharedTestComponents
 import Testing
+
+@testable import Homa
+
+// MARK: - HomaTests4MockLM
+
+public struct HomaTests4MockLM {
+  @Test("[Homa] MockedLanguageModel_(For Unit Tests)")
+  public func testMockLM() async throws {
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleDataHutao)
+    let fangQueried = mockLM.queryGrams(["fang1"])
+    #expect(fangQueried.count == 7)
+    let firstBigramPreviousValue = fangQueried.compactMap(\.previous).first
+    #expect(firstBigramPreviousValue == "一縷")
+  }
+}
 
 // MARK: - HomaTestsBasic
 
@@ -11,7 +26,7 @@ import Testing
 public struct HomaTestsBasic: HomaTestSuite {
   @Test("[Homa] SegmentAPIs")
   func testSegmentAPIs() async throws {
-    let langModel = TestLM(rawData: strLMSampleDataLitch)
+    let langModel = TestLM(rawData: HomaTests.strLMSampleDataLitch)
     var segment = Homa.Segment()
     let queriedRawGramsDa = langModel.queryGrams(["da4"])
     let queriedRawGramsDaqiantian = langModel.queryGrams(["da4-qian2-tian1"])

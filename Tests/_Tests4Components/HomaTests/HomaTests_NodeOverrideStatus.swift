@@ -3,8 +3,10 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 import Foundation
-@testable import Homa
+import HomaSharedTestComponents
 import Testing
+
+@testable import Homa
 
 struct HomaTests_NodeOverrideStatus: HomaTestSuite {
   @Test("NodeOverrideStatus Initialization")
@@ -148,7 +150,8 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let restoredMirror = assembler.createNodeOverrideStatusMirror()
     #expect(restoredMirror[nodeId]?.overridingScore == originalMirror[nodeId]?.overridingScore)
     #expect(
-      restoredMirror[nodeId]?.currentOverrideType == originalMirror[nodeId]?
+      restoredMirror[nodeId]?.currentOverrideType
+        == originalMirror[nodeId]?
         .currentOverrideType
     )
   }

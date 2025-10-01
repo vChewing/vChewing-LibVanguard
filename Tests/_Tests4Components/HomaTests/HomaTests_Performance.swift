@@ -2,6 +2,7 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
+import HomaSharedTestComponents
 import Testing
 
 @testable import Homa
@@ -26,7 +27,7 @@ public struct HomaPerformanceTests: HomaTestSuite {
       "cong2-lai2-bu4-you2-ta1-ren2-pu1-jiu4", // 從來不由他人鋪就
     ]
 
-    let mockLM = TestLM(rawData: strLMSampleDataTrailblazing)
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleDataTrailblazing)
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) },
       gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -75,7 +76,7 @@ public struct HomaPerformanceTests: HomaTestSuite {
   func testTrieOperationsStress() async throws {
     print("// Starting Trie operations stress test")
 
-    let mockLM = TestLM(rawData: strLMSampleDataTrailblazing)
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleDataTrailblazing)
 
     // 測試查詢效能。
     let keys = ["suo3", "wei4", "kai1", "tuo4", "jiu4", "shi4"]
@@ -105,7 +106,7 @@ public struct HomaPerformanceTests: HomaTestSuite {
   func testMemoryUsage() async throws {
     print("// Starting memory usage test")
 
-    let mockLM = TestLM(rawData: strLMSampleDataTrailblazing)
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleDataTrailblazing)
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) },
       gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -204,7 +205,7 @@ public struct HomaPerformanceTests: HomaTestSuite {
 
   private func generateRealisticChineseInput() -> (keys: [String], mockData: String) {
     // 生成複雜的擬真語言模型資料。
-    var mockData = strLMSampleDataTrailblazing
+    var mockData = HomaTests.strLMSampleDataTrailblazing
 
     // 建立真實的中文拼音輸入模式 - 使用與 Mock 資料對應的拼音讀音
     let knownPinyin = [

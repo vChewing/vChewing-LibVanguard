@@ -4,14 +4,13 @@
 
 import Foundation
 @testable import Homa
-import Testing
 
 // MARK: - HomaTestSuite
 
-protocol HomaTestSuite {}
+public protocol HomaTestSuite {}
 
 extension HomaTestSuite {
-  static func makeAssemblerUsingMockLM() -> Homa.Assembler {
+  public static func makeAssemblerUsingMockLM() -> Homa.Assembler {
     .init(
       gramQuerier: { keyArray in
         [
@@ -29,7 +28,7 @@ extension HomaTestSuite {
     )
   }
 
-  static func mustDone(_ task: @escaping () throws -> ()) -> Bool {
+  public static func mustDone(_ task: @escaping () throws -> ()) -> Bool {
     do {
       try task()
       return true
@@ -38,7 +37,7 @@ extension HomaTestSuite {
     }
   }
 
-  static func mustFail(_ task: @escaping () throws -> ()) -> Bool {
+  public static func mustFail(_ task: @escaping () throws -> ()) -> Bool {
     do {
       try task()
       return false
@@ -47,7 +46,7 @@ extension HomaTestSuite {
     }
   }
 
-  static func measureTime(_ task: @escaping () throws -> ()) rethrows -> Double {
+  public static func measureTime(_ task: @escaping () throws -> ()) rethrows -> Double {
     let startTime = Date.now.timeIntervalSince1970
     try task()
     return Date.now.timeIntervalSince1970 - startTime
@@ -61,7 +60,7 @@ extension Homa.Assembler {
   /// 現僅用於單元測試、以確認其繼任者是否有給出所有該給出的正常結果。
   /// - Parameter location: 游標位置。
   /// - Returns: 候選字音配對陣列。
-  func fetchCandidatesDeprecated(
+  public func fetchCandidatesDeprecated(
     at location: Int,
     filter: CandidateFetchFilter = .all
   )
@@ -98,7 +97,7 @@ extension Homa.Assembler {
 // MARK: - Dumping Unigrams from the Assembler.
 
 extension Homa.Assembler {
-  func dumpUnigrams() -> String {
+  public func dumpUnigrams() -> String {
     segments.map { currentSegment in
       currentSegment.values.map { currentNode in
         currentNode.grams.map { currentGram in
@@ -115,25 +114,16 @@ extension Homa.Assembler {
   }
 }
 
-// MARK: - HomaTests4MockLM
-
-public struct HomaTests4MockLM {
-  @Test("[Homa] MockedLanguageModel_(For Unit Tests)")
-  func testMockLM() async throws {
-    let mockLM = TestLM(rawData: strLMSampleDataHutao)
-    let fangQueried = mockLM.queryGrams(["fang1"])
-    #expect(fangQueried.count == 7)
-    let firstBigramPreviousValue = fangQueried.compactMap(\.previous).first
-    #expect(firstBigramPreviousValue == "一縷")
-  }
-}
-
 // MARK: - TestLM
 
-final class TestLM {
+public final class TestLM {
   // MARK: Lifecycle
 
-  init(rawData: String, readingSeparator: String = "-", valueSegmentationOnly: Bool = false) {
+  public init(
+    rawData: String,
+    readingSeparator: String = "-",
+    valueSegmentationOnly: Bool = false
+  ) {
     self.trie = SimpleTrie(separator: readingSeparator)
     rawData.split(whereSeparator: \.isNewline).forEach { line in
       let components = line.split(whereSeparator: \.isWhitespace)
@@ -153,11 +143,11 @@ final class TestLM {
     }
   }
 
-  // MARK: Internal
+  // MARK: Public
 
-  var readingSeparator: String { trie.readingSeparator.description }
+  public var readingSeparator: String { trie.readingSeparator.description }
 
-  func hasGrams(
+  public func hasGrams(
     _ keys: [String],
     partiallyMatch: Bool = false
   )
@@ -169,7 +159,7 @@ final class TestLM {
     )
   }
 
-  func queryGrams(
+  public func queryGrams(
     _ keys: [String],
     partiallyMatch: Bool = false
   )
@@ -499,14 +489,14 @@ extension SimpleTrie {
     node.entries
   }
 
-  var chopCaseSeparator: Character { "&" }
+  public var chopCaseSeparator: Character { "&" }
 
   /// 特殊函式，專門用來處理那種單個讀音位置有兩個讀音的情況。
   ///
   /// 這只可能是前端打拼音串之後被 Tekkon.PinyinTrie 分析出了多個結果。
   /// 比如說敲了漢語拼音 s 的話會被分析成兩個結果「ㄕ」和「ㄙ」。
   /// 這會以「ㄕ\(chopCaseSeparator)ㄙ」的形式插入注拼引擎、然後再被傳到這個 Trie 內來查詢。
-  func getNodeIDs(
+  public func getNodeIDs(
     keysChopped: [String],
     partiallyMatch: Bool
   )
@@ -555,7 +545,7 @@ extension SimpleTrie {
     return result
   }
 
-  func partiallyMatchedKeys(
+  public func partiallyMatchedKeys(
     _ keys: [String],
     nodeIDs: Set<Int>
   )

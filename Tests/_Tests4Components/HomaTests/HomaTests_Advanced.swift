@@ -2,8 +2,10 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-@testable import Homa
+import HomaSharedTestComponents
 import Testing
+
+@testable import Homa
 
 // MARK: - HomaTestsAdvanced
 
@@ -14,7 +16,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   func testHardCopyAndWordSegmentation() async throws {
     let regexToFilter = try Regex(".* 能留 .*\n")
     let mockLM = TestLM(
-      rawData: strLMSampleDataHutao.replacing(regexToFilter, with: ""),
+      rawData: HomaTests.strLMSampleDataHutao.replacing(regexToFilter, with: ""),
       readingSeparator: "",
       valueSegmentationOnly: true
     )
@@ -35,7 +37,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   @Test("[Homa] Assember_StressBench")
   func testStressBenchOnAssemblingSentences() async throws {
     print("// Stress test preparation begins.")
-    let mockLM = TestLM(rawData: strLMStressData)
+    let mockLM = TestLM(rawData: HomaTests.strLMStressData)
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) },
       gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -53,7 +55,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   @Test("[Homa] Assembler_UpdateUnigramDataForAllNodes")
   func testUpdateUnigramDataForAllNodes() async throws {
     let readings: [Substring] = "shu4 xin1 feng1".split(separator: " ")
-    let newRawStringLM = strLMSampleDataEmoji + "\nshu4-xin1-feng1 樹新風 -9"
+    let newRawStringLM = HomaTests.strLMSampleDataEmoji + "\nshu4-xin1-feng1 樹新風 -9"
     let regexToFilter = try Regex(".*(樹|新|風) .*")
     let mockLMWithFilter = TestLM(
       rawData: newRawStringLM.replacing(regexToFilter, with: "")
@@ -84,7 +86,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   func testVerifyCandidateFetchResultsWithNewAPI() async throws {
     let readings = "da4 qian2 tian1 zai5 ke1 ji4 gong1 yuan2 chao1 shang1"
     let mockLM = TestLM(
-      rawData: strLMSampleDataTechGuarden + "\n" + strLMSampleDataLitch
+      rawData: HomaTests.strLMSampleDataTechGuarden + "\n" + HomaTests.strLMSampleDataLitch
     )
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) },
@@ -137,7 +139,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     // 一號測試。
     do {
       let readings: [Substring] = "ke1 ji4 gong1 yuan2".split(separator: " ")
-      let mockLM = TestLM(rawData: strLMSampleDataTechGuarden)
+      let mockLM = TestLM(rawData: HomaTests.strLMSampleDataTechGuarden)
       let assembler = Homa.Assembler(
         gramQuerier: { mockLM.queryGrams($0) },
         gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -159,7 +161,10 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     // 二號測試。
     do {
       let readings: [Substring] = "sheng1 sheng1".split(separator: " ")
-      let mockLM = TestLM(rawData: strLMStressData + "\n" + strLMSampleDataHutao)
+      let mockLM = TestLM(
+        rawData: HomaTests.strLMStressData + "\n" + HomaTests
+          .strLMSampleDataHutao
+      )
       let assembler = Homa.Assembler(
         gramQuerier: { mockLM.queryGrams($0) },
         gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -167,25 +172,33 @@ public struct HomaTestsAdvanced: HomaTestSuite {
       try readings.forEach {
         try assembler.insertKey($0.description)
       }
-      var a = assembler.fetchCandidates(at: 1, filter: .beginAt)
-        .map(\.pair.keyArray.count).max() ?? 0
-      var b = assembler.fetchCandidates(at: 1, filter: .endAt)
-        .map(\.pair.keyArray.count).max() ?? 0
-      var c = assembler.fetchCandidates(at: 0, filter: .beginAt)
-        .map(\.pair.keyArray.count).max() ?? 0
-      var d = assembler.fetchCandidates(at: 2, filter: .endAt)
-        .map(\.pair.keyArray.count).max() ?? 0
+      var a =
+        assembler.fetchCandidates(at: 1, filter: .beginAt)
+          .map(\.pair.keyArray.count).max() ?? 0
+      var b =
+        assembler.fetchCandidates(at: 1, filter: .endAt)
+          .map(\.pair.keyArray.count).max() ?? 0
+      var c =
+        assembler.fetchCandidates(at: 0, filter: .beginAt)
+          .map(\.pair.keyArray.count).max() ?? 0
+      var d =
+        assembler.fetchCandidates(at: 2, filter: .endAt)
+          .map(\.pair.keyArray.count).max() ?? 0
       #expect("\(a) \(b) \(c) \(d)" == "1 1 2 2")
       assembler.cursor = assembler.length
       try assembler.insertKey("fang1")
-      a = assembler.fetchCandidates(at: 1, filter: .beginAt)
-        .map(\.pair.keyArray.count).max() ?? 0
-      b = assembler.fetchCandidates(at: 1, filter: .endAt)
-        .map(\.pair.keyArray.count).max() ?? 0
-      c = assembler.fetchCandidates(at: 0, filter: .beginAt)
-        .map(\.pair.keyArray.count).max() ?? 0
-      d = assembler.fetchCandidates(at: 2, filter: .endAt)
-        .map(\.pair.keyArray.count).max() ?? 0
+      a =
+        assembler.fetchCandidates(at: 1, filter: .beginAt)
+          .map(\.pair.keyArray.count).max() ?? 0
+      b =
+        assembler.fetchCandidates(at: 1, filter: .endAt)
+          .map(\.pair.keyArray.count).max() ?? 0
+      c =
+        assembler.fetchCandidates(at: 0, filter: .beginAt)
+          .map(\.pair.keyArray.count).max() ?? 0
+      d =
+        assembler.fetchCandidates(at: 2, filter: .endAt)
+          .map(\.pair.keyArray.count).max() ?? 0
       #expect("\(a) \(b) \(c) \(d)" == "1 1 2 2")
     }
   }
@@ -194,7 +207,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   @Test("[Homa] Assember_AssembleAndOverride_WithUnigramAndCursorJump")
   func testAssembleAndOverrideWithUnigramAndCursorJump() async throws {
     let readings = "chao1 shang1 da4 qian2 tian1 wei2 zhi3 hai2 zai5 mai4 nai3 ji1"
-    let mockLM = TestLM(rawData: strLMSampleDataLitch)
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleDataLitch)
     var perceptions: [(ngramKey: String, candidate: String, headReading: String)] = []
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) },
@@ -283,7 +296,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   @Test("[Homa] Assember_AssembleAndOverride_FullMatch_WithBigram")
   func testAssembleWithBigramAndOverrideWithFullMatch() async throws {
     let readings: [Substring] = "you1 die2 neng2 liu2 yi4 lv3 fang1".split(separator: " ")
-    let mockLM = TestLM(rawData: strLMSampleDataHutao)
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleDataHutao)
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) }, // 會回傳包含 Bigram 的結果。
       gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -296,12 +309,16 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。
     try assembler.overrideCandidate(
-      .init(keyArray: ["liu2"], value: "留"), at: 3, type: .withSpecified
+      .init(keyArray: ["liu2"], value: "留"),
+      at: 3,
+      type: .withSpecified
     )
     // 測試覆寫「一縷」以打斷「留意」與「呂方」。這也便於最後一個位置的 Bigram 測試。
     // （因為是有了「一縷」這個前提才會去找對應的 Bigram。）
     try assembler.overrideCandidate(
-      .init(keyArray: ["yi4", "lv3"], value: "一縷"), at: 4, type: .withSpecified
+      .init(keyArray: ["yi4", "lv3"], value: "一縷"),
+      at: 4,
+      type: .withSpecified
     )
     let dotWithBigram = assembler.dumpDOT(verticalGraph: true)
     assembledSentence = assembler.assemble().compactMap(\.value)
@@ -313,7 +330,9 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "方"])
     // 對位置 7 這個最前方的座標位置使用節點覆寫。會在此過程中自動糾正成對位置 6 的覆寫。
     try assembler.overrideCandidate(
-      .init(keyArray: ["fang1"], value: "芳"), at: 7, type: .withSpecified
+      .init(keyArray: ["fang1"], value: "芳"),
+      at: 7,
+      type: .withSpecified
     )
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
@@ -339,7 +358,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   @Test("[Homa] Assember_AssembleAndOverride_PartialMatch_WithBigram")
   func testAssembleWithBigramAndOverrideWithPartialMatch() async throws {
     let readings: [String] = "ydnlylf".map(\.description)
-    let mockLM = TestLM(rawData: strLMSampleDataHutao)
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleDataHutao)
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0, partiallyMatch: true) }, // 會回傳包含 Bigram 的結果。
       gramAvailabilityChecker: { mockLM.hasGrams($0, partiallyMatch: true) }
@@ -351,12 +370,16 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     #expect(assembledSentence == ["幽蝶", "能", "留意", "呂方"])
     // 測試覆寫「留」以試圖打斷「留意」。
     try assembler.overrideCandidate(
-      .init(keyArray: ["liu2"], value: "留"), at: 3, type: .withSpecified
+      .init(keyArray: ["liu2"], value: "留"),
+      at: 3,
+      type: .withSpecified
     )
     // 測試覆寫「一縷」以打斷「留意」與「呂方」。這也便於最後一個位置的 Bigram 測試。
     // （因為是有了「一縷」這個前提才會去找對應的 Bigram。）
     try assembler.overrideCandidate(
-      .init(keyArray: ["yi4", "lv3"], value: "一縷"), at: 4, type: .withSpecified
+      .init(keyArray: ["yi4", "lv3"], value: "一縷"),
+      at: 4,
+      type: .withSpecified
     )
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
@@ -368,7 +391,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   @Test("[Homa] Assember_ResetFullyOverlappedNodesOnOverride")
   func testResettingFullyOverlappedNodesOnOverride() async throws {
     let readings: [Substring] = "shui3 guo3 zhi1".split(separator: " ")
-    let mockLM = TestLM(rawData: strLMSampleDataFruitJuice)
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleDataFruitJuice)
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) }, // 會回傳包含 Bigram 的結果。
       gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -382,26 +405,33 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     // 測試針對第一個漢字的位置的操作。
     do {
       do {
-        #expect(Self.mustDone {
-          try assembler.overrideCandidate(.init(keyArray: ["shui3"], value: "💦"), at: 0)
-        })
+        #expect(
+          Self.mustDone {
+            try assembler.overrideCandidate(.init(keyArray: ["shui3"], value: "💦"), at: 0)
+          }
+        )
         assembledSentence = assembler.assemble().compactMap(\.value)
         #expect(assembledSentence == ["💦", "果汁"])
       }
       do {
-        #expect(Self.mustDone {
-          try assembler.overrideCandidate(
-            .init(keyArray: ["shui3", "guo3", "zhi1"], value: "水果汁"), at: 1
-          )
-        })
+        #expect(
+          Self.mustDone {
+            try assembler.overrideCandidate(
+              .init(keyArray: ["shui3", "guo3", "zhi1"], value: "水果汁"),
+              at: 1
+            )
+          }
+        )
         assembledSentence = assembler.assemble().compactMap(\.value)
         #expect(assembledSentence == ["水果汁"])
       }
       do {
-        #expect(Self.mustDone {
-          // 再覆寫回來。
-          try assembler.overrideCandidate(.init(keyArray: ["shui3"], value: "💦"), at: 0)
-        })
+        #expect(
+          Self.mustDone {
+            // 再覆寫回來。
+            try assembler.overrideCandidate(.init(keyArray: ["shui3"], value: "💦"), at: 0)
+          }
+        )
         assembledSentence = assembler.assemble().compactMap(\.value)
         #expect(assembledSentence == ["💦", "果汁"])
       }
@@ -410,26 +440,33 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     // 測試針對其他位置的操作。
     do {
       do {
-        #expect(Self.mustDone {
-          try assembler.overrideCandidate(.init(keyArray: ["guo3"], value: "裹"), at: 1)
-        })
+        #expect(
+          Self.mustDone {
+            try assembler.overrideCandidate(.init(keyArray: ["guo3"], value: "裹"), at: 1)
+          }
+        )
         assembledSentence = assembler.assemble().compactMap(\.value)
         #expect(assembledSentence == ["💦", "裹", "之"])
       }
       do {
-        #expect(Self.mustDone {
-          try assembler.overrideCandidate(.init(keyArray: ["zhi1"], value: "知"), at: 2)
-        })
+        #expect(
+          Self.mustDone {
+            try assembler.overrideCandidate(.init(keyArray: ["zhi1"], value: "知"), at: 2)
+          }
+        )
         assembledSentence = assembler.assemble().compactMap(\.value)
         #expect(assembledSentence == ["💦", "裹", "知"])
       }
       do {
-        #expect(Self.mustDone {
-          // 再覆寫回來。
-          try assembler.overrideCandidate(
-            .init(keyArray: ["shui3", "guo3", "zhi1"], value: "水果汁"), at: 3
-          )
-        })
+        #expect(
+          Self.mustDone {
+            // 再覆寫回來。
+            try assembler.overrideCandidate(
+              .init(keyArray: ["shui3", "guo3", "zhi1"], value: "水果汁"),
+              at: 3
+            )
+          }
+        )
         assembledSentence = assembler.assemble().compactMap(\.value)
         #expect(assembledSentence == ["水果汁"])
       }
@@ -440,7 +477,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
   @Test("[Homa] Assember_ResetPartiallyOverlappedNodesOnOverride")
   func testResettingPartiallyOverlappedNodesOnOverride() async throws {
     let readings: [Substring] = "ke1 ji4 gong1 yuan2".split(separator: " ")
-    let mockLM = TestLM(rawData: strLMSampleDataTechGuarden + "\ngong1-yuan2 公猿 -9")
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleDataTechGuarden + "\ngong1-yuan2 公猿 -9")
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) }, // 會回傳包含 Bigram 的結果。
       gramAvailabilityChecker: { mockLM.hasGrams($0) }
@@ -451,29 +488,38 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     var assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["科技", "公園"])
     do {
-      #expect(Self.mustDone {
-        try assembler.overrideCandidate(
-          .init(keyArray: ["ji4", "gong1"], value: "濟公"), at: 1
-        )
-      })
+      #expect(
+        Self.mustDone {
+          try assembler.overrideCandidate(
+            .init(keyArray: ["ji4", "gong1"], value: "濟公"),
+            at: 1
+          )
+        }
+      )
       assembledSentence = assembler.assemble().compactMap(\.value)
       #expect(assembledSentence == ["顆", "濟公", "元"])
     }
     do {
-      #expect(Self.mustDone {
-        try assembler.overrideCandidate(
-          .init(keyArray: ["gong1", "yuan2"], value: "公猿"), at: 2
-        )
-      })
+      #expect(
+        Self.mustDone {
+          try assembler.overrideCandidate(
+            .init(keyArray: ["gong1", "yuan2"], value: "公猿"),
+            at: 2
+          )
+        }
+      )
       assembledSentence = assembler.assemble().compactMap(\.value)
       #expect(assembledSentence == ["科技", "公猿"]) // 「技工」被重設。
     }
     do {
-      #expect(Self.mustDone {
-        try assembler.overrideCandidate(
-          .init(keyArray: ["ke1", "ji4"], value: "科際"), at: 0
-        )
-      })
+      #expect(
+        Self.mustDone {
+          try assembler.overrideCandidate(
+            .init(keyArray: ["ke1", "ji4"], value: "科際"),
+            at: 0
+          )
+        }
+      )
       assembledSentence = assembler.assemble().compactMap(\.value)
       #expect(assembledSentence == ["科際", "公猿"]) // 「公猿」沒有受到影響。
     }
@@ -484,7 +530,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     let readings: [Substring] = "da4 shu4 xin1 de5 mi4 feng1".split(separator: " ")
     let regexToFilter = try Regex("\nshu4-xin1 .*")
     let mockLM = TestLM(
-      rawData: strLMSampleDataEmoji.replacing(regexToFilter, with: "")
+      rawData: HomaTests.strLMSampleDataEmoji.replacing(regexToFilter, with: "")
     )
     let assembler = Homa.Assembler(
       gramQuerier: { mockLM.queryGrams($0) }, // 會回傳包含 Bigram 的結果。
@@ -497,16 +543,20 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     #expect(assembledSentence == ["大樹", "新的", "蜜蜂"])
     let pos = 2
     do {
-      #expect(Self.mustDone {
-        try assembler.overrideCandidate(.init(keyArray: ["xin1"], value: "🆕"), at: pos)
-      })
+      #expect(
+        Self.mustDone {
+          try assembler.overrideCandidate(.init(keyArray: ["xin1"], value: "🆕"), at: pos)
+        }
+      )
       assembledSentence = assembler.assemble().compactMap(\.value)
       #expect(assembledSentence == ["大樹", "🆕", "的", "蜜蜂"])
     }
     do {
-      #expect(Self.mustDone {
-        try assembler.overrideCandidate(.init(keyArray: ["xin1", "de5"], value: "🆕"), at: pos)
-      })
+      #expect(
+        Self.mustDone {
+          try assembler.overrideCandidate(.init(keyArray: ["xin1", "de5"], value: "🆕"), at: pos)
+        }
+      )
       assembledSentence = assembler.assemble().compactMap(\.value)
       #expect(assembledSentence == ["大樹", "🆕", "蜜蜂"])
     }
@@ -517,19 +567,25 @@ public struct HomaTestsAdvanced: HomaTestSuite {
       #expect(assembledSentence == ["大樹", "🆕", "🐝"])
       assembler.cursor = 3
       #expect(assembler.isCursorCuttingChar(isMarker: false))
-      #expect(Self.mustDone {
-        try assembler.moveCursorStepwise(to: .front)
-      })
+      #expect(
+        Self.mustDone {
+          try assembler.moveCursorStepwise(to: .front)
+        }
+      )
       #expect(!assembler.isCursorCuttingChar(isMarker: false))
-      #expect(Self.mustDone {
-        try assembler.moveCursorStepwise(to: .front)
-      })
+      #expect(
+        Self.mustDone {
+          try assembler.moveCursorStepwise(to: .front)
+        }
+      )
       #expect(assembler.cursor == 6)
       #expect(!assembler.isCursorCuttingChar(isMarker: false))
       #expect(assembler.isCursorAtEdge(direction: .front))
-      #expect(Self.mustFail {
-        try assembler.moveCursorStepwise(to: .front)
-      })
+      #expect(
+        Self.mustFail {
+          try assembler.moveCursorStepwise(to: .front)
+        }
+      )
     }
     // 測試游標按步移動（往後方）。
     do {
@@ -538,19 +594,25 @@ public struct HomaTestsAdvanced: HomaTestSuite {
       #expect(assembledSentence == ["🌳", "🆕", "🐝"])
       assembler.cursor = 3
       #expect(assembler.isCursorCuttingChar(isMarker: false))
-      #expect(Self.mustDone {
-        try assembler.moveCursorStepwise(to: .rear)
-      })
+      #expect(
+        Self.mustDone {
+          try assembler.moveCursorStepwise(to: .rear)
+        }
+      )
       #expect(!assembler.isCursorCuttingChar(isMarker: false))
-      #expect(Self.mustDone {
-        try assembler.moveCursorStepwise(to: .rear)
-      })
+      #expect(
+        Self.mustDone {
+          try assembler.moveCursorStepwise(to: .rear)
+        }
+      )
       #expect(assembler.cursor == 0)
       #expect(!assembler.isCursorCuttingChar(isMarker: false))
       #expect(assembler.isCursorAtEdge(direction: .rear))
-      #expect(Self.mustFail {
-        try assembler.moveCursorStepwise(to: .rear)
-      })
+      #expect(
+        Self.mustFail {
+          try assembler.moveCursorStepwise(to: .rear)
+        }
+      )
     }
   }
 
@@ -560,7 +622,10 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     let rdSimp = "k j g y c s m n j"
     let rdFull = "ke1 ji4 gong1 yuan2 chao1 shang1 mai4 nai3 ji1"
     let readings: String = partialMatch ? rdSimp : rdFull
-    let mockLM = TestLM(rawData: strLMSampleDataTechGuarden + "\n" + strLMSampleDataLitch)
+    let mockLM = TestLM(
+      rawData: HomaTests.strLMSampleDataTechGuarden + "\n" + HomaTests
+        .strLMSampleDataLitch
+    )
 
     struct CandidateIdentity: Hashable {
       let pair: Homa.CandidatePair
@@ -615,9 +680,11 @@ public struct HomaTestsAdvanced: HomaTestSuite {
             forCursor: candidateCursorType
           )
           let gramAtCursor = assembler.assembledSentence.findGram(at: candidateCursorPos)?.gram
-          let matchedGram = gramAtCursor?.gram ?? assembler.assembledSentence.first {
-            $0.keyArray == pair.keyArray && $0.value == pair.value
-          }?.gram
+          let matchedGram =
+            gramAtCursor?.gram
+              ?? assembler.assembledSentence.first {
+                $0.keyArray == pair.keyArray && $0.value == pair.value
+              }?.gram
           #expect(
             matchedGram != nil,
             Comment(stringLiteral: "未能在位置 \(pos) 找到候選 \(pair.value) 的 Gram 參考。")
@@ -693,10 +760,12 @@ public struct HomaTestsAdvanced: HomaTestSuite {
                 }
                 #expect(
                   uniqueCandidateCount == currentRevolved.total,
-                  Comment(stringLiteral: """
-                  位置:\(pos), 已輪替:\(uniqueCandidateCount), \
-                  報告總數:\(currentRevolved.total), 選字游標類型：\(candidateCursorType)
-                  """)
+                  Comment(
+                    stringLiteral: """
+                    位置:\(pos), 已輪替:\(uniqueCandidateCount), \
+                    報告總數:\(currentRevolved.total), 選字游標類型：\(candidateCursorType)
+                    """
+                  )
                 )
                 hasValidatedCandidateTotal = true
               }
@@ -709,8 +778,9 @@ public struct HomaTestsAdvanced: HomaTestSuite {
               break revolvementTaskAtThisPos
             }
             previouslyRevolvedCandidate = identity
-            let metMinimumRevolves = uniqueCandidateCount == currentRevolved.total
-              && candidateRevolveCounts.values.allSatisfy { $0 >= minimumRevolvesPerCandidate }
+            let metMinimumRevolves =
+              uniqueCandidateCount == currentRevolved.total
+                && candidateRevolveCounts.values.allSatisfy { $0 >= minimumRevolvesPerCandidate }
             if metMinimumRevolves {
               doRevolve = false
             }

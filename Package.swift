@@ -69,10 +69,19 @@ let package = Package(
       name: "Homa",
       path: "./Sources/_Modules/Homa"
     )
+    // Shared bundle for all Homa-related tests.
+    Target.target(
+      name: "HomaSharedTestComponents",
+      dependencies: buildTargetDependencies {
+        "Homa"
+      },
+      path: "./Tests/_Tests4Components/_HomaSharedTestComponents"
+    )
     Target.testTarget(
       name: "HomaTests",
       dependencies: buildTargetDependencies {
         "Homa"
+        "HomaSharedTestComponents"
       },
       path: "./Tests/_Tests4Components/HomaTests"
     )
@@ -88,7 +97,6 @@ let package = Package(
     Target.target(
       name: "LexiconKit",
       dependencies: buildTargetDependencies {
-        "SharedTrieTestDataBundle"
         "TrieKit"
       },
       path: "./Sources/_Modules/LexiconKit"
@@ -98,6 +106,7 @@ let package = Package(
       dependencies: buildTargetDependencies {
         "Homa"
         "LexiconKit"
+        "SharedTrieTestDataBundle"
         "Tekkon"
         "TrieKit"
       },

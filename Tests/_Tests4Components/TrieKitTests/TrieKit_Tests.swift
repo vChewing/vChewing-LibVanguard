@@ -225,7 +225,7 @@ public struct TrieKitTests: TrieKitTestSuite {
   ) {
     // 先測試物件創建。
     let trie = VanguardTrie.Trie(separator: "-")
-    strLMSampleDataHutao.enumerateLines { line, _ in
+    strLMSampleDataHutaoZhuyin.enumerateLines { line, _ in
       let components = line.split(whereSeparator: \.isWhitespace)
       guard components.count >= 3 else { return }
       let value = String(components[1])
