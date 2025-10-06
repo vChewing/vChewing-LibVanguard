@@ -14,7 +14,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     // Test default initialization
     let defaultStatus = Homa.NodeOverrideStatus()
     #expect(defaultStatus.overridingScore == 114_514)
-    #expect(defaultStatus.currentOverrideType == .none)
+    #expect(defaultStatus.currentOverrideType == nil)
     #expect(defaultStatus.currentUnigramIndex == 0)
 
     // Test custom initialization
@@ -66,7 +66,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     // Test getting override status
     let initialStatus = node.overrideStatus
     #expect(initialStatus.overridingScore == 114_514)
-    #expect(initialStatus.currentOverrideType == .none)
+    #expect(initialStatus.currentOverrideType == nil)
     #expect(initialStatus.currentUnigramIndex == 0)
 
     // Test setting override status
