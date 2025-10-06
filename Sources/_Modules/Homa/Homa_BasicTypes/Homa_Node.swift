@@ -6,12 +6,11 @@
 
 extension Homa.Node {
   /// 對節點執行的三種不同覆寫操作模式。
-  /// - none: 無任何覆寫操作。
   /// - withTopGramScore: 專用於雙元圖的自動選取功能，但效力低於 withSpecified 模式。
+  /// 該覆寫行為無法防止其它節點被組句函式所支配。這種情況下就需要用到 overridingScore。
   /// - withSpecified: 強制覆寫節點權重為 overridingScore，
   /// 確保組句函式優先選擇該節點且不受其他節點影響。
   public enum OverrideType: Int, Codable {
-    case none = 0
     case withTopGramScore = 1
     case withSpecified = 2
   }
@@ -43,7 +42,7 @@ extension Homa {
       self.grams = grams
       self.allActualKeyArraysCached = Set(grams.map(\.keyArray))
       self.bigramMap = grams.allBigramsMap
-      self.currentOverrideType = .none
+      self.currentOverrideType = nil
     }
 
     /// 以指定字詞節點生成拷貝。
@@ -82,7 +81,7 @@ extension Homa {
     /// 雙元圖快取。
     public private(set) var bigramMap: [String: [Homa.Gram]]
     /// 該節點目前的覆寫狀態種類。
-    public private(set) var currentOverrideType: OverrideType
+    public private(set) var currentOverrideType: OverrideType?
 
     /// 節點覆寫狀態。
     public var overrideStatus: Homa.NodeOverrideStatus {
@@ -178,7 +177,7 @@ extension Homa.Node {
   }
 
   /// 該節點是否處於被覆寫的狀態。
-  public var isOverridden: Bool { currentOverrideType != .none }
+  public var isOverridden: Bool { currentOverrideType != nil }
 
   /// 給出該節點內部元圖陣列內目前被索引位置所指向的元圖。
   public var currentGram: Homa.Gram? {
@@ -233,7 +232,7 @@ extension Homa.Node {
   /// 重設該節點的覆寫狀態、及其內部的元圖索引位置指向。
   internal func reset() {
     currentGramIndex = 0
-    currentOverrideType = .none
+    currentOverrideType = nil
   }
 
   /// 置換掉該節點內的元圖陣列資料。
@@ -264,7 +263,6 @@ extension Homa.Node {
     type: Homa.Node.OverrideType
   ) throws(Homa.Exception)
     -> Homa.Gram {
-    guard type != .none else { throw .nothingOverriddenAtNode }
     for (i, gram) in grams.enumerated() {
       if let keyArray, keyArray != gram.keyArray { continue }
       if value != gram.current { continue }
@@ -302,7 +300,7 @@ extension Homa {
     ///   - currentUnigramIndex: 當前單元圖索引。
     public init(
       overridingScore: Double = 114_514,
-      currentOverrideType: Homa.Node.OverrideType = .none,
+      currentOverrideType: Homa.Node.OverrideType? = nil,
       currentUnigramIndex: Int = 0
     ) {
       self.overridingScore = overridingScore
@@ -315,7 +313,7 @@ extension Homa {
     /// 覆寫分數。
     public var overridingScore: Double
     /// 當前覆寫類型。
-    public var currentOverrideType: Homa.Node.OverrideType
+    public var currentOverrideType: Homa.Node.OverrideType?
     /// 當前單元圖索引。
     public var currentUnigramIndex: Int
   }

@@ -472,7 +472,7 @@ extension Perceptor {
   )
     -> Bool {
     switch (lhs, rhs) {
-    case (.none, .none):
+    case (nil, nil):
       true
     case let (.some(lValue), .some(rValue)):
       lValue.reading == rValue.reading && lValue.value == rValue.value
