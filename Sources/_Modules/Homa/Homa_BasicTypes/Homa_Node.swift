@@ -10,6 +10,7 @@ extension Homa.Node {
   /// 該覆寫行為無法防止其它節點被組句函式所支配。這種情況下就需要用到 overridingScore。
   /// - withSpecified: 強制覆寫節點權重為 overridingScore，
   /// 確保組句函式優先選擇該節點且不受其他節點影響。
+  /// 但是這個選項也可以允許搭配過低的 overridingScore 來起到 demote 的效果。
   public enum OverrideType: Int, Codable {
     case withTopGramScore = 1
     case withSpecified = 2
@@ -269,6 +270,9 @@ extension Homa.Node {
       if let previous, !previous.isEmpty, previous != gram.previous { continue }
       currentGramIndex = i
       currentOverrideType = type
+      if overridingScore < 114_514 {
+        overridingScore = 114_514
+      }
       return gram
     }
     throw .nothingOverriddenAtNode
