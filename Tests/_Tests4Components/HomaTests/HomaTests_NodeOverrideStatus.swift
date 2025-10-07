@@ -8,7 +8,27 @@ import Testing
 
 @testable import Homa
 
+private let baselineOverrideScore: Double = 114_514
+
+// MARK: - HomaTests_NodeOverrideStatus
+
 struct HomaTests_NodeOverrideStatus: HomaTestSuite {
+  @Test("FIUUID Basics")
+  func testFIUUIDBasics() throws {
+    let uuid1 = FIUUID()
+    let uuid2 = FIUUID()
+
+    #expect(uuid1 != uuid2)
+
+    let uuidString = uuid1.uuidString()
+    #expect(uuidString.count == 36)
+    #expect(uuidString.contains("-"))
+
+    let encoded = try JSONEncoder().encode(uuid1)
+    let decoded = try JSONDecoder().decode(FIUUID.self, from: encoded)
+    #expect(decoded == uuid1)
+  }
+
   @Test("NodeOverrideStatus Initialization")
   func testNodeOverrideStatusInitialization() {
     // Test default initialization
@@ -69,6 +89,20 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     #expect(initialStatus.currentOverrideType == nil)
     #expect(initialStatus.currentUnigramIndex == 0)
 
+    // Verify selecting an override promotes the overriding score to the baseline constant.
+    node.overridingScore = 42
+    let firstGram = grams[0]
+    let selectionResult = try? node.selectOverrideGram(
+      keyArray: firstGram.keyArray,
+      value: firstGram.current,
+      previous: firstGram.previous,
+      type: .withSpecified
+    )
+    #expect(selectionResult != nil)
+    #expect(node.overridingScore == baselineOverrideScore)
+    #expect(node.currentOverrideType == .withSpecified)
+    #expect(node.currentGramIndex == 0)
+
     // Test setting override status
     let newStatus = Homa.NodeOverrideStatus(
       overridingScore: 500.0,
@@ -86,6 +120,26 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     #expect(updatedStatus.overridingScore == 500.0)
     #expect(updatedStatus.currentOverrideType == .withSpecified)
     #expect(updatedStatus.currentUnigramIndex == 1)
+  }
+
+  @Test("NodeOverrideStatus Overflow Protection")
+  func testNodeOverrideStatusOverflowProtection() {
+    let keyArray = ["ㄅ"]
+    let grams = [
+      Homa.GramRAW(keyArray: keyArray, value: "逼", probability: -5.0, previous: nil),
+    ].map { Homa.Gram($0) }
+    let node = Homa.Node(keyArray: keyArray, grams: grams)
+
+    let overflowStatus = Homa.NodeOverrideStatus(
+      overridingScore: 100.0,
+      currentOverrideType: .withSpecified,
+      currentUnigramIndex: 999
+    )
+
+    node.overrideStatus = overflowStatus
+
+    #expect(node.currentOverrideType == nil)
+    #expect(node.currentGramIndex == 0)
   }
 
   @Test("Node ID Uniqueness")
@@ -154,6 +208,62 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
         == originalMirror[nodeId]?
         .currentOverrideType
     )
+  }
+
+  @Test("Assembler Node Override Status Mirror vs Copy")
+  func testAssemblerNodeOverrideStatusMirrorVsCopy() throws {
+    let assembler = Self.makeAssemblerUsingMockLM()
+
+    try assembler.insertKeys(["hello", "world", "test"])
+
+    var modifiedNodes = 0
+    for segment in assembler.segments {
+      for (_, node) in segment {
+        guard let targetGram = node.grams.first else { continue }
+        node.overridingScore = .random(in: 100 ... 1_000)
+        let selected = try? node.selectOverrideGram(
+          keyArray: targetGram.keyArray,
+          value: targetGram.current,
+          previous: targetGram.previous,
+          type: .withSpecified
+        )
+        #expect(selected != nil)
+        modifiedNodes += 1
+      }
+    }
+
+    #expect(modifiedNodes > 0)
+
+    let mirror = assembler.createNodeOverrideStatusMirror()
+    let clonedAssembler = assembler.copy
+
+    #expect(mirror.count == modifiedNodes)
+    #expect(clonedAssembler.segments.count == assembler.segments.count)
+
+    for (_, status) in mirror {
+      #expect(status.currentOverrideType == .withSpecified)
+      #expect(status.overridingScore == baselineOverrideScore)
+    }
+
+    assembler.segments.forEach { segment in
+      segment.values.forEach { node in
+        node.reset()
+      }
+    }
+
+    assembler.restoreFromNodeOverrideStatusMirror(mirror)
+
+    var restoredNodes = 0
+    for segment in assembler.segments {
+      for (_, node) in segment {
+        if node.currentOverrideType == .withSpecified {
+          restoredNodes += 1
+          #expect(node.overrideStatus.overridingScore == baselineOverrideScore)
+        }
+      }
+    }
+
+    #expect(restoredNodes == modifiedNodes)
   }
 
   @Test("NodeOverrideStatus Codable")
