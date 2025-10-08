@@ -243,14 +243,14 @@ public struct HomaTestsAdvanced: HomaTestSuite {
       try assemblerCopy.overrideCandidate(.init(keyArray: ["ji1"], value: "雞"), at: 11)
       assembledSentence = assemblerCopy.assemble().values
       #expect(assembledSentence == ["超商", "大前天", "為止", "還", "在", "賣", "乃", "雞"])
-      #expect(perceptions.last?.ngramKey == "((mai4:賣),(nai3:乃),ji1)")
+      #expect(perceptions.last?.ngramKey == "(mai4,賣)&(nai3,乃)&(ji1,雞)")
       #expect(perceptions.last?.candidate == "雞")
     }
     // 回到先前的測試，測試對整個詞的覆寫。
     try assembler.overrideCandidate(.init(keyArray: ["nai3", "ji1"], value: "奶雞"), at: 10)
     assembledSentence = assembler.assemble().values
     #expect(assembledSentence == ["超商", "大前天", "為止", "還", "在", "賣", "奶雞"])
-    #expect(perceptions.last?.ngramKey == "((zai5:在),(mai4:賣),nai3-ji1)")
+    #expect(perceptions.last?.ngramKey == "(zai5,在)&(mai4,賣)&(nai3-ji1,奶雞)")
     #expect(perceptions.last?.candidate == "奶雞")
     // 測試游標跳轉。
     assembler.cursor = 10 // 向後
@@ -812,11 +812,11 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     let cursorShiDe = 3
 
     let keyAtShi = assembler.assembledSentence.generateKeyForPerception(cursor: cursorShi)
-    #expect(keyAtShi?.ngramKey == "((zai4:再),(chuang4:創),shi4-de5)")
-    #expect(keyAtShi?.headReading == "shi4-de5")
+    #expect(keyAtShi?.ngramKey == "(zai4,再)&(chuang4,創)&(shi4-de5,是的)")
+    #expect(keyAtShi?.headReading == "shi4")
     let keyAtShiDe = assembler.assembledSentence.generateKeyForPerception(cursor: cursorShiDe)
-    #expect(keyAtShiDe?.ngramKey == "((zai4:再),(chuang4:創),shi4-de5)")
-    #expect(keyAtShiDe?.headReading == "shi4-de5")
+    #expect(keyAtShiDe?.ngramKey == "(zai4,再)&(chuang4,創)&(shi4-de5,是的)")
+    #expect(keyAtShiDe?.headReading == "de5")
 
     let pairsAtShiDeEnd = assembler.fetchCandidates(at: 4, filter: .endAt).map { $0.pair.value }
     #expect(pairsAtShiDeEnd.contains("是的"))
@@ -833,7 +833,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
         )
       }
     )
-    #expect(obsCaptured?.ngramKey == "((zai4:再),(chuang4:創),shi4)")
+    #expect(obsCaptured?.ngramKey == "(zai4,再)&(chuang4,創)&(shi4,世)")
     let assembledAfterReplacingShi = assembler.assembledSentence.map { $0.value }
       .joined(separator: " ")
     #expect(assembledAfterReplacingShi == "再 創 世 的 凱歌")
@@ -850,7 +850,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
         )
       }
     )
-    #expect(obsCaptured?.ngramKey == "((chuang4:創),(shi4:世),de5)")
+    #expect(obsCaptured?.ngramKey == "(chuang4,創)&(shi4,世)&(de5,的)")
 
     let currentAssembly = assembler.assembledSentence
     let afterHitOpt = currentAssembly.findGram(at: cursorShiDe)
@@ -883,5 +883,67 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     assembler.assemble()
     let assembledByPOM = assembler.assembledSentence.map { $0.value }.joined(separator: " ")
     #expect(assembledByPOM == "再 創 世 的")
+  }
+
+  @Test("[Homa] UOMMarginalCaseTest_BusinessEnglishSession")
+  func testUOMMarginalCase_BusinessEnglishSession() async throws {
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleData_BusinessEnglishSession)
+    let assembler = Homa.Assembler(
+      gramQuerier: { mockLM.queryGrams($0) },
+      gramAvailabilityChecker: { mockLM.hasGrams($0) }
+    )
+    let readingKeys = ["shang1", "wu4", "ying1", "yu3", "hui4", "hua4"]
+    try readingKeys.forEach { try assembler.insertKey($0) }
+    assembler.assemble()
+    let assembledBefore = assembler.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect(assembledBefore == "商務 英語 繪畫")
+
+    let cursorHua = 5
+    let keyForQueryingDataAt5 = assembler.assembledSentence
+      .generateKeyForPerception(cursor: cursorHua)
+    #expect(keyForQueryingDataAt5?.ngramKey == "(shang1-wu4,商務)&(ying1-yu3,英語)&(hui4-hua4,繪畫)")
+    #expect(keyForQueryingDataAt5?.headReading == "hua4")
+
+    let pairsAtHuiHuaEnd = assembler.fetchCandidates(at: 6, filter: .endAt)
+    #expect(pairsAtHuiHuaEnd.map { $0.pair.value }.contains("繪畫"))
+    #expect(pairsAtHuiHuaEnd.map { $0.pair.value }.contains("會話"))
+
+    var obsCaptured: Homa.PerceptionIntel?
+    #expect(
+      Self.mustDone {
+        try assembler.overrideCandidate(
+          .init(keyArray: ["hui4", "hua4"], value: "會話"),
+          at: cursorHua,
+          enforceRetokenization: true,
+          perceptionHandler: { obsCaptured = $0 }
+        )
+      }
+    )
+    #expect(obsCaptured?.ngramKey == "(shang1-wu4,商務)&(ying1-yu3,英語)&(hui4-hua4,會話)")
+    let assembledAfter = assembler.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect(assembledAfter == "商務 英語 會話")
+
+    assembler.clear()
+    try readingKeys.forEach { try assembler.insertKey($0) }
+
+    let pomSuggestedCandidate = Homa.CandidatePair(
+      keyArray: ["hui4", "hua4"],
+      value: "會話",
+      score: -0.074493074227700559
+    )
+    let pomSuggestedCandidateOverrideCursor = 4
+    #expect(
+      Self.mustDone {
+        try assembler.overrideCandidate(
+          pomSuggestedCandidate,
+          at: pomSuggestedCandidateOverrideCursor,
+          type: .withTopGramScore,
+          enforceRetokenization: true
+        )
+      }
+    )
+    assembler.assemble()
+    let assembledByPOM = assembler.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect(assembledByPOM == "商務 英語 會話")
   }
 }
