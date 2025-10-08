@@ -171,11 +171,14 @@ extension Homa.Assembler {
           value: value,
           type: type
         )
-        if let specifiedScore, let currentGram = anchor.node.currentGram,
-           currentGram.probability < specifiedScore,
-           anchor.node.currentOverrideType != .withTopGramScore {
+        if type == .withSpecified {
+          let baselineOverrideScore = 114_514.0
+          let desiredScore = specifiedScore ?? Swift.max(
+            anchor.node.overridingScore,
+            baselineOverrideScore
+          )
           anchor.node.overrideStatus = .init(
-            overridingScore: specifiedScore,
+            overridingScore: desiredScore,
             currentOverrideType: .withSpecified,
             currentUnigramIndex: anchor.node.currentGramIndex
           )
