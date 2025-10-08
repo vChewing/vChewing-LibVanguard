@@ -89,6 +89,7 @@ extension Homa.Assembler {
       keyArray: candidate.keyArray,
       at: location,
       value: candidate.value,
+      score: candidate.score,
       type: overrideType,
       enforceRetokenization: enforceRetokenization,
       perceptionHandler: perceptionHandler
@@ -114,6 +115,7 @@ extension Homa.Assembler {
       keyArray: nil,
       at: location,
       value: candidate,
+      score: nil,
       type: type,
       enforceRetokenization: enforceRetokenization,
       perceptionHandler: perceptionHandler
@@ -127,12 +129,14 @@ extension Homa.Assembler {
   ///   - keyArray: 索引鍵陣列，也就是詞音配對當中的讀音。
   ///   - location: 游標位置。
   ///   - value: 資料值。
+  ///   - score: 指定分數。
   ///   - type: 指定覆寫行為。
   /// - Throws: 如果節點不存在或覆寫失敗，拋出適當的異常。
   internal func overrideCandidateAgainst(
     keyArray: [String]?,
     at location: Int,
     value: String,
+    score specifiedScore: Double? = nil,
     type: Homa.Node.OverrideType,
     enforceRetokenization: Bool,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
@@ -167,6 +171,15 @@ extension Homa.Assembler {
           value: value,
           type: type
         )
+        if let specifiedScore, let currentGram = anchor.node.currentGram,
+           currentGram.probability < specifiedScore,
+           anchor.node.currentOverrideType != .withTopGramScore {
+          anchor.node.overrideStatus = .init(
+            overridingScore: specifiedScore,
+            currentOverrideType: .withSpecified,
+            currentUnigramIndex: anchor.node.currentGramIndex
+          )
+        }
         overridden = anchor
         break
       } catch {
@@ -182,7 +195,7 @@ extension Homa.Assembler {
     defer {
       let currentAssembled = assemble()
       if shouldObserve {
-        let intel = Homa.makePerceptionObservation(
+        let intel = Homa.makePerceptionIntel(
           previouslyAssembled: previouslyAssembled,
           currentAssembled: currentAssembled,
           cursor: cursorBeforeOverride
