@@ -280,11 +280,7 @@ extension Perceptor {
     var candidates: [CandidateTuple] = []
     var currentHighScore: Double = threshold
 
-    let keyArrayForCandidate =
-      frontEdgeReading
-        .split(separator: Self.readingSeparator)
-        .map(String.init)
-        .filter { !$0.isEmpty }
+    let keyArrayForCandidate = splitReadingSegments(frontEdgeReading)
     let isUnigramKey = parts.prev1 == nil && parts.prev2 == nil
     let isSingleCharUnigram = isUnigramKey && keyArrayForCandidate.count == 1
 
@@ -321,19 +317,26 @@ extension Perceptor {
 
   fileprivate func _alternateKeys(for originalKey: String) -> [String] {
     guard let originalParts = parsePerceptionKey(originalKey) else { return [] }
-    let headSegments =
-      originalParts.headReading
-        .split(separator: Self.readingSeparator)
-        .map(String.init)
-        .filter { !$0.isEmpty }
-    guard headSegments.count > 1, let primaryHead = headSegments.first else { return [] }
+    let headSegments = splitReadingSegments(originalParts.headReading)
+    let primaryHeadCandidates: Set<String> = {
+      guard let firstSegment = headSegments.first else { return [] }
+      guard let lastSegment = headSegments.last else { return [firstSegment] }
+      if firstSegment == lastSegment { return [firstSegment] }
+      return [firstSegment, lastSegment]
+    }()
+    guard !primaryHeadCandidates.isEmpty else { return [] }
 
     var results: [String] = []
     for keyCandidate in mutLRUKeySeqList {
       guard let candidateParts = parsePerceptionKey(keyCandidate) else { continue }
       guard compareContextPart(candidateParts.prev1, originalParts.prev1) else { continue }
       guard compareContextPart(candidateParts.prev2, originalParts.prev2) else { continue }
-      if candidateParts.headReading == primaryHead {
+      let candidateHeadSegments = splitReadingSegments(candidateParts.headReading)
+      let matchesPrimaryHead = candidateHeadSegments.contains(where: primaryHeadCandidates.contains)
+      let matchesFullHead = candidateParts.headReading == originalParts.headReading
+      let matchesOriginalHead = candidateHeadSegments.contains(originalParts.headReading)
+      guard matchesPrimaryHead || matchesFullHead || matchesOriginalHead else { continue }
+      if keyCandidate != originalKey {
         results.append(keyCandidate)
       }
     }
@@ -342,22 +345,9 @@ extension Perceptor {
 
   fileprivate func _forceHighScoreOverrideFlag(for key: String) -> Bool {
     guard let parts = parsePerceptionKey(key) else { return false }
-    let headLen = parts.headReading
-      .split(separator: Self.readingSeparator)
-      .filter { !$0.isEmpty }
-      .count
-    let prev1Len = parts.prev1.map { component in
-      component.reading
-        .split(separator: Self.readingSeparator)
-        .filter { !$0.isEmpty }
-        .count
-    }
-    let prev2Len = parts.prev2.map { component in
-      component.reading
-        .split(separator: Self.readingSeparator)
-        .filter { !$0.isEmpty }
-        .count
-    }
+    let headLen = splitReadingSegments(parts.headReading).count
+    let prev1Len = parts.prev1.map { splitReadingSegments($0.reading).count }
+    let prev2Len = parts.prev2.map { splitReadingSegments($0.reading).count }
 
     if headLen > 1 {
       if let p1Len = prev1Len, p1Len == 1 {
@@ -369,6 +359,13 @@ extension Perceptor {
       }
     }
     return false
+  }
+
+  private func splitReadingSegments(_ reading: String) -> [String] {
+    reading
+      .split(separator: Self.readingSeparator)
+      .map(String.init)
+      .filter { !$0.isEmpty }
   }
 
   fileprivate func parsePerceptionKey(_ key: String) -> PerceptionKeyParts? {
