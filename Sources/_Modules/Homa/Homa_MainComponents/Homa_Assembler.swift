@@ -20,7 +20,7 @@ extension Homa {
     public init(
       gramQuerier: @escaping Homa.GramQuerier,
       gramAvailabilityChecker: @escaping Homa.GramAvailabilityChecker,
-      perceptor: Homa.UserOverridePerceptor? = nil,
+      perceptor: Homa.BehaviorPerceptor? = nil,
       config: Config = Config()
     ) {
       self.gramQuerier = gramQuerier
@@ -52,7 +52,7 @@ extension Homa {
     /// 元圖在庫檢查器。
     public var gramAvailabilityChecker: Homa.GramAvailabilityChecker
     /// 用以洞察使用者字詞節點覆寫行為的 API。
-    public var perceptor: UserOverridePerceptor?
+    public var perceptor: BehaviorPerceptor?
     /// 組態設定。
     public private(set) var config = Config()
 

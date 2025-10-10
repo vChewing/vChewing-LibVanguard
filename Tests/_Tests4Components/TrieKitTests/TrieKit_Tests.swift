@@ -249,10 +249,10 @@ public struct TrieKitTests: TrieKitTestSuite {
       trieFinal = try VanguardTrie.TrieIO.deserialize(encoded)
     case true:
       let sqlScript = VanguardTrie.TrieSQLScriptGenerator.generate(trie)
-      let sqlTrie = VanguardTrie.SQLTrie(sqlContent: sqlScript)
-      guard let sqlTrie else {
-        preconditionFailure("SQLTrie initialization failed.")
-      }
+      let sqlTrie = try #require(
+        VanguardTrie.SQLTrie(sqlContent: sqlScript),
+        "SQLTrie initialization failed."
+      )
       trieFinal = sqlTrie
       #expect(sqlTrie.getTableRowCount("config") ?? 0 > 0)
       #expect(sqlTrie.getTableRowCount("nodes") ?? 0 > 0)

@@ -4,6 +4,7 @@
 
 import Foundation
 import Homa
+import HomaSharedTestComponents
 import Testing
 
 @testable import LexiconKit
@@ -12,6 +13,14 @@ import Testing
 private let nowTimeStamp: Double = 114_514 * 10_000
 private let capacity = 5
 private let dayInSeconds: Double = 24 * 3_600 // 一天的秒數
+
+private func makeAssembler(using rawData: String) -> Homa.Assembler {
+  let lm = TestLM(rawData: rawData)
+  return Homa.Assembler(
+    gramQuerier: { lm.queryGrams($0, partiallyMatch: false) },
+    gramAvailabilityChecker: { lm.hasGrams($0, partiallyMatch: false) }
+  )
+}
 
 // MARK: - LXTests4Perceptor
 
@@ -22,7 +31,7 @@ public struct LXTests4Perceptor {
   @Test("[LXKit] Perceptor_BasicPerceptionOps")
   func testBasicPerceptionOps() throws {
     let perceptor = Perceptor(capacity: capacity)
-    let key = "((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)"
+    let key = "(ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ,神里綾華)&(ㄉㄜ˙,的)&(ㄍㄡˇ,狗)"
     let expectedSuggestion = "狗"
     percept(who: perceptor, key: key, candidate: expectedSuggestion, timestamp: nowTimeStamp)
 
@@ -44,7 +53,7 @@ public struct LXTests4Perceptor {
 
     suggested = perceptor.getSuggestion(
       key: key,
-      timestamp: nowTimeStamp + (dayInSeconds * 8)
+      timestamp: nowTimeStamp + (dayInSeconds * 8.01)
     )
     #expect(suggested == nil) // 修正：不應該檢查空陣列，而是檢查 nil
   }
@@ -52,7 +61,7 @@ public struct LXTests4Perceptor {
   @Test("[LXKit] Perceptor_NewestAgainstRepeatedlyUsed")
   func testNewestAgainstRepeatedlyUsed() throws {
     let perceptor = Perceptor(capacity: capacity)
-    let key = "((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)"
+    let key = "(ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ,神里綾華)&(ㄉㄜ˙,的)&(ㄍㄡˇ,狗)"
     let valRepeatedlyUsed = "狗" // 更常用
     let valNewest = "苟" // 最近偶爾用了一次
 
@@ -84,17 +93,24 @@ public struct LXTests4Perceptor {
     )
     #expect(suggested?.map(\.value).first ?? "" == valNewest)
 
-    // 在 8 天時，記憶仍應位於有效視窗內
+    // 約在 7.5 天時仍位於有效視窗內
     suggested = perceptor.getSuggestion(
       key: key,
-      timestamp: nowTimeStamp + dayInSeconds * 8
+      timestamp: nowTimeStamp + dayInSeconds * 7.5
     )
     #expect(suggested != nil, "約 7 天的有效視窗內記憶應該仍可取得")
 
-    // 超過 8 天視窗後，記憶應該衰減
+    // 8 天多一點仍在有效視窗，因為最後一次選擇發生在第 1 天
     suggested = perceptor.getSuggestion(
       key: key,
-      timestamp: nowTimeStamp + dayInSeconds * 9
+      timestamp: nowTimeStamp + (dayInSeconds * 8.01)
+    )
+    #expect(suggested != nil, "距離最後一次選擇不足 8 天時記憶應保持")
+
+    // 進一步驗證 9 天後（距離最後一次選擇逾 8 天）應衰減
+    suggested = perceptor.getSuggestion(
+      key: key,
+      timestamp: nowTimeStamp + (dayInSeconds * 9.1)
     )
     #expect(suggested == nil, "超過 8 天後記憶應該衰減")
   }
@@ -103,7 +119,7 @@ public struct LXTests4Perceptor {
   @Test("[LXKit] Perceptor_LongTermMemoryDecay")
   func testLongTermMemoryDecay() throws {
     let perceptor = Perceptor(capacity: capacity)
-    let key = "((ㄔㄥˊ-ㄒㄧㄣˋ:誠信),(ㄓㄜˋ:這),ㄉㄧㄢˇ)"
+    let key = "(ㄔㄥˊ-ㄒㄧㄣˋ,誠信)&(ㄓㄜˋ,這)&(ㄉㄧㄢˇ,點)"
     let expectedSuggestion = "點"
 
     // 記錄一個記憶
@@ -120,7 +136,7 @@ public struct LXTests4Perceptor {
       (3, true),
       (5, true),
       (7.5, true),
-      (8.0, false),
+      (8.1, false),
       (9.0, false),
       (20, false),
       (80, false),
@@ -147,10 +163,10 @@ public struct LXTests4Perceptor {
 
   @Test("[LXKit] Perceptor_LRUTable")
   func testLRUTable() throws {
-    let a = (key: "((ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ:神里綾華),(ㄉㄜ˙:的),ㄍㄡˇ)", value: "狗", head: "ㄍㄡˇ")
-    let b = (key: "((ㄆㄞˋ-ㄇㄥˊ:派蒙),(ㄉㄜ˙:的),ㄐㄧㄤˇ-ㄐㄧㄣ)", value: "伙食費", head: "ㄏㄨㄛˇ-ㄕˊ-ㄈㄟˋ")
-    let c = (key: "((ㄍㄨㄛˊ-ㄅㄥ:國崩),(ㄉㄜ˙:的),ㄇㄠˋ-ㄗ˙)", value: "帽子", head: "ㄇㄠˋ-ㄗ˙")
-    let d = (key: "((ㄌㄟˊ-ㄉㄧㄢˋ-ㄐㄧㄤ-ㄐㄩㄣ:雷電將軍),(ㄉㄜ˙:的),ㄐㄧㄠˇ-ㄔㄡˋ)", value: "腳臭", head: "ㄐㄧㄠˇ-ㄔㄡˋ")
+    let a = (key: "(ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ,神里綾華)&(ㄉㄜ˙,的)&(ㄍㄡˇ,狗)", value: "狗", head: "ㄍㄡˇ")
+    let b = (key: "(ㄆㄞˋ-ㄇㄥˊ,派蒙)&(ㄉㄜ˙,的)&(ㄐㄧㄤˇ-ㄐㄧㄣ,獎金)", value: "伙食費", head: "ㄏㄨㄛˇ-ㄕˊ-ㄈㄟˋ")
+    let c = (key: "(ㄍㄨㄛˊ-ㄅㄥ,國崩)&(ㄉㄜ˙,的)&(ㄇㄠˋ-ㄗ˙,帽子)", value: "帽子", head: "ㄇㄠˋ-ㄗ˙")
+    let d = (key: "(ㄌㄟˊ-ㄉㄧㄢˋ-ㄐㄧㄤ-ㄐㄩㄣ,雷電將軍)&(ㄉㄜ˙,的)&(ㄐㄧㄠˇ-ㄔㄡˋ,腳臭)", value: "腳臭", head: "ㄐㄧㄠˇ-ㄔㄡˋ")
 
     // 容量為2的LRU測試
     let perceptor = Perceptor(capacity: 2)
@@ -246,13 +262,399 @@ public struct LXTests4Perceptor {
     let actualkeysJoined = assembler.actualKeys.joined(separator: " ")
     #expect(actualkeysJoined == "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ")
     let expectedPerceptionKeys: [String] = [
-      "((ㄌㄧㄡˊ:留),(ㄧˋ-ㄌㄩˇ:一縷),ㄈㄤ)",
-      "((ㄋㄥˊ:能),(ㄌㄧㄡˊ:留),ㄧˋ-ㄌㄩˇ)",
-      "((ㄉㄧㄝˊ:蝶),(ㄋㄥˊ:能),ㄌㄧㄡˊ)",
-      "((ㄧㄡ:幽),ㄉㄧㄝˊ)",
-      "(ㄧㄡ)",
+      "(ㄌㄧㄡˊ,留)&(ㄧˋ-ㄌㄩˇ,一縷)&(ㄈㄤ,芳)",
+      "(ㄋㄥˊ,能)&(ㄌㄧㄡˊ,留)&(ㄧˋ-ㄌㄩˇ,一縷)",
+      "(ㄉㄧㄝˊ,蝶)&(ㄋㄥˊ,能)&(ㄌㄧㄡˊ,留)",
+      "()&(ㄧㄡ,幽)&(ㄉㄧㄝˊ,蝶)",
+      "()&()&(ㄧㄡ,幽)",
     ]
-    print(perceptor.getSavableData().map(\.key) == expectedPerceptionKeys)
+    #expect(perceptor.getSavableData().map(\.key) == expectedPerceptionKeys)
+  }
+
+  @Test("[LXKit] Perceptor_ActualCase_SaisoukiNoGaika")
+  func testPOM_6_ActualCaseScenario_SaisoukiNoGaika() throws {
+    let perceptor = Perceptor(capacity: capacity)
+    let compositor = makeAssembler(using: HomaTests.strLMSampleData_SaisoukiNoGaika)
+    // 測試用句「再創世的凱歌」。
+    let readingKeys = ["zai4", "chuang4", "shi4", "de5", "kai3", "ge1"]
+    try readingKeys.forEach { try compositor.insertKey($0) }
+    compositor.assemble()
+    let assembledBefore = compositor.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect("再 創 是的 凱歌" == assembledBefore)
+    // 測試此時生成的 keyForQueryingData 是否正確
+    let cursorShi = 2
+    let cursorShiDe = 3
+    let keyForQueryingDataAt2 = compositor.assembledSentence
+      .generateKeyForPerception(cursor: cursorShi)
+    #expect(keyForQueryingDataAt2?.ngramKey == "(zai4,再)&(chuang4,創)&(shi4-de5,是的)")
+    #expect(keyForQueryingDataAt2?.headReading == "shi4")
+    let keyForQueryingDataAt3 = compositor.assembledSentence
+      .generateKeyForPerception(cursor: cursorShiDe)
+    #expect(keyForQueryingDataAt3?.ngramKey == "(zai4,再)&(chuang4,創)&(shi4-de5,是的)")
+    #expect(keyForQueryingDataAt3?.headReading == "de5")
+    // 應能提供『是的』『似的』『凱歌』等候選
+    let pairsAtShiDeEnd = compositor.fetchCandidates(
+      at: 4,
+      filter: Homa.Assembler.CandidateFetchFilter.endAt
+    )
+    #expect(pairsAtShiDeEnd.map { $0.pair.value }.contains("是的"))
+    #expect(pairsAtShiDeEnd.map { $0.pair.value }.contains("似的"))
+    // 模擬使用者把『是』改為『世』，再合成：觀測應為 shortToLong
+    var obsCapturedMaybe: Homa.PerceptionIntel?
+    try compositor.overrideCandidate(
+      Homa.CandidatePair(keyArray: ["shi4"], value: "世"),
+      at: cursorShi,
+      enforceRetokenization: true
+    ) {
+      obsCapturedMaybe = $0
+    }
+    let obsCaptured = try #require(obsCapturedMaybe, "Should have a capture.")
+    #expect(obsCaptured.contextualizedGramKey == "(zai4,再)&(chuang4,創)&(shi4,世)")
+    // compositor.assemble() <- 已經組句了。
+    let assembledAfter = compositor.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect("再 創 世 的 凱歌" == assembledAfter)
+    perceptor.memorizePerception(obsCaptured, timestamp: nowTimeStamp)
+    // 記憶完畢。先看看是否有記憶。
+    let currentmemory = perceptor.getSavableData()
+    let firstObservationKey = try #require(
+      currentmemory.first?.key,
+      "Perceptor memorized nothing, or something wrong happened."
+    )
+    #expect(firstObservationKey == obsCaptured.contextualizedGramKey)
+    // 然後是記憶效力測試：
+    let validationCompositor = makeAssembler(using: HomaTests.strLMSampleData_SaisoukiNoGaika)
+    try readingKeys.prefix(4).forEach { try validationCompositor.insertKey($0) }
+    validationCompositor.assemble()
+    let cursorToTest = validationCompositor.cursor
+    let assembledNow = validationCompositor.assembledSentence
+      .map { $0.value }
+      .joined(separator: " ")
+    #expect(
+      ["再 創 是的", "再 創 世 的"].contains(assembledNow),
+      "Unexpected baseline assembly: \(assembledNow)"
+    )
+    let suggestion = perceptor.fetchSuggestion(
+      assembledResult: validationCompositor.assembledSentence,
+      cursor: cursorToTest,
+      timestamp: nowTimeStamp
+    )
+    #expect(!suggestion.isEmpty)
+    let firstSuggestionRAW = try #require(
+      suggestion.candidates.first,
+      "Perceptor suggested nothing, or something wrong happened."
+    )
+    let candidateSuggested = Homa.CandidatePair(
+      keyArray: firstSuggestionRAW.keyArray,
+      value: firstSuggestionRAW.value,
+      score: firstSuggestionRAW.probability
+    )
+    let cursorForOverride = suggestion.overrideCursor ?? cursorShi
+    if (try? validationCompositor.overrideCandidate(
+      candidateSuggested,
+      at: cursorForOverride,
+      type: suggestion.forceHighScoreOverride
+        ? Homa.Node.OverrideType.withSpecified
+        : Homa.Node.OverrideType.withTopGramScore,
+      enforceRetokenization: true
+    )) == nil {
+      try validationCompositor.overrideCandidateLiteral(
+        candidateSuggested.value,
+        at: cursorForOverride,
+        overrideType: suggestion.forceHighScoreOverride
+          ? Homa.Node.OverrideType.withSpecified
+          : Homa.Node.OverrideType.withTopGramScore
+      )
+    }
+    validationCompositor.assemble()
+    let assembledByPOM = validationCompositor.assembledSentence
+      .map { $0.value }
+      .joined(separator: " ")
+    #expect("再 創 世 的" == assembledByPOM)
+  }
+
+  @Test("[LXKit] Perceptor_ActualCase_SaisoukiOnly")
+  func testPOM_7_ActualCaseScenario_SaisoukiOnly() throws {
+    let perceptor = Perceptor(capacity: capacity)
+    let compositor = makeAssembler(using: HomaTests.strLMSampleData_SaisoukiNoGaika)
+    let readingKeys = ["zai4", "chuang4", "shi4"]
+    try readingKeys.forEach { try compositor.insertKey($0) }
+    compositor.assemble()
+    let assembledBefore = compositor.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect("再 創 是" == assembledBefore)
+
+    let cursorShi = 2
+    var obsCapturedMaybe: Homa.PerceptionIntel?
+    try compositor.overrideCandidate(
+      Homa.CandidatePair(keyArray: ["shi4"], value: "世"),
+      at: cursorShi,
+      enforceRetokenization: true
+    ) {
+      obsCapturedMaybe = $0
+    }
+    let obsCaptured = try #require(obsCapturedMaybe, "Should have a capture.")
+
+    let assembledAfter = compositor.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect("再 創 世" == assembledAfter)
+    perceptor.memorizePerception(obsCaptured, timestamp: nowTimeStamp)
+
+    let currentMemory = perceptor.getSavableData()
+    #expect(currentMemory.first?.key == obsCaptured.contextualizedGramKey)
+
+    compositor.clear()
+    try readingKeys.forEach { try compositor.insertKey($0) }
+    compositor.assemble()
+
+    let assembledNow = compositor.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect("再 創 是" == assembledNow)
+
+    let cursorToTest = compositor.cursor
+    let suggestion = perceptor.fetchSuggestion(
+      assembledResult: compositor.assembledSentence,
+      cursor: cursorToTest,
+      timestamp: nowTimeStamp
+    )
+    #expect(!suggestion.isEmpty)
+    let firstSuggestionRAW = try #require(
+      suggestion.candidates.first,
+      "Perceptor suggested nothing, or something wrong happened."
+    )
+
+    let candidateSuggested = Homa.CandidatePair(
+      keyArray: firstSuggestionRAW.keyArray,
+      value: firstSuggestionRAW.value,
+      score: firstSuggestionRAW.probability
+    )
+    let cursorForOverride = suggestion.overrideCursor ?? cursorShi
+    if (try? compositor.overrideCandidate(
+      candidateSuggested,
+      at: cursorForOverride,
+      type: suggestion.forceHighScoreOverride
+        ? Homa.Node.OverrideType.withSpecified
+        : Homa.Node.OverrideType.withTopGramScore,
+      enforceRetokenization: true
+    )) == nil {
+      try compositor.overrideCandidateLiteral(
+        candidateSuggested.value,
+        at: cursorForOverride,
+        overrideType: suggestion.forceHighScoreOverride
+          ? Homa.Node.OverrideType.withSpecified
+          : Homa.Node.OverrideType.withTopGramScore
+      )
+    }
+    compositor.assemble()
+    let assembledByPOM = compositor.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect("再 創 世" == assembledByPOM)
+  }
+
+  @Test("[LXKit] Perceptor_ActualCase_BusinessEnglishSession")
+  func testPOM_8_ActualCaseScenario_BusinessEnglishSession() throws {
+    let perceptor = Perceptor(capacity: capacity)
+    let compositor = makeAssembler(using: HomaTests.strLMSampleData_BusinessEnglishSession)
+    let readingKeys = ["shang1", "wu4", "ying1", "yu3", "hui4", "hua4"]
+    try readingKeys.forEach { try compositor.insertKey($0) }
+    compositor.assemble()
+    let assembledBefore = compositor.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect("商務 英語 繪畫" == assembledBefore)
+
+    let cursorHua = 5
+    let keyForQueryingDataAt5 = compositor.assembledSentence
+      .generateKeyForPerception(cursor: cursorHua)
+    #expect(keyForQueryingDataAt5?.ngramKey == "(shang1-wu4,商務)&(ying1-yu3,英語)&(hui4-hua4,繪畫)")
+    #expect(keyForQueryingDataAt5?.headReading == "hua4")
+
+    let pairsAtHuiHuaEnd = compositor.fetchCandidates(
+      at: 6,
+      filter: Homa.Assembler.CandidateFetchFilter.endAt
+    )
+    #expect(pairsAtHuiHuaEnd.map { $0.pair.value }.contains("繪畫"))
+    #expect(pairsAtHuiHuaEnd.map { $0.pair.value }.contains("會話"))
+
+    var obsCapturedMaybe: Homa.PerceptionIntel?
+    try compositor.overrideCandidate(
+      Homa.CandidatePair(keyArray: ["hui4", "hua4"], value: "會話"),
+      at: cursorHua,
+      enforceRetokenization: true
+    ) {
+      obsCapturedMaybe = $0
+    }
+    let obsCaptured = try #require(obsCapturedMaybe, "Should have a capture.")
+
+    let assembledAfter = compositor.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect("商務 英語 會話" == assembledAfter)
+    perceptor.memorizePerception(obsCaptured, timestamp: nowTimeStamp)
+
+    let currentMemory = perceptor.getSavableData()
+    #expect(currentMemory.first?.key == obsCaptured.contextualizedGramKey)
+
+    let validationCompositor = makeAssembler(
+      using: HomaTests
+        .strLMSampleData_BusinessEnglishSession
+    )
+    try readingKeys.forEach { try validationCompositor.insertKey($0) }
+    validationCompositor.assemble()
+    let cursorToTest = validationCompositor.cursor
+    let assembledNow = validationCompositor.assembledSentence
+      .map { $0.value }
+      .joined(separator: " ")
+    #expect(
+      ["商務 英語 繪畫", "商務 英語 會話"].contains(assembledNow),
+      "Unexpected baseline assembly: \(assembledNow)"
+    )
+    let suggestion = perceptor.fetchSuggestion(
+      assembledResult: validationCompositor.assembledSentence,
+      cursor: cursorToTest,
+      timestamp: nowTimeStamp
+    )
+    #expect(!suggestion.isEmpty)
+    let firstSuggestionRAW = try #require(
+      suggestion.candidates.first,
+      "Perceptor suggested nothing, or something wrong happened."
+    )
+    let candidateSuggested = Homa.CandidatePair(
+      keyArray: firstSuggestionRAW.keyArray,
+      value: firstSuggestionRAW.value,
+      score: firstSuggestionRAW.probability
+    )
+    let cursorForOverride = suggestion.overrideCursor ?? cursorHua
+    if (try? validationCompositor.overrideCandidate(
+      candidateSuggested,
+      at: cursorForOverride,
+      type: suggestion.forceHighScoreOverride
+        ? Homa.Node.OverrideType.withSpecified
+        : Homa.Node.OverrideType.withTopGramScore,
+      enforceRetokenization: true
+    )) == nil {
+      try validationCompositor.overrideCandidateLiteral(
+        candidateSuggested.value,
+        at: cursorForOverride,
+        overrideType: suggestion.forceHighScoreOverride
+          ? Homa.Node.OverrideType.withSpecified
+          : Homa.Node.OverrideType.withTopGramScore
+      )
+    }
+    validationCompositor.assemble()
+    let assembledByPOM = validationCompositor.assembledSentence
+      .map { $0.value }
+      .joined(separator: " ")
+    #expect("商務 英語 會話" == assembledByPOM)
+  }
+
+  @Test("[LXKit] Perceptor_ActualCase_DiJiaoSubmission")
+  func testPOM_9_ActualCaseScenario_DiJiaoSubmission() throws {
+    let perceptor = Perceptor(capacity: capacity)
+    let compositor = makeAssembler(using: HomaTests.strLMSampleData_DiJiaoSubmission)
+    let readingKeys = ["di4", "jiao1"]
+    try readingKeys.forEach { try compositor.insertKey($0) }
+    compositor.assemble()
+
+    try compositor.overrideCandidate(
+      Homa.CandidatePair(keyArray: ["di4"], value: "第"),
+      at: 0,
+      enforceRetokenization: true
+    )
+    compositor.assemble()
+
+    let assembledAfterFirst = compositor.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect(
+      ["第 交", "第 教"].contains(assembledAfterFirst),
+      "Unexpected assembly after forcing 第: \(assembledAfterFirst)"
+    )
+
+    let candidatesAtEnd = compositor.fetchCandidates(
+      at: readingKeys.count,
+      filter: Homa.Assembler.CandidateFetchFilter.endAt
+    )
+    let diJiaoCandidate = try #require(
+      candidatesAtEnd.first(where: { $0.pair.value == "遞交" })?.pair,
+      "遞交 should be available as a candidate ending at the current cursor."
+    )
+
+    var obsCapturedMaybe: Homa.PerceptionIntel?
+    try compositor.overrideCandidate(
+      diJiaoCandidate,
+      at: readingKeys.count,
+      enforceRetokenization: true
+    ) {
+      obsCapturedMaybe = $0
+    }
+    let obsCaptured = try #require(obsCapturedMaybe, "Should have a capture.")
+    #expect(obsCaptured.candidate == "遞交")
+    #expect(obsCaptured.contextualizedGramKey == "()&(di4,第)&(di4-jiao1,遞交)")
+
+    let assembledAfterSecond = compositor.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect("遞交" == assembledAfterSecond)
+
+    perceptor.memorizePerception(obsCaptured, timestamp: nowTimeStamp)
+
+    let savedKeys = perceptor.getSavableData().map { $0.key }
+    #expect(savedKeys.contains(obsCaptured.contextualizedGramKey))
+
+    let directSuggestion = perceptor.getSuggestion(
+      key: obsCaptured.contextualizedGramKey,
+      timestamp: nowTimeStamp
+    )
+    #expect(directSuggestion?.first?.value == "遞交")
+
+    let validationCompositor = makeAssembler(using: HomaTests.strLMSampleData_DiJiaoSubmission)
+    try readingKeys.forEach { try validationCompositor.insertKey($0) }
+    validationCompositor.assemble()
+    _ = try? validationCompositor.overrideCandidate(
+      Homa.CandidatePair(keyArray: ["di4"], value: "第"),
+      at: 0,
+      enforceRetokenization: true
+    )
+    validationCompositor.assemble()
+
+    let baselineKey = validationCompositor.assembledSentence
+      .generateKeyForPerception(cursor: max(validationCompositor.cursor - 1, 0))
+    #expect(baselineKey?.ngramKey == "()&(di4,第)&(jiao1,交)")
+
+    let suggestion = perceptor.fetchSuggestion(
+      assembledResult: validationCompositor.assembledSentence,
+      cursor: validationCompositor.cursor,
+      timestamp: nowTimeStamp
+    )
+    let savedDataDump = perceptor.getSavableData()
+      .map { "\($0.key): \($0.perception.overrides.keys.sorted())" }
+      .joined(separator: "; ")
+    #expect(
+      !suggestion.isEmpty,
+      "Suggestion should not be empty. Saved data: [\(savedDataDump)]"
+    )
+    let firstSuggestionRAW = try #require(
+      suggestion.candidates.first,
+      "Perceptor suggested nothing, or something wrong happened."
+    )
+    #expect(firstSuggestionRAW.value == "遞交")
+    #expect(firstSuggestionRAW.keyArray == ["di4", "jiao1"])
+
+    let candidateSuggested = Homa.CandidatePair(
+      keyArray: firstSuggestionRAW.keyArray,
+      value: firstSuggestionRAW.value,
+      score: firstSuggestionRAW.probability
+    )
+    let cursorForOverride = suggestion.overrideCursor ?? 0
+    if (try? validationCompositor.overrideCandidate(
+      candidateSuggested,
+      at: cursorForOverride,
+      type: suggestion.forceHighScoreOverride
+        ? Homa.Node.OverrideType.withSpecified
+        : Homa.Node.OverrideType.withTopGramScore,
+      enforceRetokenization: true
+    )) == nil {
+      try validationCompositor.overrideCandidateLiteral(
+        candidateSuggested.value,
+        at: cursorForOverride,
+        overrideType: suggestion.forceHighScoreOverride
+          ? Homa.Node.OverrideType.withSpecified
+          : Homa.Node.OverrideType.withTopGramScore,
+        enforceRetokenization: true
+      )
+    }
+    validationCompositor.assemble()
+    let assembledByPOM = validationCompositor.assembledSentence.map { $0.value }
+      .joined(separator: " ")
+    #expect("遞交" == assembledByPOM)
   }
 
   // MARK: Private
