@@ -106,6 +106,7 @@ let package = Package(
       name: "LexiconKitTests",
       dependencies: buildTargetDependencies {
         "Homa"
+        "HomaSharedTestComponents"
         "LexiconKit"
         "SharedTrieTestDataBundle"
         "Tekkon"
