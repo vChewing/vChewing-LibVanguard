@@ -264,7 +264,7 @@ public struct LXTests4Perceptor {
     timestamp stamp: Double
   ) {
     perceptor.memorizePerception(
-      (ngramKey: key, candidate: candidate),
+      (contextualizedGramKey: key, candidate: candidate),
       timestamp: stamp
     )
   }

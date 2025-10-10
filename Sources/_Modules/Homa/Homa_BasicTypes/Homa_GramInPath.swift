@@ -57,8 +57,8 @@ extension Homa {
 
   /// 觀測上下文情形。
   public struct PerceptionIntel: Codable, Hashable, Sendable {
-    /// N-gram 索引鍵。
-    public let ngramKey: String
+    /// 觀測情境被序列化後的複元圖簽名。
+    public let contextualizedGramKey: String
     /// 候選字。
     public let candidate: String
     /// 頭部讀音。
@@ -85,11 +85,13 @@ extension Homa {
     -> PerceptionIntel? {
     guard !previouslyAssembled.isEmpty, !currentAssembled.isEmpty else { return nil }
 
+    // 確認游標落在 currentAssembled 的有效節點
     guard let afterHit = currentAssembled.findGram(at: cursor) else { return nil }
     let current = afterHit.gram
     let currentLen = current.segLength
     if currentLen > 3 { return nil }
 
+    // 在 previouslyAssembled 中找到對應 head 的節點（使用 after 的節點區間上界 -1 作為內點）
     let border1 = afterHit.range.upperBound - 1
     let border2 = previouslyAssembled.totalKeyCount - 1
     let innerIndex = Swift.max(0, Swift.min(border1, border2))
@@ -99,54 +101,95 @@ extension Homa {
 
     let isBreakingUp = (currentLen == 1 && prevLen > 1)
     let isShortToLong = (currentLen > prevLen)
-    let scenario: POMObservationScenario =
-      switch (isBreakingUp, isShortToLong) {
-      case (true, _): .longToShort
-      case (false, true): .shortToLong
-      case (false, false): .sameLenSwap
-      }
-    let forceHSO = isShortToLong
-
-    let primaryKeySource: [Homa.GramInPath]
-    let fallbackKeySource: [Homa.GramInPath]
-    switch scenario {
-    case .sameLenSwap:
-      primaryKeySource = currentAssembled
-      fallbackKeySource = previouslyAssembled
-    case .shortToLong:
-      primaryKeySource = previouslyAssembled
-      fallbackKeySource = currentAssembled
-    case .longToShort:
-      primaryKeySource = currentAssembled
-      fallbackKeySource = previouslyAssembled
+    let scenario: POMObservationScenario = switch (isBreakingUp, isShortToLong) {
+    case (true, _): .longToShort
+    case (false, true): .shortToLong
+    case (false, false): .sameLenSwap
     }
+    let forceHSO = isShortToLong
     let keyCursorRaw = Swift.max(
       afterHit.range.lowerBound,
       Swift.min(cursor, afterHit.range.upperBound - 1)
     )
-    guard primaryKeySource.totalKeyCount > 0 || fallbackKeySource.totalKeyCount > 0 else {
-      return nil
-    }
-    let keyCursorPrimary = Swift.max(
-      0,
-      Swift.min(keyCursorRaw, max(primaryKeySource.totalKeyCount - 1, 0))
-    )
-    var keyGen = primaryKeySource.generateKeyForPerception(cursor: keyCursorPrimary)
 
-    if keyGen == nil, fallbackKeySource.totalKeyCount > 0 {
-      let keyCursorFallback = Swift.max(
-        0,
-        Swift.min(keyCursorRaw, max(fallbackKeySource.totalKeyCount - 1, 0))
-      )
-      keyGen = fallbackKeySource.generateKeyForPerception(cursor: keyCursorFallback)
+    func clampedCursor(for source: [Homa.GramInPath]) -> Int {
+      Swift.max(0, Swift.min(keyCursorRaw, max(source.totalKeyCount - 1, 0)))
+    }
+
+    func splitKeyParts(_ key: String) -> [String] {
+      let parts = key.split(separator: "&").map(String.init)
+      if parts.isEmpty { return ["()", "()", "()"] }
+      if parts.count >= 3 { return parts }
+      var padded = parts
+      while padded.count < 3 { padded.insert("()", at: 0) }
+      return padded
+    }
+
+    var keyGen: (ngramKey: String, candidate: String, headReading: String)?
+    let headKeyOffset = keyCursorRaw - afterHit.range.lowerBound
+
+    switch scenario {
+    case .shortToLong:
+      let cursorPrev = clampedCursor(for: previouslyAssembled)
+      let cursorCurr = clampedCursor(for: currentAssembled)
+      let keyGenPrev = previouslyAssembled.generateKeyForPerception(cursor: cursorPrev)
+      let keyGenCurr = currentAssembled.generateKeyForPerception(cursor: cursorCurr)
+
+      if let keyGenPrev, let keyGenCurr {
+        let mergedPreview = splitKeyParts(keyGenPrev.ngramKey)
+        let currentParts = splitKeyParts(keyGenCurr.ngramKey)
+        var mergedParts = mergedPreview
+        if let newHead = currentParts.last {
+          let hasPlaceholderContext = currentParts.dropLast().contains("()")
+          if hasPlaceholderContext {
+            mergedParts[mergedParts.count - 1] = newHead
+          } else {
+            let valueSegments = Array(afterHit.gram.value).map(String.init)
+            let headValueSegment = valueSegments.indices.contains(headKeyOffset)
+              ? valueSegments[headKeyOffset] : afterHit.gram.value
+            let refinedHead = "(\(keyGenCurr.headReading),\(headValueSegment))"
+            mergedParts[mergedParts.count - 1] = refinedHead
+          }
+        }
+        keyGen = (
+          ngramKey: mergedParts.joined(separator: "&"),
+          candidate: keyGenCurr.candidate,
+          headReading: keyGenCurr.headReading
+        )
+      } else {
+        keyGen = keyGenCurr ?? keyGenPrev
+      }
+
+    case .longToShort, .sameLenSwap:
+      let primarySource = currentAssembled
+      let fallbackSource = previouslyAssembled
+
+      if primarySource.totalKeyCount > 0 {
+        let cursorPrimary = clampedCursor(for: primarySource)
+        keyGen = primarySource.generateKeyForPerception(cursor: cursorPrimary)
+      }
+
+      if keyGen == nil, fallbackSource.totalKeyCount > 0 {
+        let cursorFallback = clampedCursor(for: fallbackSource)
+        keyGen = fallbackSource.generateKeyForPerception(cursor: cursorFallback)
+      }
     }
 
     guard let keyGen else { return nil }
 
+    let normalizedHeadReading: String = {
+      let separator = "-"
+      if scenario == .shortToLong || afterHit.gram.segLength > 1 {
+        let joined = afterHit.gram.joinedCurrentKey(by: separator)
+        return joined.isEmpty ? keyGen.headReading : joined
+      }
+      return keyGen.headReading
+    }()
+
     return .init(
-      ngramKey: keyGen.ngramKey,
+      contextualizedGramKey: keyGen.ngramKey,
       candidate: current.value,
-      headReading: keyGen.headReading,
+      headReading: normalizedHeadReading,
       scenario: scenario,
       forceHighScoreOverride: forceHSO,
       scoreFromLM: current.score

@@ -160,10 +160,10 @@ extension Perceptor {
   }
 
   public func memorizePerception(
-    _ perception: (ngramKey: String, candidate: String),
+    _ perception: (contextualizedGramKey: String, candidate: String),
     timestamp: Double
   ) {
-    let key = perception.ngramKey
+    let key = perception.contextualizedGramKey
     let candidate = perception.candidate
     guard !key.isEmpty else { return }
     withLock {
@@ -192,7 +192,7 @@ extension Perceptor {
     timestamp: Double
   ) {
     memorizePerception(
-      (ngramKey: intel.ngramKey, candidate: intel.candidate),
+      (contextualizedGramKey: intel.contextualizedGramKey, candidate: intel.candidate),
       timestamp: timestamp
     )
   }

@@ -204,10 +204,7 @@ extension Homa.Assembler {
           cursor: cursorBeforeOverride
         )
         if let intel {
-          if let perceptionHandler {
-            perceptionHandler(intel)
-          }
-          perceptor?(intel)
+          (perceptionHandler ?? perceptor)?(intel)
         }
       }
     }
@@ -263,6 +260,9 @@ extension Homa.Assembler {
   ///   - overriddenNode: 已覆寫的節點
   /// - Returns: 是否需要重設
   private func shouldResetNode(anchor: Homa.Node, overriddenNode: Homa.Node) -> Bool {
+    guard overriddenNode.segLength <= anchor.segLength else {
+      return true
+    }
     guard let anchorValue = anchor.value,
           let overriddenValue = overriddenNode.value
     else {
