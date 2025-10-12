@@ -91,20 +91,22 @@ extension Tekkon.PinyinTrie {
     var currentNode = root
 
     // 遍歷關鍵字的每個字元
-    key.forEach { char in
+    for char in key {
       let charStr = char.description
       if let childNodeID = currentNode.children[charStr],
          let matchedNode = nodes[childNodeID] {
         // 有效的子節點已存在，繼續遍歷
         currentNode = matchedNode
-        return
+        continue
       }
+
       // 創建新的子節點
       let newNodeID = nodes.count
       let newNode = TNode(id: newNodeID, character: charStr)
 
-      // 更新關係
+      // 更新父節點與節點辭典
       currentNode.children[charStr] = newNodeID
+      if let currentID = currentNode.id { nodes[currentID] = currentNode }
       nodes[newNodeID] = newNode
 
       // 更新當前節點
@@ -114,6 +116,7 @@ extension Tekkon.PinyinTrie {
     // 在最終節點添加詞條
     currentNode.readingKey = key
     currentNode.entries.append(entry)
+    if let currentID = currentNode.id { nodes[currentID] = currentNode }
   }
 
   func search(_ key: String) -> [String] {
@@ -150,7 +153,7 @@ extension Tekkon.PinyinTrie {
   /// 期許結果是：
   ///
   /// ```swift
-  /// [["ㄅ"], ["ㄩㄝ"], ["ㄓ", "ㄗ"], ["ㄑ"], ["ㄕ", "ㄙ"], ["ㄌ"], ["ㄌ"]]
+  /// ["ㄅ", "ㄩㄝ", "ㄓ&ㄗ", "ㄑ", "ㄕ&ㄙ", "ㄌ", "ㄌ"]
   /// ```
   public func deductChoppedPinyinToZhuyin(
     _ chopped: [String],

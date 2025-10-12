@@ -273,6 +273,51 @@ struct TekkonTestsBasic {
     }
   }
 
+  @Test("[Tekkon] Semivowel Normalization with Encouuntered Vowels")
+  func testSemivowelNormalizationWithEncounteredVowels() async throws {
+    // 測試「ㄩ」遇到特定韻母時會自動轉為「ㄨ」以維持正確拼法。
+    let nullErr = "未能生成測試所需的 Unicode Scalar。"
+    let yu = try #require("ㄩ".unicodeScalars.first, .init(rawValue: nullErr))
+    let o = try #require("ㄛ".unicodeScalars.first, .init(rawValue: nullErr))
+    let b = try #require("ㄅ".unicodeScalars.first, .init(rawValue: nullErr))
+
+    var composer = Tekkon.Composer(arrange: .ofDachen, correction: true)
+    composer.receiveKey(fromPhonabet: yu)
+    composer.receiveKey(fromPhonabet: o)
+    #expect(composer.value == "ㄨㄛ")
+
+    composer.clear()
+    composer.receiveKey(fromPhonabet: b)
+    composer.receiveKey(fromPhonabet: yu)
+    composer.receiveKey(fromPhonabet: o)
+    #expect(composer.getComposition() == "ㄅㄛ")
+  }
+
+  @Test("[Tekkon] Pronounceable Query Key Gate")
+  func testPronounceableQueryKeyGate() async throws {
+    // 測試 pronounceableOnly 限制僅允許可唸組合被回傳。
+    let tone = try #require("ˊ".unicodeScalars.first, "未能生成測試所需的 Unicode Scalar。")
+    var composer = Tekkon.Composer(arrange: .ofDachen)
+    composer.receiveKey(fromPhonabet: tone)
+    #expect(!composer.isPronounceable)
+    #expect(nil == composer.phonabetKeyForQuery(pronounceableOnly: true))
+    #expect(composer.phonabetKeyForQuery(pronounceableOnly: false) == "ˊ")
+  }
+
+  @Test("[Tekkon] Pinyin Trie Batch Insert Keeps Existing Branches")
+  func testPinyinTrieBranchInsertKeepsExistingBranches() async throws {
+    // 測試 PinyinTrie 在同一節點底下追加多個分支時，不會覆蓋既有資料。
+    let trie = Tekkon.PinyinTrie(parser: .ofDachen)
+    trie.insert("li", entry: "ㄌㄧ")
+    trie.insert("lin", entry: "ㄌㄧㄣ")
+    trie.insert("liu", entry: "ㄌㄧㄡ")
+
+    let fetched = trie.search("li")
+    #expect(fetched.contains("ㄌㄧ"))
+    #expect(fetched.contains("ㄌㄧㄣ"))
+    #expect(fetched.contains("ㄌㄧㄡ"))
+  }
+
   @Test("[Tekkon] Pinyin Trie Converting Pinyin Chops to Zhuyin")
   func testPinyinTrieConvertingPinyinChopsToZhuyin() async throws {
     // 漢語拼音：
