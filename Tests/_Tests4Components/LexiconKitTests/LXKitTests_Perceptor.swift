@@ -657,6 +657,84 @@ public struct LXTests4Perceptor {
     #expect("遞交" == assembledByPOM)
   }
 
+  @Test("[LXKit] Perceptor_UnderscorePrefixedKeyFiltering")
+  func testUnderscorePrefixedKeyFiltering() throws {
+    let perceptor = Perceptor(capacity: 10)
+    let nowStamp = nowTimeStamp
+
+    // 測試 1: 包含底線前綴的讀音在 memorizePerception 時應該被過濾
+    let keyWithUnderscore = "(ㄕㄣˊ-ㄌㄧˇ,神里)&(_punctuation,，)&(ㄍㄡˇ,狗)"
+    let normalKey = "(ㄕㄣˊ-ㄌㄧˇ,神里)&(ㄉㄜ˙,的)&(ㄍㄡˇ,狗)"
+
+    percept(who: perceptor, key: keyWithUnderscore, candidate: "狗", timestamp: nowStamp)
+    percept(who: perceptor, key: normalKey, candidate: "狗", timestamp: nowStamp)
+
+    // 底線前綴的 key 不應該被記錄
+    let suggestion1 = perceptor.getSuggestion(key: keyWithUnderscore, timestamp: nowStamp)
+    #expect(suggestion1 == nil, "Keys with underscore prefix should be filtered out")
+
+    // 正常 key 應該被記錄
+    let suggestion2 = perceptor.getSuggestion(key: normalKey, timestamp: nowStamp)
+    #expect(suggestion2 != nil, "Normal keys should be recorded")
+    #expect(suggestion2?.first?.value == "狗", "Normal key should have correct candidate")
+
+    // 測試 2: loadData 時應該過濾底線前綴的 keys
+    // 使用 JSON 來模擬包含底線前綴的數據
+    let jsonData = """
+      [
+        {
+          "k": "(reading1,value1)&(_punct,，)&(reading2,value2)",
+          "p": {
+            "o": {
+              "test1": {
+                "c": 1,
+                "ts": \(nowStamp)
+              }
+            }
+          }
+        },
+        {
+          "k": "(reading1,value1)&(normal,正常)&(reading2,value2)",
+          "p": {
+            "o": {
+              "test2": {
+                "c": 1,
+                "ts": \(nowStamp)
+              }
+            }
+          }
+        }
+      ]
+      """.data(using: .utf8)!
+
+    let decoder = JSONDecoder()
+    let perceptor2 = Perceptor(capacity: 10)
+    let loadedData = try decoder.decode([Perceptor.KeyPerceptionPair].self, from: jsonData)
+    perceptor2.loadData(from: loadedData)
+    let savedData = perceptor2.getSavableData()
+
+    // 只有正常的 key 應該被保留
+    #expect(savedData.count == 1, "Only normal keys should be loaded")
+    #expect(
+      savedData.first?.key == "(reading1,value1)&(normal,正常)&(reading2,value2)",
+      "The normal key should be preserved"
+    )
+
+    // 測試 3: 測試 getSuggestion 時過濾底線前綴
+    let perceptor3 = Perceptor(capacity: 10)
+    percept(who: perceptor3, key: normalKey, candidate: "狗", timestamp: nowStamp)
+
+    // 嘗試用底線前綴的 key 查詢，應該返回 nil
+    let suggestionWithUnderscore = perceptor3.getSuggestion(
+      key: keyWithUnderscore,
+      timestamp: nowStamp
+    )
+    #expect(
+      suggestionWithUnderscore == nil,
+      "getSuggestion should return nil for underscore prefixed keys"
+    )
+  }
+
   // MARK: Private
 
   private func percept(

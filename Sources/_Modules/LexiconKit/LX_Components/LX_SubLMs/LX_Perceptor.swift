@@ -84,6 +84,7 @@ public final class Perceptor {
   }
 
   private func resetLRUListLocked() {
+    purgeUnderscorePrefixedKeysLocked()
     mutLRUKeySeqList =
       mutLRUMap
         .sorted { $0.value.latestTimeStamp > $1.value.latestTimeStamp }
@@ -166,6 +167,7 @@ extension Perceptor {
     let key = perception.contextualizedGramKey
     let candidate = perception.candidate
     guard !key.isEmpty else { return }
+    guard !shouldIgnoreKey(key) else { return }
     withLock {
       if let thePair = mutLRUMap[key] {
         thePair.perception.update(candidate: candidate, timestamp: timestamp)
@@ -210,9 +212,73 @@ extension Perceptor {
     }
   }
 
+  /// 清除指定的建議（基於 context + candidate 對）
+  public func bleachSpecifiedSuggestions(
+    targets: [(contextualizedGramKey: String, candidate: String)]
+  ) {
+    guard !targets.isEmpty else { return }
+    withLock {
+      var hasChanges = false
+      var keysToRemoveCompletely: [String] = []
+
+      for target in targets {
+        guard let pair = mutLRUMap[target.contextualizedGramKey] else { continue }
+        let perception = pair.perception
+
+        if perception.overrides.removeValue(forKey: target.candidate) != nil {
+          hasChanges = true
+
+          if perception.overrides.isEmpty {
+            keysToRemoveCompletely.append(target.contextualizedGramKey)
+          }
+        }
+      }
+
+      if !keysToRemoveCompletely.isEmpty {
+        keysToRemoveCompletely.forEach { mutLRUMap.removeValue(forKey: $0) }
+      }
+
+      if hasChanges {
+        resetLRUListLocked()
+      }
+    }
+  }
+
+  /// 清除指定讀音（head reading）底下的所有建議
+  public func bleachSpecifiedSuggestionsForHeadReadings(_ headReadingTargets: [String]) {
+    let targets = Set(headReadingTargets.filter { !$0.isEmpty })
+    guard !targets.isEmpty else { return }
+    withLock {
+      var hasChanges = false
+      var keysToRemove: [String] = []
+
+      for key in mutLRUMap.keys {
+        guard let parts = parsePerceptionKey(key) else { continue }
+        if targets.contains(parts.headReading) {
+          hasChanges = true
+          keysToRemove.append(key)
+        }
+      }
+
+      if !keysToRemove.isEmpty {
+        keysToRemove.forEach { mutLRUMap.removeValue(forKey: $0) }
+      }
+
+      if hasChanges {
+        resetLRUListLocked()
+      }
+    }
+  }
+
   public func bleachUnigrams() {
     withLock {
-      let keysToRemove = mutLRUMap.keys.filter { $0.contains("(),()") }
+      var keysToRemove: [String] = []
+      for key in mutLRUMap.keys {
+        guard let parts = parsePerceptionKey(key) else { continue }
+        if parts.prev1 == nil, parts.prev2 == nil {
+          keysToRemove.append(key)
+        }
+      }
       if !keysToRemove.isEmpty {
         keysToRemove.forEach { mutLRUMap.removeValue(forKey: $0) }
         resetLRUListLocked()
@@ -243,7 +309,12 @@ extension Perceptor {
 
   public func loadData(from data: [KeyPerceptionPair]) {
     withLock {
-      mutLRUMap = Dictionary(uniqueKeysWithValues: data.map { ($0.key, $0) })
+      var newMap = [String: KeyPerceptionPair]()
+      data.forEach { currentPair in
+        guard !shouldIgnoreKey(currentPair.key) else { return }
+        newMap[currentPair.key] = currentPair
+      }
+      mutLRUMap = newMap
       resetLRUListLocked()
       trimLRUIfNeededLocked()
     }
@@ -273,6 +344,7 @@ extension Perceptor {
   )
     -> [CandidateTuple]? {
     guard let parts = parsePerceptionKey(key) else { return nil }
+    guard !shouldIgnorePerception(parts) else { return nil }
     let frontEdgeReading = parts.headReading
     guard !frontEdgeReading.isEmpty else { return nil }
     guard !key.isEmpty, let kvPair = mutLRUMap[key] else { return nil }
@@ -317,6 +389,7 @@ extension Perceptor {
 
   fileprivate func _alternateKeys(for originalKey: String) -> [String] {
     guard let originalParts = parsePerceptionKey(originalKey) else { return [] }
+    guard !shouldIgnorePerception(originalParts) else { return [] }
     let headSegments = splitReadingSegments(originalParts.headReading)
     let primaryHeadCandidates: Set<String> = {
       guard let firstSegment = headSegments.first else { return [] }
@@ -329,6 +402,7 @@ extension Perceptor {
     var results: [String] = []
     for keyCandidate in mutLRUKeySeqList {
       guard let candidateParts = parsePerceptionKey(keyCandidate) else { continue }
+      guard !shouldIgnorePerception(candidateParts) else { continue }
       guard compareContextPart(candidateParts.prev1, originalParts.prev1) else { continue }
       guard compareContextPart(candidateParts.prev2, originalParts.prev2) else { continue }
       let candidateHeadSegments = splitReadingSegments(candidateParts.headReading)
@@ -345,6 +419,7 @@ extension Perceptor {
 
   fileprivate func _forceHighScoreOverrideFlag(for key: String) -> Bool {
     guard let parts = parsePerceptionKey(key) else { return false }
+    guard !shouldIgnorePerception(parts) else { return false }
     let headLen = splitReadingSegments(parts.headReading).count
     let prev1Len = parts.prev1.map { splitReadingSegments($0.reading).count }
     let prev2Len = parts.prev2.map { splitReadingSegments($0.reading).count }
@@ -476,6 +551,31 @@ extension Perceptor {
     default:
       false
     }
+  }
+
+  /// 判斷一個 perception key 是否應該被忽略（基於包含底線前綴的讀音）
+  fileprivate func shouldIgnorePerception(_ parts: PerceptionKeyParts) -> Bool {
+    let readings = [parts.headReading, parts.prev1?.reading, parts.prev2?.reading]
+      .compactMap { $0 }
+    return readings.contains { containsUnderscorePrefixedReading($0) }
+  }
+
+  /// 判斷一個 key 是否應該被忽略
+  fileprivate func shouldIgnoreKey(_ key: String) -> Bool {
+    guard let parts = parsePerceptionKey(key) else { return false }
+    return shouldIgnorePerception(parts)
+  }
+
+  /// 檢查讀音是否包含底線前綴的片段
+  fileprivate func containsUnderscorePrefixedReading(_ reading: String) -> Bool {
+    splitReadingSegments(reading).contains { $0.hasPrefix("_") }
+  }
+
+  /// 清除所有包含底線前綴的 keys
+  fileprivate func purgeUnderscorePrefixedKeysLocked() {
+    let invalidKeys = mutLRUMap.keys.filter { shouldIgnoreKey($0) }
+    guard !invalidKeys.isEmpty else { return }
+    invalidKeys.forEach { mutLRUMap.removeValue(forKey: $0) }
   }
 }
 
