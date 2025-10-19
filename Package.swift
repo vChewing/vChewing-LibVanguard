@@ -33,6 +33,15 @@ let package = Package(
       name: "Homa",
       targets: ["Homa"]
     )
+    // Basic components ---
+    Product.library(
+      name: "SharedCore",
+      targets: ["SharedCore"]
+    )
+    Product.library(
+      name: "CandidateKit",
+      targets: ["CandidateKit"]
+    )
   },
   targets: buildTargets {
     Target.target(
@@ -44,6 +53,7 @@ let package = Package(
         "TrieKit"
         "KBEventKit"
         "LexiconKit"
+        "SharedCore"
       }
     )
     Target.testTarget(
@@ -113,6 +123,18 @@ let package = Package(
         "TrieKit"
       },
       path: "./Tests/_Tests4Components/LexiconKitTests"
+    )
+    // SharedCore, the basic module for holding common protocols.
+    Target.target(
+      name: "SharedCore",
+      path: "./Sources/_Modules/SharedCore"
+    )
+    Target.testTarget(
+      name: "SharedCoreTests",
+      dependencies: buildTargetDependencies {
+        "SharedCore"
+      },
+      path: "./Tests/_Tests4Components/SharedCoreTests"
     )
     // BrailleSputnik, the Braille module.
     Target.target(
