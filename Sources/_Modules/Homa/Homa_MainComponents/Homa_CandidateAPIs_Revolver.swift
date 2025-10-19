@@ -102,19 +102,46 @@ extension Homa.Assembler {
     // 獲取新的候選字
     let theCandidateNow = candidates[newIndex]
 
-    // 進行上下文鞏固和覆寫操作。先鞏固。
+    // 進行上下文鞏固和覆寫操作。
+    // 重試機制：如果 consolidateNode 沒有改變組字器狀態，則重試最多 20 次
+    var retryCount = 0
+    let maxRetries = 20
+    let previousSentence = assembledSentence
+    var successfullyRevolved = false
     var debugIntel: [String] = []
-    try consolidateCandidateCursorContext(
-      for: theCandidateNow.pair,
-      cursorType: cursorType
-    ) { intel in
-      if debugIntelHandler != nil {
-        debugIntel.append(intel)
+
+    while retryCount < maxRetries {
+      if retryCount > 1 {
+        try? consolidateCandidateCursorContext(
+          for: theCandidateNow.pair,
+          cursorType: cursorType
+        ) { intel in
+          if debugIntelHandler != nil {
+            debugIntel.append(intel)
+          }
+        }
+      }
+
+      // 覆寫候選字並重新組裝
+      try overrideCandidate(theCandidateNow.pair, at: candidateCursorPos)
+
+      let currentSentence = assembledSentence
+      if previousSentence.map(\.value) != currentSentence.map(\.value) {
+        debugIntel.append(
+          "revolveCandidate: consolidateNode succeeded after \(retryCount + 1) attempts"
+        )
+        successfullyRevolved = true
+        break
+      }
+
+      retryCount += 1
+      if retryCount < maxRetries {
+        debugIntel.append(
+          "revolveCandidate: consolidateNode failed, retrying (\(retryCount)/\(maxRetries))"
+        )
+        // 第一次使用 preConsolidate，後續重試不使用，以避免重複相同的失敗原因
       }
     }
-
-    // 覆寫候選字並重新組裝
-    try overrideCandidate(theCandidateNow.pair, at: candidateCursorPos)
 
     // 處理偵錯資訊
     if let debugIntelHandler {
@@ -124,6 +151,7 @@ extension Homa.Assembler {
       debugIntel.append("ENC: \(cursor)") // Encoded Cursor
       debugIntel.append("LCC: \(candidateCursorPos)") // Logical Candidate Cursor
       debugIntel.append(assembledSentence.compactMap(\.value).joined())
+      debugIntel.append(successfullyRevolved ? "<- Revolve Succeeded" : "<- Revolve Failed")
       debugIntelHandler(debugIntel.joined(separator: " | "))
     }
 
