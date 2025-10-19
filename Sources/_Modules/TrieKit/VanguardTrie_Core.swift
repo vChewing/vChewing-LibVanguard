@@ -149,47 +149,27 @@ public enum VanguardTrie {
       public init(from decoder: any Decoder, readingKey: String) throws {
         let container = try decoder.singleValueContainer()
         let stackRawStr = try container.decode(String.self)
-        let stack = stackRawStr.split(separator: "\t")
-        let theException = DecodingError.dataCorrupted(
-          DecodingError.Context(
-            codingPath: container.codingPath,
-            debugDescription: "Can't parse the following contents into an Entry: \(stackRawStr)"
-          )
+        let decoded = try Self.decodeSerializedEntry(
+          stackRawStr,
+          codingPath: container.codingPath
         )
-        guard [3, 4].contains(stack.count) else { throw theException }
-        self.value = stack[0].description
-        guard let typeIDRaw = Int32(stack[1]) else { throw theException }
-        guard let probability = Double(stack[2]) else { throw theException }
-        self.typeID = .init(rawValue: typeIDRaw)
-        self.probability = probability
-        if stack.count == 4 {
-          self.previous = stack[3].description
-        } else {
-          self.previous = nil
-        }
+        self.value = decoded.value
+        self.typeID = decoded.type
+        self.probability = decoded.probability
+        self.previous = decoded.previous
       }
 
       public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         let stackRawStr = try container.decode(String.self)
-        let stack = stackRawStr.split(separator: "\t")
-        let theException = DecodingError.dataCorrupted(
-          DecodingError.Context(
-            codingPath: container.codingPath,
-            debugDescription: "Can't parse the following contents into an Entry: \(stackRawStr)"
-          )
+        let decoded = try Self.decodeSerializedEntry(
+          stackRawStr,
+          codingPath: container.codingPath
         )
-        guard [3, 4].contains(stack.count) else { throw theException }
-        self.value = stack[0].description
-        guard let typeIDRaw = Int32(stack[1]) else { throw theException }
-        guard let probability = Double(stack[2]) else { throw theException }
-        self.typeID = .init(rawValue: typeIDRaw)
-        self.probability = probability
-        if stack.count == 4 {
-          self.previous = stack[3].description
-        } else {
-          self.previous = nil
-        }
+        self.value = decoded.value
+        self.typeID = decoded.type
+        self.probability = decoded.probability
+        self.previous = decoded.previous
       }
 
       // MARK: Public
@@ -218,6 +198,47 @@ public enum VanguardTrie {
         case typeID
         case probability
         case previous
+      }
+
+      private static func decodeSerializedEntry(
+        _ rawValue: String,
+        codingPath: [CodingKey]
+      ) throws
+        -> (value: String, type: EntryType, probability: Double, previous: String?) {
+        var components = rawValue.split(separator: "\t", omittingEmptySubsequences: false)
+          .map(String.init)
+        let decodingError = DecodingError.dataCorrupted(
+          DecodingError.Context(
+            codingPath: codingPath,
+            debugDescription: "Can't parse the following contents into an Entry: \(rawValue)"
+          )
+        )
+        guard components.count >= 3 else { throw decodingError }
+
+        var previous: String?
+
+        // Probability is expected near the tail. Handle optional previous values gracefully.
+        guard let lastComponent = components.popLast() else { throw decodingError }
+        let probabilityValue: Double
+        if let parsedProbability = Double(lastComponent) {
+          probabilityValue = parsedProbability
+        } else {
+          previous = lastComponent
+          guard let probabilityComponent = components.popLast(),
+                let parsedProbability = Double(probabilityComponent) else {
+            throw decodingError
+          }
+          probabilityValue = parsedProbability
+        }
+
+        guard let typeComponent = components.popLast(),
+              let typeIDRaw = Int32(typeComponent) else {
+          throw decodingError
+        }
+
+        let reconstructedValue = components.joined(separator: "\t")
+        let entryType = EntryType(rawValue: typeIDRaw)
+        return (reconstructedValue, entryType, probabilityValue, previous)
       }
     }
 
