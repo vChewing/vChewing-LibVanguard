@@ -47,6 +47,7 @@ let package = Package(
     Target.target(
       name: "LibVanguard",
       dependencies: buildTargetDependencies {
+        "CandidateKit"
         "Tekkon"
         "Homa"
         "BrailleSputnik"
@@ -123,6 +124,21 @@ let package = Package(
         "TrieKit"
       },
       path: "./Tests/_Tests4Components/LexiconKitTests"
+    )
+    // CandidateKit, the basic module for holding candidate pools.
+    Target.target(
+      name: "CandidateKit",
+      dependencies: buildTargetDependencies {
+        "SharedCore"
+      },
+      path: "./Sources/_Modules/CandidateKit"
+    )
+    Target.testTarget(
+      name: "CandidateKitTests",
+      dependencies: buildTargetDependencies {
+        "CandidateKit"
+      },
+      path: "./Tests/_Tests4Components/CandidateKitTests"
     )
     // SharedCore, the basic module for holding common protocols.
     Target.target(
