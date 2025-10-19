@@ -178,7 +178,7 @@ extension Homa {
     guard let keyGen else { return nil }
 
     let normalizedHeadReading: String = {
-      let separator = "-"
+      let separator = Homa.theSeparator
       if scenario == .shortToLong || afterHit.gram.segLength > 1 {
         let joined = afterHit.gram.joinedCurrentKey(by: separator)
         return joined.isEmpty ? keyGen.headReading : joined
@@ -343,7 +343,7 @@ extension Array where Element == Homa.GramInPath {
     guard headPair.keyArray.indices.contains(headKeyOffset) else { return nil }
 
     let placeholder = "()"
-    let readingSeparator = "-"
+    let readingSeparator = Homa.theSeparator
 
     func isPunctuation(_ pair: Homa.GramInPath) -> Bool {
       guard let firstReading = pair.keyArray.first else { return false }

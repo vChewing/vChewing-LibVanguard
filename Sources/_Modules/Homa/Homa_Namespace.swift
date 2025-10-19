@@ -3,4 +3,7 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 /// The namespace for this package.
-public enum Homa {}
+public enum Homa {
+  /// 複合讀音索引鍵中用於分隔各個讀音組成部分的預設分隔符號，預設為「-」。
+  nonisolated(unsafe) public static var theSeparator: String = "-"
+}
