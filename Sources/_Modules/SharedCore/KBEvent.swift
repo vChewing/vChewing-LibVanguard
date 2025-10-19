@@ -1,4 +1,4 @@
-// (c) 2025 and onwards The vChewing Project (LGPL v3.0 License or later).
+// (c) 2022 and onwards The vChewing Project (LGPL v3.0 License or later).
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
@@ -6,7 +6,7 @@ import Foundation
 
 // MARK: - KBEvent
 
-public struct KBEvent: KBEventProtocol, Codable, Hashable, Sendable {
+public struct KBEvent: KBEventProtocol, Hashable {
   // MARK: Lifecycle
 
   public init(
@@ -40,7 +40,7 @@ public struct KBEvent: KBEventProtocol, Codable, Hashable, Sendable {
 
   public private(set) var type: EventType
   public private(set) var modifierFlags: ModifierFlags
-  public private(set) var timestamp: Double
+  public private(set) var timestamp: TimeInterval
   public private(set) var windowNumber: Int
   public private(set) var characters: String?
   public private(set) var charactersIgnoringModifiers: String?
@@ -75,7 +75,7 @@ public struct KBEvent: KBEventProtocol, Codable, Hashable, Sendable {
 // MARK: - KBEvent Extension - SubTypes
 
 extension KBEvent {
-  public struct ModifierFlags: OptionSet, Codable, Hashable, Sendable {
+  public struct ModifierFlags: OptionSet, Hashable, Sendable {
     // MARK: Lifecycle
 
     public init(rawValue: UInt) {
@@ -101,7 +101,7 @@ extension KBEvent {
     public let rawValue: UInt
   }
 
-  public enum EventType: UInt8, Codable, Hashable, Sendable {
+  public enum EventType: UInt8 {
     case keyDown = 10
     case keyUp = 11
     case flagsChanged = 12
@@ -163,7 +163,7 @@ extension KBEvent {
 
   public var isEmacsKey: Bool {
     // 這裡不能只用 isControlHold，因為這裡對修飾鍵的要求有排他性。
-    [6, 2, 1, 5, 4, 22].contains(charCode) && keyModifierFlags == .control
+    [6, 2, 1, 5, 4, 22, 14, 16].contains(charCode) && keyModifierFlags == .control
   }
 
   // 摁 Alt+Shift+主鍵盤區域數字鍵 的話，根據不同的 macOS 鍵盤佈局種類，會出現不同的符號結果。
@@ -191,7 +191,8 @@ extension KBEvent {
     KeyCode(rawValue: keyCode) == KeyCode.kJISAlphanumericalKey
   }
 
-  public var isJISKanaSwappingKey: Bool { KeyCode(rawValue: keyCode) == KeyCode.kJISKanaSwappingKey
+  public var isJISKanaSwappingKey: Bool {
+    KeyCode(rawValue: keyCode) == KeyCode.kJISKanaSwappingKey
   }
 
   public var isNumericPadKey: Bool { arrNumpadKeyCodes.contains(keyCode) }
@@ -258,7 +259,7 @@ extension KBEvent {
 
   public var isASCII: Bool { charCode < 0x80 }
 
-  // 這裡必須加上「flags == .shift」，否則會出現某些情況下輸入法「誤判當前鍵入的非 Shift 字元為大寫」的問題
+  // 這裡必須加上「flags == .shift」，否則會出現某些情況下輸入法「誤判當前鍵入的非 Shift 字符為大寫」的問題
   public var isUpperCaseASCIILetterKey: Bool {
     (65 ... 90).contains(charCode) && keyModifierFlags == .shift
   }
@@ -280,7 +281,7 @@ extension KBEvent {
 // MARK: KBEvent.SpecialKey
 
 extension KBEvent {
-  public enum SpecialKey: UInt16, Codable, Hashable, Sendable {
+  public enum SpecialKey: UInt16 {
     case upArrow = 0xF700
     case downArrow = 0xF701
     case leftArrow = 0xF702
@@ -364,9 +365,9 @@ extension KBEvent {
     case lineSeparator = 0x2028
     case paragraphSeparator = 0x2029
 
-    // MARK: Internal
+    // MARK: Public
 
-    var unicodeScalar: Unicode.Scalar { .init(rawValue) ?? .init(0) }
+    public var unicodeScalar: Unicode.Scalar { .init(rawValue) ?? .init(0) }
   }
 }
 
@@ -375,7 +376,7 @@ extension KBEvent {
 // Use KeyCodes as much as possible since its recognition won't be affected by macOS Base Keyboard Layouts.
 // KeyCodes: https://eastmanreference.com/complete-list-of-applescript-key-codes
 // Also: HIToolbox.framework/Versions/A/Headers/Events.h
-public enum KeyCode: UInt16, Codable, Hashable, Sendable {
+public enum KeyCode: UInt16 {
   case kNone = 0
   case kCarriageReturn = 36 // Renamed from "kReturn" to avoid nomenclatural confusions.
   case kTab = 48
@@ -438,9 +439,12 @@ public enum KeyCode: UInt16, Codable, Hashable, Sendable {
   public func toKBEvent() -> KBEvent {
     .init(
       modifierFlags: [],
-      timestamp: TimeInterval(), windowNumber: 0,
-      characters: "", charactersIgnoringModifiers: "",
-      isARepeat: false, keyCode: rawValue
+      timestamp: TimeInterval(),
+      windowNumber: 0,
+      characters: "",
+      charactersIgnoringModifiers: "",
+      isARepeat: false,
+      keyCode: rawValue
     )
   }
 
@@ -512,7 +516,7 @@ public enum KeyCode: UInt16, Codable, Hashable, Sendable {
 
 // MARK: - KeyCodeBlackListed
 
-enum KeyCodeBlackListed: UInt16, Codable, Hashable, Sendable {
+public enum KeyCodeBlackListed: UInt16 {
   case kF17 = 64
   case kVolumeUp = 72
   case kVolumeDown = 73
@@ -541,14 +545,14 @@ enum KeyCodeBlackListed: UInt16, Codable, Hashable, Sendable {
 
 // 摁 Alt+Shift+主鍵盤區域數字鍵 的話，根據不同的 macOS 鍵盤佈局種類，會出現不同的符號結果。
 // 然而呢，KeyCode 卻是一致的。於是這裡直接準備一個換算表來用。
-let mapMainAreaNumKey: [UInt16: String] = [
+public let mapMainAreaNumKey: [UInt16: String] = [
   18: "1", 19: "2", 20: "3", 21: "4", 23: "5", 22: "6", 26: "7", 28: "8", 25: "9", 29: "0",
 ]
 
 /// 數字小鍵盤區域的按鍵的 KeyCode。
 ///
 /// 注意：第 95 號 Key Code（逗號）為 JIS 佈局特有的數字小鍵盤按鍵。
-let arrNumpadKeyCodes: [UInt16] = [
+public let arrNumpadKeyCodes: [UInt16] = [
   65,
   67,
   69,
@@ -572,21 +576,25 @@ let arrNumpadKeyCodes: [UInt16] = [
 // MARK: - EmacsKey
 
 public enum EmacsKey {
-  static let charKeyMapHorizontal: [UInt16: UInt16] = [
+  public static let charKeyMapHorizontal: [UInt16: UInt16] = [
     6: 124,
     2: 123,
     1: 115,
     5: 119,
     4: 117,
     22: 121,
+    14: 125,
+    16: 126,
   ]
-  static let charKeyMapVertical: [UInt16: UInt16] = [
+  public static let charKeyMapVertical: [UInt16: UInt16] = [
     6: 125,
     2: 126,
     1: 115,
     5: 119,
     4: 117,
     22: 121,
+    14: 123,
+    16: 124,
   ]
 }
 
@@ -600,8 +608,8 @@ extension KBEvent {
     if !mapTable.keys.contains(keyCode) { return self }
     guard let dataTuplet = mapTable[keyCode] else { return self }
     let result: KBEvent = reinitiate(
-      characters: (isShiftHold ? dataTuplet.1 : dataTuplet.0).description,
-      charactersIgnoringModifiers: (dataTuplet.0).description
+      characters: isShiftHold ? dataTuplet.1 : dataTuplet.0,
+      charactersIgnoringModifiers: dataTuplet.0
     )
     return result
   }

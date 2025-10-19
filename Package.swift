@@ -10,10 +10,10 @@ let package = Package(
       /// Certain cross-platform features in Swift (e.g. Observation) are intentionally
       /// not supported on Apple platform releases prior to their official adoption.
       /// There’s no workaround for this limitation.
-      SupportedPlatform.macOS(.v14) // Sonoma
-      SupportedPlatform.macCatalyst(.v17) // Sonoma
-      SupportedPlatform.iOS(.v17) // iOS 17
-      SupportedPlatform.visionOS(.v1) // VisionOS v1
+      SupportedPlatform.macOS(.v15) // Sonoma
+      SupportedPlatform.macCatalyst(.v18) // Sonoma
+      SupportedPlatform.iOS(.v18) // iOS 17
+      SupportedPlatform.visionOS(.v2) // VisionOS v1
     #endif
   },
   products: buildProducts {
@@ -52,7 +52,6 @@ let package = Package(
         "Homa"
         "BrailleSputnik"
         "TrieKit"
-        "KBEventKit"
         "LexiconKit"
         "SharedCore"
       }
@@ -143,6 +142,9 @@ let package = Package(
     // SharedCore, the basic module for holding common protocols.
     Target.target(
       name: "SharedCore",
+      dependencies: buildTargetDependencies {
+        "SwiftExtension"
+      },
       path: "./Sources/_Modules/SharedCore"
     )
     Target.testTarget(
@@ -184,16 +186,16 @@ let package = Package(
       },
       path: "./Tests/_Tests4Components/TrieKitTests"
     )
-    // KBEventKit, the Keyboard Event Management Kit.
-    Target.target(
-      name: "KBEventKit",
-      path: "./Sources/_Modules/KBEventKit"
-    )
     // CSQLite3 for all platforms.
     Target.target(
       name: "CSQLite3",
       path: "./Sources/_3rdParty/CSQLite3",
       cSettings: buildCSQLiteSettings()
+    )
+    // Swift Extension
+    Target.target(
+      name: "SwiftExtension",
+      path: "./Sources/_Modules/SwiftExtension"
     )
   }
 )
