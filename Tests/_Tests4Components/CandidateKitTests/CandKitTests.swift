@@ -4,3 +4,6 @@
 
 @testable import CandidateKit
 import Testing
+
+@Suite(.serialized)
+public struct CandidateKitTestSuite {}

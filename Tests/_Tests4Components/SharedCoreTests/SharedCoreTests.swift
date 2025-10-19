@@ -4,3 +4,6 @@
 
 @testable import SharedCore
 import Testing
+
+@Suite(.serialized)
+public struct SharedCoreTestSuite {}
