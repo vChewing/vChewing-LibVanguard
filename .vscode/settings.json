@@ -4,11 +4,13 @@
   "files.exclude": {
     ".build": true,
     ".swiftpm": true,
-    "sqlite3.h": true
+    "sqlite3.h": true,
+    "CSQLite3": true,
   },
   "search.exclude": {
     ".build": true,
     ".swiftpm": true,
-    "sqlite3.h": true
+    "sqlite3.h": true,
+    "CSQLite3": true
   }
 }
