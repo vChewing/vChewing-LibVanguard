@@ -223,12 +223,12 @@ public struct LXTests4Perceptor {
   func testBleachSpecifiedSuggestionsAtCandidateLevel() throws {
     let perceptor = Perceptor(capacity: 10)
     let timestamp = nowTimeStamp
-    let key1 = "(test1,測試1)&(key,鍵)&(target,目標1)"
-    let candidate1 = "目標1"
-    let key2 = "(test2,測試2)&(key,鍵)&(target,目標2)"
-    let candidate2 = "目標2"
-    let key3 = "(test3,測試3)&(key,鍵)&(target,目標3)"
-    let candidate3 = "目標3"
+    let key1 = "(ㄘㄜˋ-ㄕˋ-ㄧ,測試一)&(ㄐㄧㄢˋ,鍵)&(ㄇㄨˋ-ㄅㄧㄠ-ㄧ,目標一)"
+    let candidate1 = "目標一"
+    let key2 = "(ㄘㄜˋ-ㄕˋ-ㄦˋ,測試二)&(ㄐㄧㄢˋ,鍵)&(ㄇㄨˋ-ㄅㄧㄠ-ㄦˋ,目標二)"
+    let candidate2 = "目標二"
+    let key3 = "(ㄘㄜˋ-ㄕˋ-ㄙㄢ,測試三)&(ㄐㄧㄢˋ,鍵)&(ㄇㄨˋ-ㄅㄧㄠ-ㄙㄢ,目標三)"
+    let candidate3 = "目標三"
 
     percept(who: perceptor, key: key1, candidate: candidate1, timestamp: timestamp)
     percept(who: perceptor, key: key2, candidate: candidate2, timestamp: timestamp)
@@ -264,7 +264,7 @@ public struct LXTests4Perceptor {
   func testBleachSpecifiedSuggestionsMultipleOverrides() throws {
     let perceptor = Perceptor(capacity: 10)
     let timestamp = nowTimeStamp
-    let key = "(test,測試)&(key,鍵)&(target,基底)"
+    let key = "(ㄘㄜˋ-ㄕˋ,測試)&(ㄐㄧㄢˋ,鍵)&(ㄐㄧ-ㄉㄧˇ,基底)"
     let candidate1 = "目標A"
     let candidate2 = "目標B"
     let candidate3 = "目標C"
@@ -291,7 +291,7 @@ public struct LXTests4Perceptor {
   func testBleachSpecifiedSuggestionsRemovesKeyWhenAllOverridesRemoved() throws {
     let perceptor = Perceptor(capacity: 10)
     let timestamp = nowTimeStamp
-    let key = "(test,測試)&(key,鍵)&(target,基底)"
+    let key = "(ㄘㄜˋ-ㄕˋ,測試)&(ㄐㄧㄢˋ,鍵)&(ㄐㄧ-ㄉㄧˇ,基底)"
     let candidate = "唯一目標"
 
     percept(who: perceptor, key: key, candidate: candidate, timestamp: timestamp)
@@ -307,8 +307,8 @@ public struct LXTests4Perceptor {
   func testBleachSpecifiedSuggestionsWithContextPairs() throws {
     let perceptor = Perceptor(capacity: 10)
     let timestamp = nowTimeStamp
-    let key1 = "(context1,上下文1)&(test,測試)&(target,共用目標)"
-    let key2 = "(context2,上下文2)&(test,測試)&(target,共用目標)"
+    let key1 = "(ㄕㄤˋ-ㄒㄧㄚˋ-ㄨㄣˊ-ㄧ,上下文一)&(ㄘㄜˋ-ㄕˋ,測試)&(ㄍㄨㄥˋ-ㄩㄥˋ-ㄇㄨˋ-ㄅㄧㄠ,共用目標)"
+    let key2 = "(ㄕㄤˋ-ㄒㄧㄚˋ-ㄨㄣˊ-ㄦˋ,上下文二)&(ㄘㄜˋ-ㄕˋ,測試)&(ㄍㄨㄥˋ-ㄩㄥˋ-ㄇㄨˋ-ㄅㄧㄠ,共用目標)"
     let candidate = "共用目標"
 
     percept(who: perceptor, key: key1, candidate: candidate, timestamp: timestamp)
@@ -337,8 +337,8 @@ public struct LXTests4Perceptor {
     let perceptor = Perceptor(capacity: 10)
     let timestamp = nowTimeStamp
     let headReading = "ㄍㄡˇ"
-    let key = "(context,上下文)&(head,頭)&(\(headReading),狗)"
-    let otherKey = "(context,上下文)&(head,頭)&(ㄇㄠ,貓)"
+    let key = "(ㄕㄤˋ-ㄒㄧㄚˋ-ㄨㄣˊ,上下文)&(ㄊㄡˊ,頭)&(\(headReading),狗)"
+    let otherKey = "(ㄕㄤˋ-ㄒㄧㄚˋ-ㄨㄣˊ,上下文)&(ㄊㄡˊ,頭)&(ㄇㄠ,貓)"
 
     percept(who: perceptor, key: key, candidate: "狗", timestamp: timestamp)
     percept(who: perceptor, key: otherKey, candidate: "貓", timestamp: timestamp)
