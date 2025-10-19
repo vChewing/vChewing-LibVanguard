@@ -73,31 +73,28 @@ extension Homa.Assembler {
     }
 
     // 確保有組裝好的節點串資料
-    var assembledSentence: [Homa.GramInPath] = assembledSentence
-    if assembledSentence.isEmpty { assembledSentence = assemble() }
+    var currentSentence: [Homa.GramInPath] = assembledSentence
+    if currentSentence.isEmpty { currentSentence = assemble() }
 
     // 獲取當前游標位置和區域資訊
-    let regionMap = assembledSentence.cursorRegionMap
+    let regionMap = currentSentence.cursorRegionMap
     let candidateCursorPos = getLogicalCandidateCursorPosition(forCursor: cursorType)
     guard let regionID = regionMap[candidateCursorPos], assembledSentence.count > regionID else {
       throw .cursorOutOfReasonableNodeRegions
     }
 
     // 獲取當前節點和其詞組資訊
-    let currentGramInPath = assembledSentence[regionID]
-
-    let currentPaired = Homa.CandidatePairWeighted(
-      pair: .init(
-        keyArray: currentGramInPath.keyArray,
-        value: currentGramInPath.value
-      ),
-      weight: currentGramInPath.score
+    let currentGramInPath = currentSentence[regionID]
+    let currentPair = Homa.CandidatePair(
+      keyArray: currentGramInPath.keyArray,
+      value: currentGramInPath.value,
+      score: currentGramInPath.score
     )
 
     // 計算新的候選字索引
     let newIndex = calculateNextCandidateIndex(
       candidates: candidates,
-      currentPaired: currentPaired,
+      currentPair: currentPair,
       isNodeOverridden: currentGramInPath.isOverridden,
       counterClockwise: counterClockwise
     )
@@ -105,9 +102,9 @@ extension Homa.Assembler {
     // 獲取新的候選字
     let theCandidateNow = candidates[newIndex]
 
-    // 進行上下文鞏固和覆寫操作
+    // 進行上下文鞏固和覆寫操作。先鞏固。
     var debugIntel: [String] = []
-    try? consolidateCandidateCursorContext(
+    try consolidateCandidateCursorContext(
       for: theCandidateNow.pair,
       cursorType: cursorType
     ) { intel in
@@ -121,6 +118,8 @@ extension Homa.Assembler {
 
     // 處理偵錯資訊
     if let debugIntelHandler {
+      debugIntel.append("IDX: \(newIndex + 1)/\(candidates.count)")
+      debugIntel.append("VAL: \(theCandidateNow.pair.value)")
       debugIntel.append("\(cursorType)")
       debugIntel.append("ENC: \(cursor)") // Encoded Cursor
       debugIntel.append("LCC: \(candidateCursorPos)") // Logical Candidate Cursor
@@ -140,33 +139,36 @@ extension Homa.Assembler {
   /// - Returns: 新的候選字索引
   private func calculateNextCandidateIndex(
     candidates: [Homa.CandidatePairWeighted],
-    currentPaired: Homa.CandidatePairWeighted,
+    currentPair: Homa.CandidatePair,
     isNodeOverridden: Bool,
     counterClockwise: Bool
   )
     -> Int {
-    // 如果只有一個候選字，直接返回0
+    // 如果只有一個候選字，直接返回 0。
     if candidates.count == 1 { return 0 }
+
+    let candidatePairs = candidates.map(\.pair)
 
     // 遇到非覆寫節點的情況，可簡便處理。
     guard isNodeOverridden else {
       // 如果當前遇到的不是第一個候選字的話，則返回 0 以重設選擇。
-      guard candidates.first == currentPaired else { return 0 }
-      // 根據旋轉方向決定返回最後一個或第二個候選字
-      return counterClockwise ? candidates.count - 1 : 1
+      guard let firstCandidate = candidatePairs.first,
+            firstCandidate == currentPair else { return 0 }
+      // 根據輪替方向決定返回最後一個或第二個候選字。
+      return counterClockwise ? candidatePairs.count - 1 : 1
     }
 
-    // 覆寫節點的情況：查找當前候選字的索引
-    let currentIndex = candidates.firstIndex { $0 == currentPaired }
-    // 如果找不到當前候選字，返回第一個
-    guard let currentIndex else { return 0 }
-
-    // 根據旋轉方向計算下一個索引
-    return switch counterClockwise {
-    case false: // 順時針：向後移動，到尾則回到頭部
-      currentIndex < candidates.count - 1 ? currentIndex + 1 : 0
-    case true: // 逆時針：向前移動，到頭則回到尾部
-      currentIndex > 0 ? currentIndex - 1 : candidates.count - 1
+    // 覆寫節點的情況：循序查找當前候選字並沿用 Typewriter 的輪替邏輯。
+    var result = 0
+    for candidate in candidatePairs {
+      result.revolveAsIndex(
+        with: candidatePairs,
+        clockwise: !(candidate == currentPair && counterClockwise)
+      )
+      // 找到與當前節點匹配的候選字時終止輪替。
+      if candidate == currentPair { break }
     }
+    // 保底處理：確保索引仍在合法範圍內。
+    return (0 ..< candidatePairs.count).contains(result) ? result : 0
   }
 }

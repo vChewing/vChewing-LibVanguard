@@ -24,112 +24,186 @@ extension Homa.Assembler {
     cursorType: CandidateCursor,
     debugIntelHandler: ((String) -> ())? = nil
   ) throws(Homa.Exception) {
-    let grid = copy
-    let actualNodeCursorPosition = getLogicalCandidateCursorPosition(forCursor: cursorType)
-    var debugIntelToPrint = [String]()
-
-    // 嘗試覆寫候選字並組裝格柵
-    try grid.overrideCandidate(theCandidate, at: actualNodeCursorPosition)
-    grid.assemble()
-
-    // 獲取預期的邊界範圍
-    let rangeTemp = grid.assembledSentence.contextRange(ofGivenCursor: actualNodeCursorPosition)
-    let rearBoundaryEX = rangeTemp.lowerBound
-    let frontBoundaryEX = rangeTemp.upperBound
-    debugIntelToPrint.append("EX: \(rearBoundaryEX)..<\(frontBoundaryEX), ")
-
-    // 獲取當前的邊界範圍
-    let range = assembledSentence.contextRange(ofGivenCursor: actualNodeCursorPosition)
-    var rearBoundary = min(range.lowerBound, rearBoundaryEX)
-    var frontBoundary = max(range.upperBound, frontBoundaryEX)
-    debugIntelToPrint.append("INI: \(rearBoundary)..<\(frontBoundary), ")
-
-    // 通過跳轉游標來確定實際的邊界
-    calculatedActualBoundaries(rear: &rearBoundary, front: &frontBoundary)
-    debugIntelToPrint.append("FIN: \(rearBoundary)..<\(frontBoundary)")
-    debugIntelHandler?("[HOMA_DEBUG] \(debugIntelToPrint.joined())")
-
-    // 應用節點鞏固
-    guard frontBoundary >= rearBoundary else {
-      throw .upperboundSmallerThanLowerbound
+    // 針對給定的候選字推算實際游標位置並拿到鞏固邊界範圍與偵錯資訊。
+    let targetCursor = getLogicalCandidateCursorPosition(forCursor: cursorType)
+    let (consolidationRange, debugIntel) = calculateConsolidationBoundaries(
+      for: theCandidate,
+      cursorPosition: targetCursor
+    )
+    if let debugIntelHandler {
+      debugIntelHandler("[HOMA_DEBUG] \(debugIntel)")
     }
-    applyNodeConsolidation(at: rearBoundary ... frontBoundary)
-  }
 
-  /// 計算實際的上下文邊界
-  /// - Parameters:
-  ///   - rearBoundary: 後邊界引用
-  ///   - frontBoundary: 前邊界引用
-  private func calculatedActualBoundaries(
-    rear rearBoundary: inout Int,
-    front frontBoundary: inout Int
-  ) {
-    let cursorBackup = cursor
+    // 沒有任何可鞏固區間的話，提前結束。
+    guard !consolidationRange.isEmpty else { return }
 
-    // 向後計算
-    while cursor > rearBoundary {
-      try? jumpCursorBySegment(to: .rear)
-    }
-    rearBoundary = min(cursor, rearBoundary)
+    // 用於避免重複處理同一節點。
+    var nodeIndices = [Int]()
+    let candidateKeyCount = max(theCandidate.keyArray.count, 1)
+    let candidateRangeUpperBound = Swift.min(targetCursor + candidateKeyCount, length)
+    let candidateRange = targetCursor ..< candidateRangeUpperBound
 
-    // 還原游標，再向前計算
-    cursor = cursorBackup
-    while cursor < frontBoundary {
-      try? jumpCursorBySegment(to: .front)
-    }
-    frontBoundary = min(max(cursor, frontBoundary), length)
-
-    // 計算結束，游標歸位
-    cursor = cursorBackup
-  }
-
-  /// 應用節點鞏固
-  /// - Parameters:
-  ///   - range: 邊界。
-  private func applyNodeConsolidation(
-    at range: ClosedRange<Int>
-  ) {
-    var nodeIndices = [Int]() // 僅作統計用
-    var position = range.lowerBound
-
-    while position < range.upperBound {
+    // 自鞏固下界開始掃描，逐節點鎖定並處理內容。
+    var position = consolidationRange.lowerBound
+    while position < consolidationRange.upperBound {
       guard let regionIndex = assembledSentence.cursorRegionMap[position] else {
+        // 該位置沒有對應節點，往後尋找。
+        position += 1
+        continue
+      }
+      if nodeIndices.contains(regionIndex) {
+        // 同一節點已處理，跳過重複索引。
+        position += 1
+        continue
+      }
+      nodeIndices.append(regionIndex)
+
+      guard assembledSentence.indices.contains(regionIndex) else { break }
+      let currentNode = assembledSentence[regionIndex]
+      let nodeLength = currentNode.keyArray.count
+      guard nodeLength > 0 else {
         position += 1
         continue
       }
 
-      // 避免重複處理同一個節點
-      if !nodeIndices.contains(regionIndex) {
-        nodeIndices.append(regionIndex)
+      let nodeStart = position
+      let nodeRange = nodeStart ..< (nodeStart + nodeLength)
+      let overlapsTarget = nodeRange.overlaps(candidateRange)
+      var nextPosition = nodeStart
 
-        // 防止索引越界
-        guard assembledSentence.count > regionIndex else { break }
+      let values = currentNode.value.map(\.description)
 
-        let currentGramInPath = assembledSentence[regionIndex]
-
-        // 處理整個節點或按字元個別處理
-        if currentGramInPath.keyArray.count == currentGramInPath.value.count {
-          // 按字元個別處理
-          let values = currentGramInPath.value.map(\.description)
-          for (subPosition, key) in currentGramInPath.keyArray.enumerated() {
-            guard values.count > subPosition else { break }
-            let thePair = Homa.CandidatePair(
-              keyArray: [key], value: values[subPosition]
-            )
-            try? overrideCandidate(thePair, at: position)
-            position += 1
-          }
-        } else {
-          // 整個節點處理
-          try? overrideCandidate(
-            .init(keyArray: currentGramInPath.keyArray, value: currentGramInPath.value),
-            at: position
-          )
-          position += currentGramInPath.keyArray.count
+      if !overlapsTarget {
+        // 節點不與覆寫範圍接觸時，先嘗試整段覆寫，失敗再退回逐鍵覆寫流程。
+        attempt: do {
+          try overrideNodeAsWhole(currentNode, at: nodeStart)
+          position = nodeStart + nodeLength
+          continue
+        } catch {
+          break attempt
         }
+        guard values.count == currentNode.keyArray.count else {
+          position = nodeStart + nodeLength
+          continue
+        }
+        for (subPosition, key) in currentNode.keyArray.enumerated() {
+          guard values.count > subPosition else { break }
+          let pair = Homa.CandidatePair(keyArray: [key], value: values[subPosition])
+          try? overrideCandidate(pair, at: nextPosition)
+          nextPosition += 1
+        }
+        position = nextPosition
         continue
       }
-      position += 1
+
+      guard values.count == currentNode.keyArray.count else {
+        // 與覆寫範圍相交但缺少完整值時，改用強制整段覆寫。
+        attempt: do {
+          try overrideNodeAsWhole(currentNode, at: nodeStart)
+          position = nodeStart + nodeLength
+          continue
+        } catch {
+          break attempt
+        }
+        position = nodeStart + nodeLength
+        continue
+      }
+
+      // 節點與覆寫範圍相交且值完整，改以逐鍵覆寫確保最終內容與原值一致。
+      for (subPosition, key) in currentNode.keyArray.enumerated() {
+        guard values.count > subPosition else { break }
+        let pair = Homa.CandidatePair(keyArray: [key], value: values[subPosition])
+        try overrideCandidate(pair, at: nextPosition)
+        nextPosition += 1
+      }
+      position = nextPosition
     }
+  }
+
+  private func calculateConsolidationBoundaries(
+    for candidate: Homa.CandidatePair,
+    cursorPosition: Int
+  )
+    -> (range: Range<Int>, debugInfo: String) {
+    // 暫存既有句子內容，以便乾操控後恢復。
+    let currentAssembledSentence = assembledSentence
+    var frontBoundaryEX = cursorPosition + 1
+    var rearBoundaryEX = cursorPosition
+    var debugIntelToPrint = ""
+
+    // 建立節點覆寫狀態鏡像並暫停感知器，避免試算影響真實狀態。
+    let gridOverrideStatusMirror = createNodeOverrideStatusMirror()
+    let cursorBackup = cursor
+    let markerBackup = marker
+    let perceptorBackup = perceptor
+    perceptor = nil
+
+    defer {
+      // 恢復所有乾操控前的狀態。
+      restoreFromNodeOverrideStatusMirror(gridOverrideStatusMirror)
+      assembledSentence = currentAssembledSentence
+      cursor = cursorBackup
+      marker = markerBackup
+      perceptor = perceptorBackup
+    }
+
+    // 嘗試在原位置覆寫候選字，若成功則評估回寫後的上下文邊界。
+    if (try? overrideCandidate(candidate, at: cursorPosition)) != nil {
+      assemble()
+      let range = assembledSentence.contextRange(ofGivenCursor: cursorPosition)
+      rearBoundaryEX = range.lowerBound
+      frontBoundaryEX = range.upperBound
+      debugIntelToPrint.append("EX: \(rearBoundaryEX)..<\(frontBoundaryEX), ")
+    }
+
+    // 與當前上下文邊界做比較，計算初步的鞏固範圍。
+    let initialRange = currentAssembledSentence.contextRange(ofGivenCursor: cursorPosition)
+    var rearBoundary = Swift.min(initialRange.lowerBound, rearBoundaryEX)
+    var frontBoundary = Swift.max(initialRange.upperBound, frontBoundaryEX)
+    debugIntelToPrint.append("INI: \(rearBoundary)..<\(frontBoundary), ")
+
+    // 向後計算
+    // 先往游標後方跳 Segment 以取得最靠後的安全邊界。
+    let cursorTempBackup = cursor
+    while cursor > rearBoundary {
+      try? jumpCursorBySegment(to: .rear)
+    }
+    rearBoundary = Swift.min(cursor, rearBoundary)
+
+    // 再往前跳 Segment，避免超出句子長度與範圍。
+    cursor = cursorTempBackup
+    while cursor < frontBoundary {
+      try? jumpCursorBySegment(to: .front)
+    }
+    frontBoundary = Swift.min(Swift.max(cursor, frontBoundary), length)
+    cursor = cursorTempBackup
+
+    debugIntelToPrint.append("FIN: \(rearBoundary)..<\(frontBoundary)")
+
+    return (rearBoundary ..< frontBoundary, debugIntelToPrint)
+  }
+
+  private func overrideNodeAsWhole(
+    _ node: Homa.GramInPath,
+    at startPosition: Int
+  ) throws(Homa.Exception) {
+    // 試圖以整個節點的候選配對一次覆寫到位。
+    let candidate = Homa.CandidatePair(
+      keyArray: node.keyArray,
+      value: node.value
+    )
+    firstAttempt: do {
+      try overrideCandidate(candidate, at: startPosition)
+      return
+    } catch {
+      break firstAttempt
+    }
+    // 若第一次覆寫失敗，改用強制重斷詞方式再嘗試一次。
+    try overrideCandidate(
+      candidate,
+      at: startPosition,
+      type: .withSpecified,
+      enforceRetokenization: true
+    )
   }
 }
