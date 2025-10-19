@@ -219,6 +219,136 @@ public struct LXTests4Perceptor {
     #expect(suggested == nil)
   }
 
+  @Test("[LXKit] Perceptor_BleachSpecifiedSuggestions_CandidateLevel")
+  func testBleachSpecifiedSuggestionsAtCandidateLevel() throws {
+    let perceptor = Perceptor(capacity: 10)
+    let timestamp = nowTimeStamp
+    let key1 = "(test1,測試1)&(key,鍵)&(target,目標1)"
+    let candidate1 = "目標1"
+    let key2 = "(test2,測試2)&(key,鍵)&(target,目標2)"
+    let candidate2 = "目標2"
+    let key3 = "(test3,測試3)&(key,鍵)&(target,目標3)"
+    let candidate3 = "目標3"
+
+    percept(who: perceptor, key: key1, candidate: candidate1, timestamp: timestamp)
+    percept(who: perceptor, key: key2, candidate: candidate2, timestamp: timestamp)
+    percept(who: perceptor, key: key3, candidate: candidate3, timestamp: timestamp)
+
+    #expect(
+      perceptor.getSuggestion(key: key1, timestamp: timestamp + 100)?.first?
+        .value == candidate1
+    )
+    #expect(
+      perceptor.getSuggestion(key: key2, timestamp: timestamp + 100)?.first?
+        .value == candidate2
+    )
+    #expect(
+      perceptor.getSuggestion(key: key3, timestamp: timestamp + 100)?.first?
+        .value == candidate3
+    )
+
+    perceptor.bleachSpecifiedSuggestions(candidateTargets: [candidate2])
+
+    #expect(
+      perceptor.getSuggestion(key: key1, timestamp: timestamp + 100)?.first?
+        .value == candidate1
+    )
+    #expect(perceptor.getSuggestion(key: key2, timestamp: timestamp + 100) == nil)
+    #expect(
+      perceptor.getSuggestion(key: key3, timestamp: timestamp + 100)?.first?
+        .value == candidate3
+    )
+  }
+
+  @Test("[LXKit] Perceptor_BleachSpecifiedSuggestions_MultipleOverrides")
+  func testBleachSpecifiedSuggestionsMultipleOverrides() throws {
+    let perceptor = Perceptor(capacity: 10)
+    let timestamp = nowTimeStamp
+    let key = "(test,測試)&(key,鍵)&(target,基底)"
+    let candidate1 = "目標A"
+    let candidate2 = "目標B"
+    let candidate3 = "目標C"
+
+    percept(who: perceptor, key: key, candidate: candidate1, timestamp: timestamp)
+    percept(who: perceptor, key: key, candidate: candidate2, timestamp: timestamp + 10)
+    percept(who: perceptor, key: key, candidate: candidate3, timestamp: timestamp + 20)
+
+    #expect(perceptor.getSuggestion(key: key, timestamp: timestamp + 100) != nil)
+
+    perceptor.bleachSpecifiedSuggestions(candidateTargets: [candidate2])
+
+    let overrides = try #require(
+      perceptor.getSavableData().first { $0.key == key }?.perception
+        .overrides
+    )
+    #expect(!overrides.keys.contains(candidate2))
+    #expect(overrides.keys.contains(candidate1))
+    #expect(overrides.keys.contains(candidate3))
+    #expect(overrides.count == 2)
+  }
+
+  @Test("[LXKit] Perceptor_BleachSpecifiedSuggestions_RemoveKeyWhenEmpty")
+  func testBleachSpecifiedSuggestionsRemovesKeyWhenAllOverridesRemoved() throws {
+    let perceptor = Perceptor(capacity: 10)
+    let timestamp = nowTimeStamp
+    let key = "(test,測試)&(key,鍵)&(target,基底)"
+    let candidate = "唯一目標"
+
+    percept(who: perceptor, key: key, candidate: candidate, timestamp: timestamp)
+    #expect(perceptor.getSuggestion(key: key, timestamp: timestamp + 100) != nil)
+
+    perceptor.bleachSpecifiedSuggestions(candidateTargets: [candidate])
+
+    #expect(perceptor.getSuggestion(key: key, timestamp: timestamp + 100) == nil)
+    #expect(perceptor.getSavableData().contains { $0.key == key } == false)
+  }
+
+  @Test("[LXKit] Perceptor_BleachSpecifiedSuggestions_Contextual")
+  func testBleachSpecifiedSuggestionsWithContextPairs() throws {
+    let perceptor = Perceptor(capacity: 10)
+    let timestamp = nowTimeStamp
+    let key1 = "(context1,上下文1)&(test,測試)&(target,共用目標)"
+    let key2 = "(context2,上下文2)&(test,測試)&(target,共用目標)"
+    let candidate = "共用目標"
+
+    percept(who: perceptor, key: key1, candidate: candidate, timestamp: timestamp)
+    percept(who: perceptor, key: key2, candidate: candidate, timestamp: timestamp)
+
+    #expect(
+      perceptor.getSuggestion(key: key1, timestamp: timestamp + 100)?.first?
+        .value == candidate
+    )
+    #expect(
+      perceptor.getSuggestion(key: key2, timestamp: timestamp + 100)?.first?
+        .value == candidate
+    )
+
+    perceptor.bleachSpecifiedSuggestions(targets: [(ngramKey: key1, candidate: candidate)])
+
+    #expect(perceptor.getSuggestion(key: key1, timestamp: timestamp + 100) == nil)
+    #expect(
+      perceptor.getSuggestion(key: key2, timestamp: timestamp + 100)?.first?
+        .value == candidate
+    )
+  }
+
+  @Test("[LXKit] Perceptor_BleachSpecifiedSuggestions_HeadReading")
+  func testBleachSpecifiedSuggestionsHeadReadingTargets() throws {
+    let perceptor = Perceptor(capacity: 10)
+    let timestamp = nowTimeStamp
+    let headReading = "ㄍㄡˇ"
+    let key = "(context,上下文)&(head,頭)&(\(headReading),狗)"
+    let otherKey = "(context,上下文)&(head,頭)&(ㄇㄠ,貓)"
+
+    percept(who: perceptor, key: key, candidate: "狗", timestamp: timestamp)
+    percept(who: perceptor, key: otherKey, candidate: "貓", timestamp: timestamp)
+
+    perceptor.bleachSpecifiedSuggestions(headReadingTargets: [headReading])
+
+    #expect(perceptor.getSuggestion(key: key, timestamp: timestamp + 100) == nil)
+    #expect(perceptor.getSuggestion(key: otherKey, timestamp: timestamp + 100)?.first?.value == "貓")
+  }
+
   @Test("[LXKit] Perceptor_Homa_Integration_test")
   func testIntegrationAgainstHoma() throws {
     let perceptor = Perceptor()

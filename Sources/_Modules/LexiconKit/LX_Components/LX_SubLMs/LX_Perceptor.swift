@@ -62,8 +62,6 @@ public final class Perceptor {
 
   // MARK: Private
 
-  private static let readingSeparator: Character = "-"
-
   private let lockQueue = DispatchQueue(
     label: "org.libVanguard.perceptor.lock.\(UUID().uuidString)"
   )
@@ -84,10 +82,17 @@ public final class Perceptor {
   }
 
   private func resetLRUListLocked() {
+    purgeUnderscorePrefixedKeysLocked()
     mutLRUKeySeqList =
       mutLRUMap
         .sorted { $0.value.latestTimeStamp > $1.value.latestTimeStamp }
         .map(\.key)
+  }
+
+  private func purgeUnderscorePrefixedKeysLocked() {
+    let invalidKeys = mutLRUMap.keys.filter { shouldIgnoreKey($0) }
+    guard !invalidKeys.isEmpty else { return }
+    invalidKeys.forEach { mutLRUMap.removeValue(forKey: $0) }
   }
 }
 
@@ -166,6 +171,7 @@ extension Perceptor {
     let key = perception.contextualizedGramKey
     let candidate = perception.candidate
     guard !key.isEmpty else { return }
+    guard !shouldIgnoreKey(key) else { return }
     withLock {
       if let thePair = mutLRUMap[key] {
         thePair.perception.update(candidate: candidate, timestamp: timestamp)
@@ -197,14 +203,82 @@ extension Perceptor {
     )
   }
 
-  public func bleachSpecifiedSuggestions(targets: [String]) {
+  public func bleachSpecifiedSuggestions(
+    targets: [(ngramKey: String, candidate: String)]
+  ) {
     guard !targets.isEmpty else { return }
     withLock {
-      let keysToRemove = mutLRUMap.keys.filter { key in
-        mutLRUMap[key]?.perception.overrides.keys.contains(where: { targets.contains($0) }) ?? false
+      var hasChanges = false
+      var keysToRemoveCompletely: [String] = []
+
+      for target in targets {
+        guard let pair = mutLRUMap[target.ngramKey] else { continue }
+        if pair.perception.overrides.removeValue(forKey: target.candidate) != nil {
+          hasChanges = true
+          if pair.perception.overrides.isEmpty {
+            keysToRemoveCompletely.append(target.ngramKey)
+          }
+        }
+      }
+
+      if !keysToRemoveCompletely.isEmpty {
+        keysToRemoveCompletely.forEach { mutLRUMap.removeValue(forKey: $0) }
+        hasChanges = true
+      }
+
+      if hasChanges {
+        resetLRUListLocked()
+      }
+    }
+  }
+
+  public func bleachSpecifiedSuggestions(candidateTargets: [String]) {
+    guard !candidateTargets.isEmpty else { return }
+    let targetSet = Set(candidateTargets)
+    withLock {
+      var hasChanges = false
+      var keysToRemoveCompletely: [String] = []
+
+      for key in mutLRUMap.keys {
+        guard let pair = mutLRUMap[key] else { continue }
+        let overridesToRemove = pair.perception.overrides.keys.filter { targetSet.contains($0) }
+        guard !overridesToRemove.isEmpty else { continue }
+
+        hasChanges = true
+        overridesToRemove.forEach { pair.perception.overrides.removeValue(forKey: $0) }
+        if pair.perception.overrides.isEmpty {
+          keysToRemoveCompletely.append(key)
+        }
+      }
+
+      if !keysToRemoveCompletely.isEmpty {
+        keysToRemoveCompletely.forEach { mutLRUMap.removeValue(forKey: $0) }
+      }
+
+      if hasChanges {
+        resetLRUListLocked()
+      }
+    }
+  }
+
+  public func bleachSpecifiedSuggestions(headReadingTargets: [String]) {
+    let targets = Set(headReadingTargets.filter { !$0.isEmpty })
+    guard !targets.isEmpty else { return }
+    withLock {
+      var hasChanges = false
+      var keysToRemove: [String] = []
+      for key in mutLRUMap.keys {
+        guard let parts = parsePerceptionKey(key) else { continue }
+        guard !shouldIgnorePerception(parts) else { continue }
+        if targets.contains(parts.headReading) {
+          keysToRemove.append(key)
+        }
       }
       if !keysToRemove.isEmpty {
+        hasChanges = true
         keysToRemove.forEach { mutLRUMap.removeValue(forKey: $0) }
+      }
+      if hasChanges {
         resetLRUListLocked()
       }
     }
@@ -212,7 +286,13 @@ extension Perceptor {
 
   public func bleachUnigrams() {
     withLock {
-      let keysToRemove = mutLRUMap.keys.filter { $0.contains("(),()") }
+      var keysToRemove: [String] = []
+      for key in mutLRUMap.keys {
+        guard let parts = parsePerceptionKey(key) else { continue }
+        if shouldIgnorePerception(parts) || (parts.prev1 == nil && parts.prev2 == nil) {
+          keysToRemove.append(key)
+        }
+      }
       if !keysToRemove.isEmpty {
         keysToRemove.forEach { mutLRUMap.removeValue(forKey: $0) }
         resetLRUListLocked()
@@ -243,7 +323,12 @@ extension Perceptor {
 
   public func loadData(from data: [KeyPerceptionPair]) {
     withLock {
-      mutLRUMap = Dictionary(uniqueKeysWithValues: data.map { ($0.key, $0) })
+      var newMap: [String: KeyPerceptionPair] = [:]
+      data.forEach { pair in
+        guard !shouldIgnoreKey(pair.key) else { return }
+        newMap[pair.key] = pair
+      }
+      mutLRUMap = newMap
       resetLRUListLocked()
       trimLRUIfNeededLocked()
     }
@@ -273,6 +358,7 @@ extension Perceptor {
   )
     -> [CandidateTuple]? {
     guard let parts = parsePerceptionKey(key) else { return nil }
+    guard !shouldIgnorePerception(parts) else { return nil }
     let frontEdgeReading = parts.headReading
     guard !frontEdgeReading.isEmpty else { return nil }
     guard !key.isEmpty, let kvPair = mutLRUMap[key] else { return nil }
@@ -317,6 +403,7 @@ extension Perceptor {
 
   fileprivate func _alternateKeys(for originalKey: String) -> [String] {
     guard let originalParts = parsePerceptionKey(originalKey) else { return [] }
+    guard !shouldIgnorePerception(originalParts) else { return [] }
     let headSegments = splitReadingSegments(originalParts.headReading)
     let primaryHeadCandidates: Set<String> = {
       guard let firstSegment = headSegments.first else { return [] }
@@ -329,6 +416,7 @@ extension Perceptor {
     var results: [String] = []
     for keyCandidate in mutLRUKeySeqList {
       guard let candidateParts = parsePerceptionKey(keyCandidate) else { continue }
+      guard !shouldIgnorePerception(candidateParts) else { continue }
       guard compareContextPart(candidateParts.prev1, originalParts.prev1) else { continue }
       guard compareContextPart(candidateParts.prev2, originalParts.prev2) else { continue }
       let candidateHeadSegments = splitReadingSegments(candidateParts.headReading)
@@ -362,10 +450,7 @@ extension Perceptor {
   }
 
   private func splitReadingSegments(_ reading: String) -> [String] {
-    reading
-      .split(separator: Self.readingSeparator)
-      .map(String.init)
-      .filter { !$0.isEmpty }
+    readingSegments(from: reading)
   }
 
   fileprivate func parsePerceptionKey(_ key: String) -> PerceptionKeyParts? {
@@ -476,6 +561,32 @@ extension Perceptor {
     default:
       false
     }
+  }
+
+  private func shouldIgnorePerception(_ parts: PerceptionKeyParts) -> Bool {
+    let readings = [parts.headReading, parts.prev1?.reading, parts.prev2?.reading]
+      .compactMap { $0 }
+    return readings.contains { containsUnderscorePrefixedReading($0) }
+  }
+
+  private func shouldIgnoreKey(_ key: String) -> Bool {
+    guard let parts = parsePerceptionKey(key) else { return false }
+    return shouldIgnorePerception(parts)
+  }
+
+  private func containsUnderscorePrefixedReading(_ reading: String) -> Bool {
+    readingSegments(from: reading).contains { $0.hasPrefix("_") }
+  }
+
+  private func readingSegments(from reading: String) -> [String] {
+    let trimmed = reading.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return [] }
+    let separator = "-"
+    if separator.isEmpty { return [trimmed] }
+    return trimmed
+      .components(separatedBy: separator)
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .filter { !$0.isEmpty }
   }
 }
 
