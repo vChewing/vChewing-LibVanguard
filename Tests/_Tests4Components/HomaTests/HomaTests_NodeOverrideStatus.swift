@@ -23,6 +23,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let uuidString = uuid1.uuidString()
     #expect(uuidString.count == 36)
     #expect(uuidString.contains("-"))
+    #expect(uuidString.allSatisfy { $0 == "-" || $0.isHexDigit })
 
     let encoded = try JSONEncoder().encode(uuid1)
     let decoded = try JSONDecoder().decode(FIUUID.self, from: encoded)
