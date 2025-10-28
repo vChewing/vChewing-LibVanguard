@@ -64,7 +64,7 @@ extension Homa {
       }
 
       // 回溯構建最佳路徑
-      var result: [Homa.GramInPath] = []
+      var resultReversed: [Homa.GramInPath] = []
       var currentPos = keyCount
 
       // 從終點開始回溯
@@ -72,14 +72,15 @@ extension Homa {
         guard let parentInfo = parent[currentPos] else { break }
         guard let gram = parentInfo.gram else { break }
 
-        result.insert(
-          .init(gram: gram, isOverridden: parentInfo.isOverridden),
-          at: 0
+        resultReversed.append(
+          .init(gram: gram, isOverridden: parentInfo.isOverridden)
         )
         currentPos -= gram.keyArray.count
       }
 
-      newAssembledSentence = result
+      if !resultReversed.isEmpty {
+        newAssembledSentence = resultReversed.reversed()
+      }
     }
   }
 }
