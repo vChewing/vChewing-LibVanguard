@@ -358,9 +358,9 @@ extension Array where Element == Homa.GramInPath {
       return "(\(reading),\(pair.value))"
     }
 
-    guard let headIndex = lastIndex(where: { $0.gram === headPair.gram })
-      ?? firstIndex(of: headPair)
-    else { return nil }
+    let headIndex = lastIndex(where: { $0.gram.id == headPair.gram.id })
+      ?? lastIndex(where: { $0 == headPair })
+    guard let headIndex else { return nil }
 
     var resultCells = [String](repeating: placeholder, count: maxContext)
     resultCells[maxContext - 1] = combinedString(for: headPair) ?? placeholder

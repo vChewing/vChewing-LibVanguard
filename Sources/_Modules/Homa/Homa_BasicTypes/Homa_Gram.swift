@@ -6,11 +6,12 @@
 
 extension Homa {
   /// 進階組字引擎專屬的語法單位類型，支援單元語法與雙元語法結構。
-  /// - Remark: 進階組字引擎所運用的雙元語法資料不包含讀音資訊。此處刻意採用 class 而非 struct 設計，是因為其記憶體位址具有特殊用途。
-  public final class Gram: Codable, CustomStringConvertible, Equatable, Sendable, Hashable {
+  /// - Remark: 進階組字引擎所運用的雙元語法資料 `previous` 不包含讀音資訊。
+  public struct Gram: Codable, CustomStringConvertible, Equatable, Sendable, Hashable {
     // MARK: Lifecycle
 
-    public init(_ rawTuple: GramRAW, backoff: Double = 0) {
+    public init(_ rawTuple: GramRAW, backoff: Double = 0, id: FIUUID = .init()) {
+      self.id = id
       self.keyArray = rawTuple.keyArray
       self.current = rawTuple.value
       if let previous = rawTuple.previous, !previous.isEmpty {
@@ -27,15 +28,17 @@ extension Homa {
       current: String,
       previous: String? = nil,
       probability: Double = 0,
-      backoff: Double = 0
+      backoff: Double = 0,
+      id: FIUUID = .init()
     ) {
+      self.id = id
       self.keyArray = keyArray
-      self.current = current
       if let previous, !previous.isEmpty {
         self.previous = previous
       } else {
         self.previous = nil
       }
+      self.current = current
       self.probability = probability
       self.backoff = backoff
     }
@@ -47,10 +50,13 @@ extension Homa {
       self.previous = try container.decodeIfPresent(String.self, forKey: .previous)
       self.probability = try container.decode(Double.self, forKey: .probability)
       self.backoff = try container.decode(Double.self, forKey: .backoff)
+      self.id = .init()
     }
 
     // MARK: Public
 
+    /// 元圖識別碼。
+    public let id: FIUUID
     public let keyArray: [String]
     public let current: String
     public let previous: String?
@@ -79,7 +85,7 @@ extension Homa {
       )
     }
 
-    public var copy: Gram {
+    public var copy: Self {
       .init(
         keyArray: keyArray,
         current: current,
@@ -100,7 +106,11 @@ extension Homa {
     }
 
     public static func == (lhs: Homa.Gram, rhs: Homa.Gram) -> Bool {
-      lhs.hashValue == rhs.hashValue
+      lhs.keyArray == rhs.keyArray &&
+        lhs.current == rhs.current &&
+        lhs.previous == rhs.previous &&
+        lhs.probability == rhs.probability &&
+        lhs.backoff == rhs.backoff
     }
 
     public func describe(keySeparator: String) -> String {

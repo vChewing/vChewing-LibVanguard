@@ -630,11 +630,11 @@ public struct HomaTestsAdvanced: HomaTestSuite {
 
     struct CandidateIdentity: Hashable {
       let pair: Homa.CandidatePair
-      let gramID: ObjectIdentifier
+      let gramID: FIUUID
 
       init(pair: Homa.CandidatePair, gram: Homa.Gram) {
         self.pair = pair
-        self.gramID = ObjectIdentifier(gram)
+        self.gramID = gram.id
       }
 
       func hash(into hasher: inout Hasher) {
@@ -647,7 +647,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
 
       var debugSummary: String {
         let keys = pair.keyArray.joined(separator: "-")
-        return "\(pair.value) (\(keys)) @ \(String(describing: gramID))"
+        return "\(pair.value) (\(keys)) @ \(gramID.uuidString())"
       }
     }
 
