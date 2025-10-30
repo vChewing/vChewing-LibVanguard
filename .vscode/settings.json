@@ -5,12 +5,14 @@
     ".build": true,
     ".swiftpm": true,
     "sqlite3.h": true,
-    "CSQLite3": true,
+    "CSQLite3/Sources/CSQLite3/include/sqlite3.h": true,
+    "CSQLite3/Sources/CSQLite3/sqlite3.c": true
   },
   "search.exclude": {
     ".build": true,
     ".swiftpm": true,
     "sqlite3.h": true,
-    "CSQLite3": true
+    "CSQLite3/Sources/CSQLite3/include/sqlite3.h": true,
+    "CSQLite3/Sources/CSQLite3/sqlite3.c": true
   }
 }
