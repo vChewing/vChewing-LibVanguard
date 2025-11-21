@@ -185,10 +185,11 @@ extension Homa {
     /// 如果是朝著與文字輸入方向相反的方向砍的話，游標位置會自動遞減。
     /// - Parameter direction: 指定方向（相對於文字輸入方向而言）。
     public func dropKey(direction: TypingDirection) throws(Homa.Exception) {
-      let isBackSpace: Bool = direction == .rear ? true : false
-      guard cursor != (isBackSpace ? 0 : keys.count) else {
+      guard !keys.isEmpty else { throw .assemblerIsEmpty }
+      guard !isCursorAtEdge(direction: direction) else {
         throw .deleteKeyAgainstBorder
       }
+      let isBackSpace: Bool = direction == .rear ? true : false
       keys.remove(at: cursor - (isBackSpace ? 1 : 0))
       cursor -= isBackSpace ? 1 : 0 // 在縮節之前。
       resizeGrid(at: cursor, do: .shrink)
