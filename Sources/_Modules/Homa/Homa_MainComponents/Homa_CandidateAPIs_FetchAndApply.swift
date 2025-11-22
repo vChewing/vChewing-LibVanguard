@@ -319,6 +319,29 @@ extension Homa.Assembler {
     return results
   }
 
+  /// 清除此游標位置所涉及節點的覆寫狀態，可選擇保留使用者明確覆寫過的節點。
+  /// - Parameters:
+  ///   - location: 要處理的游標位置（會自動夾限於有效鍵長範圍內）。
+  ///   - preservingExplicit: 若為 true，則保留使用者明確覆寫的節點。
+  public func clearOverrideStatus(at location: Int, preservingExplicit: Bool = true) {
+    guard !keys.isEmpty else { return }
+    let clampedLocation = max(0, min(location, keys.count - 1))
+    let overlappingNodes = fetchOverlappingNodes(at: clampedLocation)
+    guard !overlappingNodes.isEmpty else { return }
+    overlappingNodes.forEach { anchor in
+      guard anchor.node.isOverridden else { return }
+      if preservingExplicit, anchor.node.isExplicitlyOverridden {
+        return
+      }
+      anchor.node.overrideStatus = .init(
+        overridingScore: anchor.node.overridingScore,
+        currentOverrideType: nil,
+        isExplicitlyOverridden: false,
+        currentGramIndex: anchor.node.currentGramIndex
+      )
+    }
+  }
+
   /// 要在 fetchOverlappingNodes() 內使用的一個工具函式。
   /// 按照節點幅節長度排序插入節點錨點。
   /// - Parameters:
