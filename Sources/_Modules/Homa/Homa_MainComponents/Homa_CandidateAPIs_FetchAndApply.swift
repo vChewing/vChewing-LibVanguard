@@ -82,6 +82,7 @@ extension Homa.Assembler {
     _ candidate: Homa.CandidatePair,
     at location: Int,
     type overrideType: Homa.Node.OverrideType = .withSpecified,
+    isExplicitlyOverridden: Bool = false,
     enforceRetokenization: Bool = false,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
   ) throws(Homa.Exception) {
@@ -91,6 +92,7 @@ extension Homa.Assembler {
       value: candidate.value,
       score: candidate.score,
       type: overrideType,
+      isExplicitlyOverridden: isExplicitlyOverridden,
       enforceRetokenization: enforceRetokenization,
       perceptionHandler: perceptionHandler
     )
@@ -108,6 +110,7 @@ extension Homa.Assembler {
     _ candidate: String,
     at location: Int,
     overrideType type: Homa.Node.OverrideType = .withSpecified,
+    isExplicitlyOverridden: Bool = false,
     enforceRetokenization: Bool = false,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
   ) throws(Homa.Exception) {
@@ -117,6 +120,7 @@ extension Homa.Assembler {
       value: candidate,
       score: nil,
       type: type,
+      isExplicitlyOverridden: isExplicitlyOverridden,
       enforceRetokenization: enforceRetokenization,
       perceptionHandler: perceptionHandler
     )
@@ -138,6 +142,7 @@ extension Homa.Assembler {
     value: String,
     score specifiedScore: Double? = nil,
     type: Homa.Node.OverrideType,
+    isExplicitlyOverridden: Bool,
     enforceRetokenization: Bool,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
   ) throws(Homa.Exception) {
@@ -180,6 +185,7 @@ extension Homa.Assembler {
           anchor.node.overrideStatus = .init(
             overridingScore: desiredScore,
             currentOverrideType: .withSpecified,
+            isExplicitlyOverridden: isExplicitlyOverridden,
             currentUnigramIndex: anchor.node.currentGramIndex
           )
         }
@@ -232,6 +238,7 @@ extension Homa.Assembler {
           anchor.node.overrideStatus = .init(
             overridingScore: demotionScore,
             currentOverrideType: .withSpecified,
+            isExplicitlyOverridden: anchor.node.isExplicitlyOverridden,
             currentUnigramIndex: anchor.node.currentGramIndex
           )
         }

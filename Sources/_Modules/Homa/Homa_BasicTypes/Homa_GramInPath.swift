@@ -12,15 +12,21 @@ extension Homa {
   public struct GramInPath: Codable, Hashable, Sendable {
     // MARK: Lifecycle
 
-    public init(gram: Gram, isOverridden: Bool) {
+    public init(
+      gram: Gram,
+      isOverridden: Bool,
+      isExplicitlyOverridden: Bool = false
+    ) {
       self.gram = gram
       self.isOverridden = isOverridden
+      self.isExplicitlyOverridden = isExplicitlyOverridden
     }
 
     // MARK: Public
 
     public let gram: Gram
     public let isOverridden: Bool
+    public let isExplicitlyOverridden: Bool
 
     public var value: String { gram.current }
     public var score: Double { gram.probability }
