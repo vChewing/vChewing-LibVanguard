@@ -186,7 +186,7 @@ extension Homa.Assembler {
             overridingScore: desiredScore,
             currentOverrideType: .withSpecified,
             isExplicitlyOverridden: isExplicitlyOverridden,
-            currentUnigramIndex: anchor.node.currentGramIndex
+            currentGramIndex: anchor.node.currentGramIndex
           )
         }
         overridden = anchor
@@ -239,7 +239,7 @@ extension Homa.Assembler {
             overridingScore: demotionScore,
             currentOverrideType: .withSpecified,
             isExplicitlyOverridden: anchor.node.isExplicitlyOverridden,
-            currentUnigramIndex: anchor.node.currentGramIndex
+            currentGramIndex: anchor.node.currentGramIndex
           )
         }
         continue

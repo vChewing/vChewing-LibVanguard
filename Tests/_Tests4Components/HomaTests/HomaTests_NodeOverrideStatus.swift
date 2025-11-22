@@ -36,17 +36,17 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let defaultStatus = Homa.NodeOverrideStatus()
     #expect(defaultStatus.overridingScore == 114_514)
     #expect(defaultStatus.currentOverrideType == nil)
-    #expect(defaultStatus.currentUnigramIndex == 0)
+    #expect(defaultStatus.currentGramIndex == 0)
 
     // Test custom initialization
     let customStatus = Homa.NodeOverrideStatus(
       overridingScore: 999.0,
       currentOverrideType: .withSpecified,
-      currentUnigramIndex: 5
+      currentGramIndex: 5
     )
     #expect(customStatus.overridingScore == 999.0)
     #expect(customStatus.currentOverrideType == .withSpecified)
-    #expect(customStatus.currentUnigramIndex == 5)
+    #expect(customStatus.currentGramIndex == 5)
   }
 
   @Test("NodeOverrideStatus Equality")
@@ -54,19 +54,19 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let status1 = Homa.NodeOverrideStatus(
       overridingScore: 100.0,
       currentOverrideType: .withTopGramScore,
-      currentUnigramIndex: 2
+      currentGramIndex: 2
     )
 
     let status2 = Homa.NodeOverrideStatus(
       overridingScore: 100.0,
       currentOverrideType: .withTopGramScore,
-      currentUnigramIndex: 2
+      currentGramIndex: 2
     )
 
     let status3 = Homa.NodeOverrideStatus(
       overridingScore: 200.0,
       currentOverrideType: .withTopGramScore,
-      currentUnigramIndex: 2
+      currentGramIndex: 2
     )
 
     #expect(status1 == status2)
@@ -88,7 +88,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let initialStatus = node.overrideStatus
     #expect(initialStatus.overridingScore == 114_514)
     #expect(initialStatus.currentOverrideType == nil)
-    #expect(initialStatus.currentUnigramIndex == 0)
+    #expect(initialStatus.currentGramIndex == 0)
 
     // Verify selecting an override promotes the overriding score to the baseline constant.
     node.overridingScore = 42
@@ -108,7 +108,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let newStatus = Homa.NodeOverrideStatus(
       overridingScore: 500.0,
       currentOverrideType: .withSpecified,
-      currentUnigramIndex: 1
+      currentGramIndex: 1
     )
     node.overrideStatus = newStatus
 
@@ -120,7 +120,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let updatedStatus = node.overrideStatus
     #expect(updatedStatus.overridingScore == 500.0)
     #expect(updatedStatus.currentOverrideType == .withSpecified)
-    #expect(updatedStatus.currentUnigramIndex == 1)
+    #expect(updatedStatus.currentGramIndex == 1)
   }
 
   @Test("NodeOverrideStatus Overflow Protection")
@@ -134,7 +134,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let overflowStatus = Homa.NodeOverrideStatus(
       overridingScore: 100.0,
       currentOverrideType: .withSpecified,
-      currentUnigramIndex: 999
+      currentGramIndex: 999
     )
 
     node.overrideStatus = overflowStatus
@@ -179,7 +179,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
         node.overrideStatus = Homa.NodeOverrideStatus(
           overridingScore: 777.0,
           currentOverrideType: .withSpecified,
-          currentUnigramIndex: 0
+          currentGramIndex: 0
         )
         modifiedNodeId = node.id
         break outerLoop
@@ -272,7 +272,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let status = Homa.NodeOverrideStatus(
       overridingScore: 123.45,
       currentOverrideType: .withTopGramScore,
-      currentUnigramIndex: 3
+      currentGramIndex: 3
     )
 
     // Test encoding
@@ -283,6 +283,6 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
 
     #expect(decoded.overridingScore == 123.45)
     #expect(decoded.currentOverrideType == .withTopGramScore)
-    #expect(decoded.currentUnigramIndex == 3)
+    #expect(decoded.currentGramIndex == 3)
   }
 }

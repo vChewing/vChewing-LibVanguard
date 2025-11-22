@@ -94,15 +94,15 @@ extension Homa {
           overridingScore: overridingScore,
           currentOverrideType: currentOverrideType,
           isExplicitlyOverridden: isExplicitlyOverridden,
-          currentUnigramIndex: currentGramIndex
+          currentGramIndex: currentGramIndex
         )
       }
       set {
         overridingScore = newValue.overridingScore
         // 防範 GramIndex 溢出，如果溢出則重設覆寫狀態
-        if newValue.currentUnigramIndex >= 0, newValue.currentUnigramIndex < grams.count {
+        if newValue.currentGramIndex >= 0, newValue.currentGramIndex < grams.count {
           currentOverrideType = newValue.currentOverrideType
-          currentGramIndex = newValue.currentUnigramIndex
+          currentGramIndex = newValue.currentGramIndex
           isExplicitlyOverridden = newValue.isExplicitlyOverridden
         } else {
           reset()
@@ -242,7 +242,7 @@ extension Homa.Node {
   }
 
   /// 置換掉該節點內的元圖陣列資料。
-  /// 如果此時影響到了 currentUnigramIndex 所指的內容的話，則將其重設為 0。
+  /// 如果此時影響到了 currentGramIndex 所指的內容的話，則將其重設為 0。
   /// - Parameter source: 新的元圖陣列資料，必須不能為空（否則必定崩潰）。
   internal func syncingGrams(from source: [Homa.Gram]) {
     let oldCurrentValue = grams[currentGramIndex].current
@@ -306,17 +306,17 @@ extension Homa {
     /// - Parameters:
     ///   - overridingScore: 覆寫分數。
     ///   - currentOverrideType: 當前覆寫類型。
-    ///   - currentUnigramIndex: 當前單元圖索引。
+    ///   - currentGramIndex: 當前單元圖索引。
     public init(
       overridingScore: Double = 114_514,
       currentOverrideType: Homa.Node.OverrideType? = nil,
       isExplicitlyOverridden: Bool = false,
-      currentUnigramIndex: Int = 0
+      currentGramIndex: Int = 0
     ) {
       self.overridingScore = overridingScore
       self.currentOverrideType = currentOverrideType
       self.isExplicitlyOverridden = isExplicitlyOverridden
-      self.currentUnigramIndex = currentUnigramIndex
+      self.currentGramIndex = currentGramIndex
     }
 
     // MARK: Public
@@ -326,7 +326,7 @@ extension Homa {
     /// 當前覆寫類型。
     public var currentOverrideType: Homa.Node.OverrideType?
     /// 當前單元圖索引。
-    public var currentUnigramIndex: Int
+    public var currentGramIndex: Int
     /// 使用者是否明確覆寫（explicit override）
     public var isExplicitlyOverridden: Bool
   }
