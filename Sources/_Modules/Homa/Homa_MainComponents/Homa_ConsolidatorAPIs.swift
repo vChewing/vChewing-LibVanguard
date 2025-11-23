@@ -120,6 +120,16 @@ extension Homa.Assembler {
     }
   }
 
+  /// 計算在執行候選字鞏固（consolidate）時需要鎖定的上下文邊界範圍。
+  ///
+  /// 此函式會模擬一次候選字覆寫（在暫存鏡像上執行，不會變更真實狀態），
+  /// 並根據覆寫前後的差異來決定一個安全的鞏固範圍，確保只會影響必要的相關節點，
+  /// 避免在鞏固候選時對其他無關位置產生不必要的改變（例如導致某些詞被錯誤 re-tokenize）。
+  ///
+  /// - Parameters:
+  ///   - candidate: 被覆寫的候選配對（keyArray + value）。
+  ///   - cursorPosition: 實際用於覆寫的游標位置（邏輯位置）。
+  /// - Returns: 回傳一個 Range<Int> 表示要被鞏固的字元索引範圍，以及 debug 相關字串資訊。
   private func calculateConsolidationBoundaries(
     for candidate: Homa.CandidatePair,
     cursorPosition: Int
@@ -183,6 +193,15 @@ extension Homa.Assembler {
     return (rearBoundary ..< frontBoundary, debugIntelToPrint)
   }
 
+  /// 嘗試將完整節點內容一次性覆寫（整段覆寫法）。
+  ///
+  /// 函式會先嘗試一次性覆寫；若失敗，會嘗試使用指定覆寫類型並強制 retokenize，
+  /// 以提高覆寫成功率。若仍失敗，會將錯誤拋回給呼叫端處理。
+  ///
+  /// - Parameters:
+  ///   - node: 要覆寫的 GramInPath 節點。
+  ///   - startPosition: 該節點在鍵軸中的起始位置（游標位置）。
+  /// - Throws: 覆寫失敗時會拋出 Homa.Exception。
   private func overrideNodeAsWhole(
     _ node: Homa.GramInPath,
     at startPosition: Int

@@ -3,6 +3,13 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 extension StringProtocol {
+  /// 檢查字串中是否包含指定子字串（純 Swift 實作，無 Foundation 相依）。
+  ///
+  /// - Parameters:
+  ///   - target: 要查找的子字串。
+  /// - Returns: 如果包含則回傳 true，否則回傳 false。
+  ///
+  /// 注意：此方法以 Unicode Scalar 為單位進行比對，對一些複雜合字或合成字情況可能與 Foundation 的 `contains` 行為略有不同。
   func has(string target: any StringProtocol) -> Bool {
     let selfArray = Array(unicodeScalars)
     let targetArray = Array(target.description.unicodeScalars)
