@@ -95,7 +95,7 @@ extension Homa.Assembler {
     let newIndex = calculateNextCandidateIndex(
       candidates: candidates,
       currentPair: currentPair,
-      isNodeOverridden: currentGramInPath.isOverridden,
+      isExplicitOverride: currentGramInPath.isExplicit,
       counterClockwise: counterClockwise
     )
 
@@ -123,7 +123,11 @@ extension Homa.Assembler {
       }
 
       // 覆寫候選字並重新組裝
-      try overrideCandidate(theCandidateNow.pair, at: candidateCursorPos)
+      try overrideCandidate(
+        theCandidateNow.pair,
+        at: candidateCursorPos,
+        isExplicitlyOverridden: true
+      )
 
       let currentSentence = assembledSentence
       if previousSentence.map(\.value) != currentSentence.map(\.value) {
@@ -162,13 +166,13 @@ extension Homa.Assembler {
   /// - Parameters:
   ///   - candidates: 候選字列表
   ///   - currentPaired: 當前配對
-  ///   - isNodeOverridden: 節點是否已覆寫
+  ///   - isExplicitOverride: 節點是否為使用者明確覆寫
   ///   - counterClockwise: 是否逆時針旋轉
   /// - Returns: 新的候選字索引
   private func calculateNextCandidateIndex(
     candidates: [Homa.CandidatePairWeighted],
     currentPair: Homa.CandidatePair,
-    isNodeOverridden: Bool,
+    isExplicitOverride: Bool,
     counterClockwise: Bool
   )
     -> Int {
@@ -178,7 +182,7 @@ extension Homa.Assembler {
     let candidatePairs = candidates.map(\.pair)
 
     // 遇到非覆寫節點的情況，可簡便處理。
-    guard isNodeOverridden else {
+    guard isExplicitOverride else {
       // 如果當前遇到的不是第一個候選字的話，則返回 0 以重設選擇。
       guard let firstCandidate = candidatePairs.first,
             firstCandidate == currentPair else { return 0 }

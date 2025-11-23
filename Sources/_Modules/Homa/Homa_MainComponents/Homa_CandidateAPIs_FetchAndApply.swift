@@ -77,11 +77,13 @@ extension Homa.Assembler {
   ///   - candidate: 指定用來覆寫為的候選字（詞音鍵值配對）。
   ///   - location: 游標位置。
   ///   - overrideType: 指定覆寫行為。
+  ///   - isExplicitlyOverridden: 是否視為使用者明確覆寫，而非自動機制。
   /// - Throws: 如果沒有找到相符的節點或無法覆寫，拋出適當的異常。
   public func overrideCandidate(
     _ candidate: Homa.CandidatePair,
     at location: Int,
     type overrideType: Homa.Node.OverrideType = .withSpecified,
+    isExplicitlyOverridden: Bool = false,
     enforceRetokenization: Bool = false,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
   ) throws(Homa.Exception) {
@@ -91,6 +93,7 @@ extension Homa.Assembler {
       value: candidate.value,
       score: candidate.score,
       type: overrideType,
+      isExplicitlyOverridden: isExplicitlyOverridden,
       enforceRetokenization: enforceRetokenization,
       perceptionHandler: perceptionHandler
     )
@@ -103,11 +106,13 @@ extension Homa.Assembler {
   ///   - candidate: 指定用來覆寫為的候選字（字串）。
   ///   - location: 游標位置。
   ///   - overrideType: 指定覆寫行為。
+  ///   - isExplicitlyOverridden: 是否視為使用者明確覆寫，而非自動機制。
   /// - Returns: 該操作是否成功執行。
   public func overrideCandidateLiteral(
     _ candidate: String,
     at location: Int,
     overrideType type: Homa.Node.OverrideType = .withSpecified,
+    isExplicitlyOverridden: Bool = false,
     enforceRetokenization: Bool = false,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
   ) throws(Homa.Exception) {
@@ -117,6 +122,7 @@ extension Homa.Assembler {
       value: candidate,
       score: nil,
       type: type,
+      isExplicitlyOverridden: isExplicitlyOverridden,
       enforceRetokenization: enforceRetokenization,
       perceptionHandler: perceptionHandler
     )
@@ -138,6 +144,7 @@ extension Homa.Assembler {
     value: String,
     score specifiedScore: Double? = nil,
     type: Homa.Node.OverrideType,
+    isExplicitlyOverridden: Bool,
     enforceRetokenization: Bool,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
   ) throws(Homa.Exception) {
@@ -180,6 +187,7 @@ extension Homa.Assembler {
           anchor.node.overrideStatus = .init(
             overridingScore: desiredScore,
             currentOverrideType: .withSpecified,
+            isExplicitlyOverridden: isExplicitlyOverridden,
             currentUnigramIndex: anchor.node.currentGramIndex
           )
         }
@@ -232,6 +240,7 @@ extension Homa.Assembler {
           anchor.node.overrideStatus = .init(
             overridingScore: demotionScore,
             currentOverrideType: .withSpecified,
+            isExplicitlyOverridden: anchor.node.isExplicitlyOverridden,
             currentUnigramIndex: anchor.node.currentGramIndex
           )
         }

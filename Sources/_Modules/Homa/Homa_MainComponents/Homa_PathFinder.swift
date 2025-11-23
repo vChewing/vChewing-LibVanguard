@@ -20,6 +20,8 @@ extension Homa.Assembler {
 
 extension Homa {
   final class PathFinder {
+    // MARK: Lifecycle
+
     /// 組句工具，會以 DAG 動態規劃演算法更新當前組字器的 assembledSentence。
     ///
     /// 該演算法使用動態規劃在有向無環圖中尋找具有最高分數的路徑，即最可能的字詞組合。
@@ -34,8 +36,8 @@ extension Homa {
 
       // 動態規劃陣列：dp[i] 表示到位置 i 的最佳分數
       var dp = [Double](repeating: Double(Int32.min), count: keyCount + 1)
-      // 回溯陣列：parent[i] 記錄到達位置 i 的最佳前驅節點和覆蓋狀態
-      var parent = [(gram: Homa.Gram?, isOverridden: Bool)?](repeating: nil, count: keyCount + 1)
+      // 回溯陣列：parent[i] 記錄到達位置 i 的最佳前驅節點和使用者刻意覆蓋之狀態
+      var parent = [GramState?](repeating: nil, count: keyCount + 1)
 
       // 起始狀態
       dp[0] = 0
@@ -58,7 +60,7 @@ extension Homa {
           // 如果找到更好的路徑，更新 dp 和 parent
           if newScore > dp[nextPos] {
             dp[nextPos] = newScore
-            parent[nextPos] = (gram: nextGram, isOverridden: nextNode.isOverridden)
+            parent[nextPos] = (nextGram, nextNode.isExplicitlyOverridden)
           }
         }
       }
@@ -73,7 +75,7 @@ extension Homa {
         guard let gram = parentInfo.gram else { break }
 
         resultReversed.append(
-          .init(gram: gram, isOverridden: parentInfo.isOverridden)
+          .init(gram: gram, isExplicit: parentInfo.isExplicit)
         )
         currentPos -= gram.keyArray.count
       }
@@ -82,5 +84,9 @@ extension Homa {
         newAssembledSentence = resultReversed.reversed()
       }
     }
+
+    // MARK: Private
+
+    private typealias GramState = (gram: Homa.Gram?, isExplicit: Bool)
   }
 }

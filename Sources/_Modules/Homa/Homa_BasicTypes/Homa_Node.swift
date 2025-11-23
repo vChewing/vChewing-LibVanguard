@@ -58,6 +58,7 @@ extension Homa {
       self.grams = node.grams
       self.bigramMap = node.bigramMap
       self.currentOverrideType = node.currentOverrideType
+      self.isExplicitlyOverridden = node.isExplicitlyOverridden
       self.currentGramIndex = node.currentGramIndex
     }
 
@@ -83,6 +84,8 @@ extension Homa {
     public private(set) var bigramMap: [String: [Homa.Gram]]
     /// 該節點目前的覆寫狀態種類。
     public private(set) var currentOverrideType: OverrideType?
+    /// 是否為使用者明確覆寫（explicit override）、而非出於自動機制進行的複寫。
+    public private(set) var isExplicitlyOverridden: Bool = false
 
     /// 節點覆寫狀態。
     public var overrideStatus: Homa.NodeOverrideStatus {
@@ -90,11 +93,13 @@ extension Homa {
         .init(
           overridingScore: overridingScore,
           currentOverrideType: currentOverrideType,
+          isExplicitlyOverridden: isExplicitlyOverridden,
           currentUnigramIndex: currentGramIndex
         )
       }
       set {
         overridingScore = newValue.overridingScore
+        isExplicitlyOverridden = newValue.isExplicitlyOverridden
         // 防範 GramIndex 溢出，如果溢出則重設覆寫狀態
         if newValue.currentUnigramIndex >= 0, newValue.currentUnigramIndex < grams.count {
           currentOverrideType = newValue.currentOverrideType
@@ -135,6 +140,7 @@ extension Homa.Node: Hashable {
     hasher.combine(grams)
     hasher.combine(bigramMap)
     hasher.combine(currentOverrideType)
+    hasher.combine(isExplicitlyOverridden)
     hasher.combine(currentGramIndex)
     hasher.combine(allActualKeyArraysCached)
   }
@@ -151,6 +157,7 @@ extension Homa.Node: Equatable {
       lhs.bigramMap == rhs.bigramMap &&
       lhs.currentOverrideType == rhs.currentOverrideType &&
       lhs.currentGramIndex == rhs.currentGramIndex &&
+      lhs.isExplicitlyOverridden == rhs.isExplicitlyOverridden &&
       lhs.allActualKeyArraysCached == rhs.allActualKeyArraysCached
   }
 }
@@ -234,6 +241,7 @@ extension Homa.Node {
   internal func reset() {
     currentGramIndex = 0
     currentOverrideType = nil
+    isExplicitlyOverridden = false
   }
 
   /// 置換掉該節點內的元圖陣列資料。
@@ -285,7 +293,7 @@ extension Array where Element == Homa.Node {
   var asGramChain: [Homa.GramInPath] {
     compactMap { node in
       guard let gram = node.currentGram else { return nil }
-      return .init(gram: gram, isOverridden: node.isOverridden)
+      return .init(gram: gram, isExplicit: node.isExplicitlyOverridden)
     }
   }
 }
@@ -305,10 +313,12 @@ extension Homa {
     public init(
       overridingScore: Double = 114_514,
       currentOverrideType: Homa.Node.OverrideType? = nil,
+      isExplicitlyOverridden: Bool = false,
       currentUnigramIndex: Int = 0
     ) {
       self.overridingScore = overridingScore
       self.currentOverrideType = currentOverrideType
+      self.isExplicitlyOverridden = isExplicitlyOverridden
       self.currentUnigramIndex = currentUnigramIndex
     }
 
@@ -318,6 +328,8 @@ extension Homa {
     public var overridingScore: Double
     /// 當前覆寫類型。
     public var currentOverrideType: Homa.Node.OverrideType?
+    /// 使用者是否明確覆寫（explicit override）。
+    public var isExplicitlyOverridden: Bool
     /// 當前單元圖索引。
     public var currentUnigramIndex: Int
   }

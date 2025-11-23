@@ -37,6 +37,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     #expect(defaultStatus.overridingScore == 114_514)
     #expect(defaultStatus.currentOverrideType == nil)
     #expect(defaultStatus.currentUnigramIndex == 0)
+    #expect(defaultStatus.isExplicitlyOverridden == false)
 
     // Test custom initialization
     let customStatus = Homa.NodeOverrideStatus(
@@ -47,6 +48,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     #expect(customStatus.overridingScore == 999.0)
     #expect(customStatus.currentOverrideType == .withSpecified)
     #expect(customStatus.currentUnigramIndex == 5)
+    #expect(customStatus.isExplicitlyOverridden == false)
   }
 
   @Test("NodeOverrideStatus Equality")
@@ -89,6 +91,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     #expect(initialStatus.overridingScore == 114_514)
     #expect(initialStatus.currentOverrideType == nil)
     #expect(initialStatus.currentUnigramIndex == 0)
+    #expect(initialStatus.isExplicitlyOverridden == false)
 
     // Verify selecting an override promotes the overriding score to the baseline constant.
     node.overridingScore = 42
@@ -108,6 +111,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let newStatus = Homa.NodeOverrideStatus(
       overridingScore: 500.0,
       currentOverrideType: .withSpecified,
+      isExplicitlyOverridden: true,
       currentUnigramIndex: 1
     )
     node.overrideStatus = newStatus
@@ -115,12 +119,14 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     #expect(node.overridingScore == 500.0)
     #expect(node.currentOverrideType == .withSpecified)
     #expect(node.currentGramIndex == 1)
+    #expect(node.overrideStatus.isExplicitlyOverridden == true)
 
     // Test getting updated status
     let updatedStatus = node.overrideStatus
     #expect(updatedStatus.overridingScore == 500.0)
     #expect(updatedStatus.currentOverrideType == .withSpecified)
     #expect(updatedStatus.currentUnigramIndex == 1)
+    #expect(updatedStatus.isExplicitlyOverridden == true)
   }
 
   @Test("NodeOverrideStatus Overflow Protection")
@@ -134,6 +140,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let overflowStatus = Homa.NodeOverrideStatus(
       overridingScore: 100.0,
       currentOverrideType: .withSpecified,
+      isExplicitlyOverridden: true,
       currentUnigramIndex: 999
     )
 
@@ -141,6 +148,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
 
     #expect(node.currentOverrideType == nil)
     #expect(node.currentGramIndex == 0)
+    #expect(node.overrideStatus.isExplicitlyOverridden == false)
   }
 
   @Test("Node ID Uniqueness")
@@ -179,6 +187,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
         node.overrideStatus = Homa.NodeOverrideStatus(
           overridingScore: 777.0,
           currentOverrideType: .withSpecified,
+          isExplicitlyOverridden: true,
           currentUnigramIndex: 0
         )
         modifiedNodeId = node.id
@@ -197,6 +206,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     // Verify the change is reflected in the mirror
     #expect(modifiedMirror[nodeId]?.overridingScore == 777.0)
     #expect(modifiedMirror[nodeId]?.currentOverrideType == .withSpecified)
+    #expect(modifiedMirror[nodeId]?.isExplicitlyOverridden == true)
 
     // Reset using original mirror
     assembler.restoreFromNodeOverrideStatusMirror(originalMirror)
@@ -208,6 +218,10 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
       restoredMirror[nodeId]?.currentOverrideType
         == originalMirror[nodeId]?
         .currentOverrideType
+    )
+    #expect(
+      restoredMirror[nodeId]?.isExplicitlyOverridden
+        == originalMirror[nodeId]?.isExplicitlyOverridden
     )
   }
 
@@ -272,6 +286,7 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     let status = Homa.NodeOverrideStatus(
       overridingScore: 123.45,
       currentOverrideType: .withTopGramScore,
+      isExplicitlyOverridden: true,
       currentUnigramIndex: 3
     )
 
@@ -284,5 +299,6 @@ struct HomaTests_NodeOverrideStatus: HomaTestSuite {
     #expect(decoded.overridingScore == 123.45)
     #expect(decoded.currentOverrideType == .withTopGramScore)
     #expect(decoded.currentUnigramIndex == 3)
+    #expect(decoded.isExplicitlyOverridden == true)
   }
 }

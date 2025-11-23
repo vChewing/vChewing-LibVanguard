@@ -675,6 +675,10 @@ public struct HomaTestsAdvanced: HomaTestSuite {
         var previouslyRevolvedCandidate: CandidateIdentity?
         var debugIntelBuilder = [String]()
         var hasValidatedCandidateTotal = false
+        var revolvementLoopCount = 0
+        let baseRevolvementLoopLimit = 200
+        var revolvementLoopLimit = baseRevolvementLoopLimit
+        var hasUnlockedFullLoop = false
 
         func resolveIdentity(for pair: Homa.CandidatePair) -> CandidateIdentity? {
           let candidateCursorPos = assembler.getLogicalCandidateCursorPosition(
@@ -695,6 +699,13 @@ public struct HomaTestsAdvanced: HomaTestSuite {
         }
         do {
           revolvementTaskAtThisPos: while doRevolve {
+            revolvementLoopCount += 1
+            if revolvementLoopCount > revolvementLoopLimit {
+              Issue.record(
+                "Exceeded revolvement loop limit (\(revolvementLoopLimit)) at cursor position \(pos)"
+              )
+              break revolvementTaskAtThisPos
+            }
             var fetchedCandidates: [Homa.CandidatePairWeighted] = []
             let currentRevolved = try assembler.revolveCandidate(
               cursorType: candidateCursorType,
@@ -769,6 +780,13 @@ public struct HomaTestsAdvanced: HomaTestSuite {
                   )
                 )
                 hasValidatedCandidateTotal = true
+                if !hasUnlockedFullLoop {
+                  let expectedLoops = currentRevolved.total * minimumRevolvesPerCandidate
+                  if expectedLoops > baseRevolvementLoopLimit {
+                    revolvementLoopLimit = expectedLoops + currentRevolved.total
+                  }
+                  hasUnlockedFullLoop = true
+                }
               }
             }
             #expect(
