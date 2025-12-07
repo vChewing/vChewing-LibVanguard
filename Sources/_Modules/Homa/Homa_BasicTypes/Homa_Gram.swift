@@ -85,16 +85,6 @@ extension Homa {
       )
     }
 
-    public var copy: Self {
-      .init(
-        keyArray: keyArray,
-        current: current,
-        previous: previous,
-        probability: probability,
-        backoff: backoff
-      )
-    }
-
     /// 檢查是否「讀音字長與候選字字長不一致」。
     public var isReadingMismatched: Bool {
       keyArray.count != current.count

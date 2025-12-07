@@ -371,7 +371,7 @@ extension Homa {
     )
       -> [Homa.Gram] {
       if let cached = cache[keyArray] {
-        return cached.map(\.copy) // 不要與之前的結果共用記憶體位置。
+        return cached
       }
       var insertedIntel = Set<String>()
       let newResult: [Homa.Gram] = gramQuerier(keyArray).sorted {
