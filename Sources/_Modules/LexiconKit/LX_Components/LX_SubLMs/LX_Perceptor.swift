@@ -131,6 +131,7 @@ extension Perceptor {
     guard let keyGenerationResult = assembledResult.generateKeyForPerception(cursor: keyCursorRaw)
     else { return .init() }
     var activeKey = keyGenerationResult.ngramKey
+    guard !activeKey.isEmpty else { return .init() }
 
     return withLock {
       var suggestions = self._getSuggestion(key: activeKey, timestamp: timestamp)
@@ -289,7 +290,7 @@ extension Perceptor {
       var keysToRemove: [String] = []
       for key in mutLRUMap.keys {
         guard let parts = parsePerceptionKey(key) else { continue }
-        if shouldIgnorePerception(parts) || (parts.prev1 == nil && parts.prev2 == nil) {
+        if shouldIgnorePerception(parts) || (parts.previous == nil && parts.anterior == nil) {
           keysToRemove.append(key)
         }
       }
@@ -348,8 +349,8 @@ extension Perceptor {
   fileprivate struct PerceptionKeyParts {
     let headReading: String
     let headValue: String
-    let prev1: (reading: String, value: String)?
-    let prev2: (reading: String, value: String)?
+    let previous: (reading: String, value: String)?
+    let anterior: (reading: String, value: String)?
   }
 
   fileprivate func _getSuggestion(
@@ -367,7 +368,7 @@ extension Perceptor {
     var currentHighScore: Double = threshold
 
     let keyArrayForCandidate = splitReadingSegments(frontEdgeReading)
-    let isUnigramKey = parts.prev1 == nil && parts.prev2 == nil
+    let isUnigramKey = parts.previous == nil && parts.anterior == nil
     let isSingleCharUnigram = isUnigramKey && keyArrayForCandidate.count == 1
 
     for (candidate, override) in perception.overrides {
@@ -382,7 +383,7 @@ extension Perceptor {
 
       if overrideScore <= threshold { continue }
 
-      let previousStr = parts.prev1?.value
+      let previousStr = parts.previous?.value
       let keyArray =
         keyArrayForCandidate.isEmpty ? [frontEdgeReading] : keyArrayForCandidate
 
@@ -417,8 +418,8 @@ extension Perceptor {
     for keyCandidate in mutLRUKeySeqList {
       guard let candidateParts = parsePerceptionKey(keyCandidate) else { continue }
       guard !shouldIgnorePerception(candidateParts) else { continue }
-      guard compareContextPart(candidateParts.prev1, originalParts.prev1) else { continue }
-      guard compareContextPart(candidateParts.prev2, originalParts.prev2) else { continue }
+      guard compareContextPart(candidateParts.previous, originalParts.previous) else { continue }
+      guard compareContextPart(candidateParts.anterior, originalParts.anterior) else { continue }
       let candidateHeadSegments = splitReadingSegments(candidateParts.headReading)
       let matchesPrimaryHead = candidateHeadSegments.contains(where: primaryHeadCandidates.contains)
       let matchesFullHead = candidateParts.headReading == originalParts.headReading
@@ -434,13 +435,13 @@ extension Perceptor {
   fileprivate func _forceHighScoreOverrideFlag(for key: String) -> Bool {
     guard let parts = parsePerceptionKey(key) else { return false }
     let headLen = splitReadingSegments(parts.headReading).count
-    let prev1Len = parts.prev1.map { splitReadingSegments($0.reading).count }
-    let prev2Len = parts.prev2.map { splitReadingSegments($0.reading).count }
+    let previousLen = parts.previous.map { splitReadingSegments($0.reading).count }
+    let anteriorLen = parts.anterior.map { splitReadingSegments($0.reading).count }
 
     if headLen > 1 {
-      if let p1Len = prev1Len, p1Len == 1 {
-        if let p2Len = prev2Len {
-          return p2Len == 1
+      if let previousLen, previousLen == 1 {
+        if let anteriorLen {
+          return anteriorLen == 1
         } else {
           return true
         }
@@ -498,14 +499,14 @@ extension Perceptor {
     }
 
     guard let headPair = parseComponent(headComponent) else { return nil }
-    let prev1 = components.count >= 2 ? parseComponent(components[components.count - 2]) : nil
-    let prev2 = components.count >= 3 ? parseComponent(components[components.count - 3]) : nil
+    let previous = components.count >= 2 ? parseComponent(components[components.count - 2]) : nil
+    let anterior = components.count >= 3 ? parseComponent(components[components.count - 3]) : nil
 
     return .init(
       headReading: headPair.reading,
       headValue: headPair.value,
-      prev1: prev1,
-      prev2: prev2
+      previous: previous,
+      anterior: anterior
     )
   }
 
@@ -543,9 +544,14 @@ extension Perceptor {
     }
 
     let count = parts.count
-    let prev1 = count >= 2 ? parsePrev(parts[count - 2]) : nil
-    let prev2 = count >= 3 ? parsePrev(parts[count - 3]) : nil
-    return .init(headReading: headReading, headValue: headReading, prev1: prev1, prev2: prev2)
+    let previous = count >= 2 ? parsePrev(parts[count - 2]) : nil
+    let anterior = count >= 3 ? parsePrev(parts[count - 3]) : nil
+    return .init(
+      headReading: headReading,
+      headValue: headReading,
+      previous: previous,
+      anterior: anterior
+    )
   }
 
   fileprivate func compareContextPart(
@@ -564,7 +570,7 @@ extension Perceptor {
   }
 
   private func shouldIgnorePerception(_ parts: PerceptionKeyParts) -> Bool {
-    let readings = [parts.headReading, parts.prev1?.reading, parts.prev2?.reading]
+    let readings = [parts.headReading, parts.previous?.reading, parts.anterior?.reading]
       .compactMap { $0 }
     return readings.contains { containsUnderscorePrefixedReading($0) }
   }

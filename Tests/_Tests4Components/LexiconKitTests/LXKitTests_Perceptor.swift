@@ -29,7 +29,7 @@ public struct LXTests4Perceptor {
   // MARK: Internal
 
   @Test("[LXKit] Perceptor_BasicPerceptionOps")
-  func testBasicPerceptionOps() throws {
+  func testPOM_01_BasicPerceptionOps() throws {
     let perceptor = Perceptor(capacity: capacity)
     let key = "(ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ,神里綾華)&(ㄉㄜ˙,的)&(ㄍㄡˇ,狗)"
     let expectedSuggestion = "狗"
@@ -59,7 +59,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_NewestAgainstRepeatedlyUsed")
-  func testNewestAgainstRepeatedlyUsed() throws {
+  func testPOM_02_NewestAgainstRepeatedlyUsed() throws {
     let perceptor = Perceptor(capacity: capacity)
     let key = "(ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ,神里綾華)&(ㄉㄜ˙,的)&(ㄍㄡˇ,狗)"
     let valRepeatedlyUsed = "狗" // 更常用
@@ -117,7 +117,7 @@ public struct LXTests4Perceptor {
 
   // 添加一個專門測試長期記憶衰減的測試
   @Test("[LXKit] Perceptor_LongTermMemoryDecay")
-  func testLongTermMemoryDecay() throws {
+  func testPOM_03_LongTermMemoryDecay() throws {
     let perceptor = Perceptor(capacity: capacity)
     let key = "(ㄔㄥˊ-ㄒㄧㄣˋ,誠信)&(ㄓㄜˋ,這)&(ㄉㄧㄢˇ,點)"
     let expectedSuggestion = "點"
@@ -162,7 +162,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_LRUTable")
-  func testLRUTable() throws {
+  func testPOM_04_LRUTable() throws {
     let a = (key: "(ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ,神里綾華)&(ㄉㄜ˙,的)&(ㄍㄡˇ,狗)", value: "狗", head: "ㄍㄡˇ")
     let b = (key: "(ㄆㄞˋ-ㄇㄥˊ,派蒙)&(ㄉㄜ˙,的)&(ㄐㄧㄤˇ-ㄐㄧㄣ,獎金)", value: "伙食費", head: "ㄏㄨㄛˇ-ㄕˊ-ㄈㄟˋ")
     let c = (key: "(ㄍㄨㄛˊ-ㄅㄥ,國崩)&(ㄉㄜ˙,的)&(ㄇㄠˋ-ㄗ˙,帽子)", value: "帽子", head: "ㄇㄠˋ-ㄗ˙")
@@ -220,7 +220,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_BleachSpecifiedSuggestions_CandidateLevel")
-  func testBleachSpecifiedSuggestionsAtCandidateLevel() throws {
+  func testPOM_05_BleachSpecifiedSuggestionsAtCandidateLevel() throws {
     let perceptor = Perceptor(capacity: 10)
     let timestamp = nowTimeStamp
     let key1 = "(ㄘㄜˋ-ㄕˋ-ㄧ,測試一)&(ㄐㄧㄢˋ,鍵)&(ㄇㄨˋ-ㄅㄧㄠ-ㄧ,目標一)"
@@ -261,7 +261,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_BleachSpecifiedSuggestions_MultipleOverrides")
-  func testBleachSpecifiedSuggestionsMultipleOverrides() throws {
+  func testPOM_06_BleachSpecifiedSuggestionsMultipleOverrides() throws {
     let perceptor = Perceptor(capacity: 10)
     let timestamp = nowTimeStamp
     let key = "(ㄘㄜˋ-ㄕˋ,測試)&(ㄐㄧㄢˋ,鍵)&(ㄐㄧ-ㄉㄧˇ,基底)"
@@ -288,7 +288,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_BleachSpecifiedSuggestions_RemoveKeyWhenEmpty")
-  func testBleachSpecifiedSuggestionsRemovesKeyWhenAllOverridesRemoved() throws {
+  func testPOM_07_BleachSpecifiedSuggestionsRemovesKeyWhenAllOverridesRemoved() throws {
     let perceptor = Perceptor(capacity: 10)
     let timestamp = nowTimeStamp
     let key = "(ㄘㄜˋ-ㄕˋ,測試)&(ㄐㄧㄢˋ,鍵)&(ㄐㄧ-ㄉㄧˇ,基底)"
@@ -304,7 +304,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_BleachSpecifiedSuggestions_Contextual")
-  func testBleachSpecifiedSuggestionsWithContextPairs() throws {
+  func testPOM_08_BleachSpecifiedSuggestionsWithContextPairs() throws {
     let perceptor = Perceptor(capacity: 10)
     let timestamp = nowTimeStamp
     let key1 = "(ㄕㄤˋ-ㄒㄧㄚˋ-ㄨㄣˊ-ㄧ,上下文一)&(ㄘㄜˋ-ㄕˋ,測試)&(ㄍㄨㄥˋ-ㄩㄥˋ-ㄇㄨˋ-ㄅㄧㄠ,共用目標)"
@@ -333,7 +333,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_BleachSpecifiedSuggestions_HeadReading")
-  func testBleachSpecifiedSuggestionsHeadReadingTargets() throws {
+  func testPOM_09_BleachSpecifiedSuggestionsHeadReadingTargets() throws {
     let perceptor = Perceptor(capacity: 10)
     let timestamp = nowTimeStamp
     let headReading = "ㄍㄡˇ"
@@ -350,7 +350,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_Homa_Integration_test")
-  func testIntegrationAgainstHoma() throws {
+  func testPOM_10_IntegrationAgainstHoma() throws {
     let perceptor = Perceptor()
     let hub = LXTests4TrieHub.makeSharedTrie4Tests(useSQL: true)
     let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
@@ -402,7 +402,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_ActualCase_SaisoukiNoGaika")
-  func testPOM_6_ActualCaseScenario_SaisoukiNoGaika() throws {
+  func testPOM_11_ActualCaseScenario_SaisoukiNoGaika() throws {
     let perceptor = Perceptor(capacity: capacity)
     let compositor = makeAssembler(using: HomaTests.strLMSampleData_SaisoukiNoGaika)
     // 測試用句「再創世的凱歌」。
@@ -503,7 +503,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_ActualCase_SaisoukiOnly")
-  func testPOM_7_ActualCaseScenario_SaisoukiOnly() throws {
+  func testPOM_12_ActualCaseScenario_SaisoukiOnly() throws {
     let perceptor = Perceptor(capacity: capacity)
     let compositor = makeAssembler(using: HomaTests.strLMSampleData_SaisoukiNoGaika)
     let readingKeys = ["zai4", "chuang4", "shi4"]
@@ -577,7 +577,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_ActualCase_BusinessEnglishSession")
-  func testPOM_8_ActualCaseScenario_BusinessEnglishSession() throws {
+  func testPOM_13_ActualCaseScenario_BusinessEnglishSession() throws {
     let perceptor = Perceptor(capacity: capacity)
     let compositor = makeAssembler(using: HomaTests.strLMSampleData_BusinessEnglishSession)
     let readingKeys = ["shang1", "wu4", "ying1", "yu3", "hui4", "hua4"]
@@ -670,7 +670,7 @@ public struct LXTests4Perceptor {
   }
 
   @Test("[LXKit] Perceptor_ActualCase_DiJiaoSubmission")
-  func testPOM_9_ActualCaseScenario_DiJiaoSubmission() throws {
+  func testPOM_14_ActualCaseScenario_DiJiaoSubmission() throws {
     let perceptor = Perceptor(capacity: capacity)
     let compositor = makeAssembler(using: HomaTests.strLMSampleData_DiJiaoSubmission)
     let readingKeys = ["di4", "jiao1"]
