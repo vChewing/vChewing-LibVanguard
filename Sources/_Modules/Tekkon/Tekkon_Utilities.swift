@@ -130,7 +130,8 @@ extension StringProtocol {
   }
 
   func has(scalar target: Unicode.Scalar) -> Bool {
-    unicodeScalars.contains(target)
+    let targetStr = String(Character(target))
+    return has(string: targetStr)
   }
 
   func swapping(_ target: some StringProtocol, with newString: some StringProtocol) -> String {

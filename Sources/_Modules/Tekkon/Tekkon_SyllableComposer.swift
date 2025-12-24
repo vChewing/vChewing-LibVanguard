@@ -30,13 +30,24 @@ extension Tekkon {
       arrange parser: MandarinParser = .ofDachen,
       correction: Bool = false
     ) {
-      self.phonabets = ContiguousArray(repeating: Phonabet(), count: 4)
       self.phonabetCombinationCorrectionEnabled = correction
       ensureParser(arrange: parser)
       receiveKey(fromString: input)
     }
 
     // MARK: Public
+
+    /// 聲母。
+    public internal(set) var consonant: Phonabet = .init()
+
+    /// 介母。
+    public internal(set) var semivowel: Phonabet = .init()
+
+    /// 韻母。
+    public internal(set) var vowel: Phonabet = .init()
+
+    /// 聲調。
+    public internal(set) var intonation: Phonabet = .init()
 
     /// 拼音組音區。
     public internal(set) var romajiBuffer: String = .init()
@@ -47,41 +58,11 @@ extension Tekkon {
     /// 是否對錯誤的注音讀音組合做出自動糾正處理。
     public var phonabetCombinationCorrectionEnabled = false
 
-    /// 聲母。
-    public var consonant: Phonabet {
-      get { phonabets[0] }
-      set { phonabets[0] = newValue }
-    }
-
-    /// 介母。
-    public var semivowel: Phonabet {
-      get { phonabets[1] }
-      set { phonabets[1] = newValue }
-    }
-
-    /// 韻母。
-    public var vowel: Phonabet {
-      get { phonabets[2] }
-      set { phonabets[2] = newValue }
-    }
-
-    /// 聲調。
-    public var intonation: Phonabet {
-      get { phonabets[3] }
-      set { phonabets[3] = newValue }
-    }
-
     /// 內容值，會直接按照正確的順序拼裝自己的聲介韻調內容、再回傳。
     /// 注意：直接取這個參數的內容的話，陰平聲調會成為一個空格。
     /// 如果是要取不帶空格的注音的話，請使用「.getComposition()」而非「.value」。
     public var value: String {
-      var result = String()
-      result.reserveCapacity(8) // 為典型注音音節長度預先配置
-      // 最佳化：迭代連續陣列以獲得更好的快取局部性
-      for phonabet in phonabets where phonabet.isValid {
-        result.unicodeScalars.append(phonabet.scalarValue)
-      }
-      return result
+      consonant.value + semivowel.value + vowel.value + intonation.value
     }
 
     /// 當前注拼槽是否處於拼音模式。
@@ -90,14 +71,12 @@ extension Tekkon {
     /// 注拼槽內容是否為空。
     public var isEmpty: Bool {
       guard !isPinyinMode else { return intonation.isEmpty && romajiBuffer.isEmpty }
-      // 最佳化：檢查連續記憶體中的所有注音符號
-      return phonabets.allSatisfy(\.isEmpty)
+      return intonation.isEmpty && vowel.isEmpty && semivowel.isEmpty && consonant.isEmpty
     }
 
     /// 注拼槽內容是否可唸。
     public var isPronounceable: Bool {
-      // 最佳化：高效檢查前 3 個注音符號（聲、介、韻）
-      phonabets.prefix(3).contains { !$0.isEmpty }
+      !vowel.isEmpty || !semivowel.isEmpty || !consonant.isEmpty
     }
 
     // MARK: - Misc Definitions
@@ -106,8 +85,8 @@ extension Tekkon {
     /// - Parameter withIntonation: 是否統計聲調。
     /// - Returns: 統計出的有效 Phonabet 個數。
     public func count(withIntonation: Bool = false) -> Int {
-      let endIndex = withIntonation ? 4 : 3
-      return phonabets.prefix(endIndex).reduce(0) { $0 + ($1.isValid ? 1 : 0) }
+      [consonant.isValid, semivowel.isValid, vowel.isValid]
+        .reduce((withIntonation && intonation.isValid) ? 1 : 0) { $0 + ($1 ? 1 : 0) }
     }
 
     /// 與 value 類似，這個函式就是用來決定輸入法組字區內顯示的注音/拼音內容，
@@ -137,7 +116,7 @@ extension Tekkon {
     public func getInlineCompositionForDisplay(isHanyuPinyin: Bool = false) -> String {
       guard isPinyinMode else { return getComposition(isHanyuPinyin: isHanyuPinyin) }
       var toneReturned = ""
-      switch intonation.scalar {
+      switch intonation.value {
       case " ": toneReturned = "1"
       case "ˊ": toneReturned = "2"
       case "ˇ": toneReturned = "3"
@@ -151,10 +130,10 @@ extension Tekkon {
     /// 清除自身的內容，就是將聲介韻調全部清空。
     /// 嚴格而言，「注音排列」這個屬性沒有需要清空的概念，只能用 ensureParser 參數變更之。
     public mutating func clear() {
-      // 最佳化：高效清除連續記憶體中的所有注音符號
-      for i in phonabets.indices {
-        phonabets[i].clear()
-      }
+      consonant.clear()
+      semivowel.clear()
+      vowel.clear()
+      intonation.clear()
       romajiBuffer = ""
     }
 
@@ -266,34 +245,28 @@ extension Tekkon {
       if phonabetCombinationCorrectionEnabled {
         switch phonabet {
         case "ㄧ", "ㄩ":
-          if vowel =~ "ㄜ" { vowel <~ "ㄝ" }
+          if vowel.value == "ㄜ" { vowel <~ "ㄝ" }
         case "ㄜ":
-          if semivowel.isContained(in: Tekkon.scalarSet_U) { semivowel <~ "ㄩ" }
-          if semivowel.isContained(in: Tekkon.scalarSet_IU) { thePhone <~ "ㄝ" }
+          if "ㄨ".doesHave(semivowel.value) { semivowel <~ "ㄩ" }
+          if "ㄧㄩ".doesHave(semivowel.value) { thePhone <~ "ㄝ" }
         case "ㄝ":
-          if semivowel.isContained(in: Tekkon.scalarSet_U) { semivowel <~ "ㄩ" }
+          if "ㄨ".doesHave(semivowel.value) { semivowel <~ "ㄩ" }
         case "ㄛ", "ㄥ":
-          if phonabet == "ㄛ", semivowel =~ "ㄩ" { semivowel <~ "ㄨ" }
-          if consonant.isContained(in: Tekkon.scalarSet_BPMF),
-             semivowel =~ "ㄨ" { semivowel.clear() }
+          if phonabet == "ㄛ", semivowel.value == "ㄩ" { semivowel <~ "ㄨ" }
+          if "ㄅㄆㄇㄈ".doesHave(consonant.value), semivowel.value == "ㄨ" { semivowel.clear() }
         case "ㄟ":
-          if consonant.isContained(in: Tekkon.scalarSet_NL),
-             semivowel =~ "ㄨ" { semivowel.clear() }
+          if "ㄋㄌ".doesHave(consonant.value), semivowel.value == "ㄨ" { semivowel.clear() }
         case "ㄨ":
-          if consonant.isContained(in: Tekkon.scalarSet_BPMF),
-             vowel.isContained(in: Tekkon.scalarSet_ENG) { vowel.clear() }
-          if consonant.isContained(in: Tekkon.scalarSet_NL),
-             vowel.isContained(in: Tekkon.scalarSet_EI) { vowel.clear() }
-          if vowel =~ "ㄜ" { vowel <~ "ㄝ" }
-          if vowel =~ "ㄝ" { thePhone <~ "ㄩ" }
+          if "ㄅㄆㄇㄈ".doesHave(consonant.value), "ㄛㄥ".doesHave(vowel.value) { vowel.clear() }
+          if "ㄋㄌ".doesHave(consonant.value), "ㄟ".doesHave(vowel.value) { vowel.clear() }
+          if "ㄜ".doesHave(vowel.value) { vowel <~ "ㄝ" }
+          if "ㄝ".doesHave(vowel.value) { thePhone <~ "ㄩ" }
         case "ㄅ", "ㄆ", "ㄇ", "ㄈ":
-          // 最佳化：避免檢查「ㄨㄛ」和「ㄨㄥ」時的字串配置
-          if semivowel =~ "ㄨ", vowel =~ "ㄛ" || vowel =~ "ㄥ" { semivowel.clear() }
+          if ["ㄨㄛ", "ㄨㄥ"].contains(semivowel + vowel) { semivowel.clear() }
         default: break
         }
-        if [.vowel, .intonation].contains(thePhone.type),
-           consonant.isContained(in: Tekkon.scalarSet_ZhChShZCiSi) {
-          switch (semivowel.scalar, consonant.scalar) {
+        if [.vowel, .intonation].contains(thePhone.type), "ㄓㄔㄕㄗㄘㄙ".doesHave(consonant.value) {
+          switch (semivowel.value, consonant.value) {
           case ("ㄧ", _): semivowel.clear()
           case ("ㄩ", "ㄓ"), ("ㄩ", "ㄗ"): consonant <~ "ㄐ"
           case ("ㄩ", "ㄔ"), ("ㄩ", "ㄘ"): consonant <~ "ㄑ"
@@ -360,12 +333,14 @@ extension Tekkon {
         } else {
           romajiBuffer = String(romajiBuffer.dropLast())
         }
-      } else {
-        // 最佳化：向後迭代注音符號以找到最後一個非空的
-        for i in phonabets.indices.reversed() where !phonabets[i].isEmpty {
-          phonabets[i].clear()
-          return
-        }
+      } else if !intonation.isEmpty {
+        intonation.clear()
+      } else if !vowel.isEmpty {
+        vowel.clear()
+      } else if !semivowel.isEmpty {
+        semivowel.clear()
+      } else if !consonant.isEmpty {
+        consonant.clear()
       }
     }
 
@@ -428,36 +403,32 @@ extension Tekkon {
     ///   - key: 傳入的 String 訊號。
     internal mutating func translate(key: Unicode.Scalar) -> Unicode.Scalar? {
       guard !isPinyinMode else { return nil }
-
-      let result: Unicode.Scalar?
       switch parser {
       case .ofDachen:
-        result = Tekkon.mapQwertyDachen[key]
+        return Tekkon.mapQwertyDachen[key]
       case .ofDachen26:
-        result = handleDachen26(key: key)
+        return handleDachen26(key: key)
       case .ofETen:
-        result = Tekkon.mapQwertyETenTraditional[key]
+        return Tekkon.mapQwertyETenTraditional[key]
       case .ofHsu:
-        result = handleHsu(key: key)
+        return handleHsu(key: key)
       case .ofETen26:
-        result = handleETen26(key: key)
+        return handleETen26(key: key)
       case .ofIBM:
-        result = Tekkon.mapQwertyIBM[key]
+        return Tekkon.mapQwertyIBM[key]
       case .ofMiTAC:
-        result = Tekkon.mapQwertyMiTAC[key]
+        return Tekkon.mapQwertyMiTAC[key]
       case .ofSeigyou:
-        result = Tekkon.mapSeigyou[key]
+        return Tekkon.mapSeigyou[key]
       case .ofFakeSeigyou:
-        result = Tekkon.mapFakeSeigyou[key]
+        return Tekkon.mapFakeSeigyou[key]
       case .ofStarlight:
-        result = handleStarlight(key: key)
+        return handleStarlight(key: key)
       case .ofAlvinLiu:
-        result = handleAlvinLiu(key: key)
+        return handleAlvinLiu(key: key)
       default:
-        result = nil
+        return nil
       }
-
-      return result
     }
 
     /// 所有動態注音排列都會用到的共用糾錯處理步驟。
@@ -469,13 +440,13 @@ extension Tekkon {
       switch incomingPhonabet.type {
       case .semivowel:
         // 這裡不處理「ㄍㄧ」到「ㄑㄧ」的轉換，因為只有倚天26需要處理這個。
-        switch (consonant.scalar, incomingPhonabet.scalar) {
+        switch (consonant.value, incomingPhonabet.value) {
         case ("ㄓ", "ㄧ"), ("ㄓ", "ㄩ"): consonant <~ "ㄐ"
         case ("ㄍ", "ㄩ"), ("ㄔ", "ㄧ"), ("ㄔ", "ㄩ"): consonant <~ "ㄑ"
         case ("ㄕ", "ㄧ"), ("ㄕ", "ㄩ"): consonant <~ "ㄒ"
         default: break
         }
-        if incomingPhonabet =~ "ㄨ" {
+        if incomingPhonabet.value == "ㄨ" {
           fixValue("ㄐ", "ㄓ")
           fixValue("ㄑ", "ㄔ")
           fixValue("ㄒ", "ㄕ")
@@ -498,13 +469,15 @@ extension Tekkon {
     internal mutating func handleETen26(key: Unicode.Scalar) -> Unicode.Scalar? {
       guard var strReturn = Tekkon.mapETen26StaticKeys[key] else { return nil }
 
+      let keysToHandleHere = "dfhjklmnpqtw"
+
       switch key {
       case "d" where isPronounceable: strReturn = "˙"
       case "f" where isPronounceable: strReturn = "ˊ"
       case "j" where isPronounceable: strReturn = "ˇ"
       case "k" where isPronounceable: strReturn = "ˋ"
-      case "e" where consonant =~ "ㄍ": consonant <~ "ㄑ"
-      case "p" where !consonant.isEmpty || semivowel =~ "ㄧ": strReturn = "ㄡ"
+      case "e" where consonant.value == "ㄍ": consonant <~ "ㄑ"
+      case "p" where !consonant.isEmpty || semivowel.value == "ㄧ": strReturn = "ㄡ"
       case "h" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄦ"
       case "l" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄥ"
       case "m" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄢ"
@@ -515,7 +488,7 @@ extension Tekkon {
       default: break
       }
 
-      if "dfhjklmnpqtw".doesHave(key) {
+      if keysToHandleHere.doesHave(key) {
         receiveKey(fromPhonabet: strReturn)
       }
 
@@ -535,7 +508,7 @@ extension Tekkon {
       if value == "ㄍ˙" { consonant <~ "ㄑ" }
 
       // 這些按鍵在上文處理過了，就不要再回傳了。
-      if "dfhjklmnpqtw".doesHave(key) { return nil }
+      if keysToHandleHere.doesHave(key) { return nil }
 
       // 回傳結果是空字串的話，不要緊，因為上文已經代處理過分配過程了。
       return strReturn
@@ -548,6 +521,8 @@ extension Tekkon {
     ///   - key: 傳入的 String 訊號。
     internal mutating func handleHsu(key: Unicode.Scalar) -> Unicode.Scalar? {
       guard var strReturn = Tekkon.mapHsuStaticKeys[key] else { return nil }
+
+      let keysToHandleHere = "acdefghjklmns"
 
       switch key {
       case "d" where isPronounceable: strReturn = "ˊ"
@@ -574,7 +549,7 @@ extension Tekkon {
       default: break
       }
 
-      if "acdefghjklmns".doesHave(key) {
+      if keysToHandleHere.doesHave(key) {
         receiveKey(fromPhonabet: strReturn)
       }
 
@@ -598,7 +573,7 @@ extension Tekkon {
       if value == "ㄔ˙" { consonant <~ "ㄑ" }
 
       // 這些按鍵在上文處理過了，就不要再回傳了。
-      if "acdefghjklmns".doesHave(key) { return nil }
+      if keysToHandleHere.doesHave(key) { return nil }
 
       // 回傳結果是空的話，不要緊，因為上文已經代處理過分配過程了。
       return strReturn
@@ -612,8 +587,10 @@ extension Tekkon {
     internal mutating func handleStarlight(key: Unicode.Scalar) -> Unicode.Scalar? {
       guard var strReturn = Tekkon.mapStarlightStaticKeys[key] else { return nil }
 
+      let keysToHandleHere = "efgklmnt"
+
       switch key {
-      case "e" where semivowel.isContained(in: Tekkon.scalarSet_IU): strReturn = "ㄝ"
+      case "e" where "ㄧㄩ".doesHave(semivowel.value): strReturn = "ㄝ"
       case "f" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄠ"
       case "g" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄥ"
       case "k" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄤ"
@@ -624,7 +601,7 @@ extension Tekkon {
       default: break
       }
 
-      if "efgklmnt".doesHave(key) {
+      if keysToHandleHere.doesHave(key) {
         receiveKey(fromPhonabet: strReturn)
       }
 
@@ -642,7 +619,7 @@ extension Tekkon {
       }
 
       // 這些按鍵在上文處理過了，就不要再回傳了。
-      if "efgklmnt".doesHave(key) { return nil }
+      if keysToHandleHere.doesHave(key) { return nil }
 
       // 回傳結果是空的話，不要緊，因為上文已經代處理過分配過程了。
       return strReturn
@@ -662,18 +639,18 @@ extension Tekkon {
       case "d" where isPronounceable: strReturn = "ˋ"
       case "y" where isPronounceable: strReturn = "˙"
       case "b" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄝ"
-      case "i" where vowel.isEmpty || vowel =~ "ㄞ": strReturn = "ㄛ"
-      case "l" where vowel.isEmpty || vowel =~ "ㄤ": strReturn = "ㄠ"
+      case "i" where vowel.isEmpty || vowel.value == "ㄞ": strReturn = "ㄛ"
+      case "l" where vowel.isEmpty || vowel.value == "ㄤ": strReturn = "ㄠ"
       case "n" where !consonant.isEmpty || !semivowel.isEmpty:
         if value == "ㄙ" { consonant.clear() }
         strReturn = "ㄥ"
-      case "o" where vowel.isEmpty || vowel =~ "ㄢ": strReturn = "ㄟ"
-      case "p" where vowel.isEmpty || vowel =~ "ㄦ": strReturn = "ㄣ"
-      case "q" where consonant.isEmpty || consonant =~ "ㄅ": strReturn = "ㄆ"
-      case "t" where consonant.isEmpty || consonant =~ "ㄓ": strReturn = "ㄔ"
-      case "w" where consonant.isEmpty || consonant =~ "ㄉ": strReturn = "ㄊ"
+      case "o" where vowel.isEmpty || vowel.value == "ㄢ": strReturn = "ㄟ"
+      case "p" where vowel.isEmpty || vowel.value == "ㄦ": strReturn = "ㄣ"
+      case "q" where consonant.isEmpty || consonant.value == "ㄅ": strReturn = "ㄆ"
+      case "t" where consonant.isEmpty || consonant.value == "ㄓ": strReturn = "ㄔ"
+      case "w" where consonant.isEmpty || consonant.value == "ㄉ": strReturn = "ㄊ"
       case "m":
-        switch (semivowel.scalar, vowel.scalar) {
+        switch (semivowel.value, vowel.value) {
         case ("ㄩ", _):
           semivowel.clear()
           strReturn = "ㄡ"
@@ -681,11 +658,10 @@ extension Tekkon {
           vowel.clear()
           strReturn = "ㄩ"
         default:
-          strReturn = (!semivowel.isEmpty || !consonant.isContained(in: Tekkon.scalarSet_JQX)) ?
-            "ㄡ" : "ㄩ"
+          strReturn = (!semivowel.isEmpty || !"ㄐㄑㄒ".doesHave(consonant.value)) ? "ㄡ" : "ㄩ"
         }
       case "u":
-        switch (semivowel.scalar, vowel.scalar) {
+        switch (semivowel.value, vowel.value) {
         case ("ㄧ", "ㄚ"):
           semivowel.clear()
           vowel.clear()
@@ -715,12 +691,14 @@ extension Tekkon {
       // 前置處理專有特殊情形。
       if strReturn != "ㄦ" && !vowel.isEmpty { fixValue("ㄦ", "ㄌ") }
 
+      let keysToHandleHere = "dfjlegnhkbmc"
+
       switch key {
       case "d" where isPronounceable: strReturn = "˙"
       case "f" where isPronounceable: strReturn = "ˊ"
       case "j" where isPronounceable: strReturn = "ˇ"
       case "l" where isPronounceable: strReturn = "ˋ"
-      case "e" where semivowel.isContained(in: Tekkon.scalarSet_IU): strReturn = "ㄝ"
+      case "e" where "ㄧㄩ".doesHave(semivowel.value): strReturn = "ㄝ"
       case "g" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄤ"
       case "n" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄣ"
       case "h" where !consonant.isEmpty || !semivowel.isEmpty: strReturn = "ㄞ"
@@ -731,7 +709,7 @@ extension Tekkon {
       default: break
       }
 
-      if "dfjlegnhkbmc".doesHave(key) {
+      if keysToHandleHere.doesHave(key) {
         receiveKey(fromPhonabet: strReturn)
       }
 
@@ -753,7 +731,7 @@ extension Tekkon {
       }
 
       // 這些按鍵在上文處理過了，就不要再回傳了。
-      if "dfjlegnhkbmc".doesHave(key) { return nil }
+      if keysToHandleHere.doesHave(key) { return nil }
 
       // 回傳結果是空字串的話，不要緊，因為上文已經代處理過分配過程了。
       return strReturn
@@ -771,20 +749,16 @@ extension Tekkon {
     ///   - strWith: 要取代成的內容。
     internal mutating func fixValue(_ strOf: Unicode.Scalar, _ strWith: Unicode.Scalar) {
       guard Phonabet(strOf).isValid, Phonabet(strWith).isValid else { return }
-      switch strOf {
-      case consonant.scalar: consonant.clear()
-      case semivowel.scalar: semivowel.clear()
-      case vowel.scalar: vowel.clear()
-      case intonation.scalar: intonation.clear()
+      let theOld = Phonabet(strOf)
+      switch theOld {
+      case consonant: consonant.clear()
+      case semivowel: semivowel.clear()
+      case vowel: vowel.clear()
+      case intonation: intonation.clear()
       default: return
       }
       receiveKey(fromPhonabet: strWith)
     }
-
-    // MARK: Private
-
-    /// 使用 ContiguousArray 的最佳化注音符號儲存，提供更好的快取局部性和記憶體效率
-    private var phonabets: ContiguousArray<Phonabet>
   }
 }
 

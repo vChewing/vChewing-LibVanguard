@@ -2,7 +2,7 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-/// 此套件的命名空間。
+/// The namespace for this package.
 public enum Tekkon {
   // MARK: Public
 
@@ -26,20 +26,6 @@ public enum Tekkon {
 
   /// 引擎僅接受這些記號作為聲調
   public static let allowedIntonations: [Unicode.Scalar] = [" ", "ˊ", "ˇ", "ˋ", "˙"]
-
-  // MARK: - 針對熱路徑的效能最佳化純量集合
-
-  /// 針對頻繁比較的預計算集合，以避免字串配置
-  public static let scalarSet_BPMF: Set<Unicode.Scalar> = ["ㄅ", "ㄆ", "ㄇ", "ㄈ"]
-  public static let scalarSet_NL: Set<Unicode.Scalar> = ["ㄋ", "ㄌ"]
-  public static let scalarSet_U: Set<Unicode.Scalar> = ["ㄨ"]
-  public static let scalarSet_IU: Set<Unicode.Scalar> = ["ㄧ", "ㄩ"]
-  public static let scalarSet_JQX: Set<Unicode.Scalar> = ["ㄐ", "ㄑ", "ㄒ"]
-  public static let scalarSet_ZhChShZCiSi: Set<Unicode.Scalar> = ["ㄓ", "ㄔ", "ㄕ", "ㄗ", "ㄘ", "ㄙ"]
-  public static let scalarSet_ENG: Set<Unicode.Scalar> = ["ㄛ", "ㄥ"]
-  public static let scalarSet_EI: Set<Unicode.Scalar> = ["ㄟ"]
-  public static let scalarSet_E: Set<Unicode.Scalar> = ["ㄜ"]
-  public static let scalarSet_EH: Set<Unicode.Scalar> = ["ㄝ"]
 
   /// 引擎僅接受這些記號作為注音（聲介韻調四個集合加起來）
   public static var allowedPhonabets: [Unicode.Scalar] {
@@ -903,7 +889,7 @@ public enum Tekkon {
 
   /// 標準大千排列專用處理陣列。
   ///
-  /// 威注音輸入法 macOS 版使用了 Ukelele 佈局來完成對諸如倚天傳統等其它注音鍵盤排列的支援。
+  /// 唯音輸入法 macOS 版使用了 Ukelele 佈局來完成對諸如倚天傳統等其它注音鍵盤排列的支援。
   /// 如果要將鐵恨模組拿給別的平台的輸入法使用的話，恐怕需要針對這些注音鍵盤排列各自新增專用陣列才可以。
   static let mapQwertyDachen: [Unicode.Scalar: Unicode.Scalar] = [
     "0": "ㄢ", "1": "ㄅ", "2": "ㄉ", "3": "ˇ", "4": "ˋ", "5": "ㄓ", "6": "ˊ", "7": "˙", "8": "ㄚ",

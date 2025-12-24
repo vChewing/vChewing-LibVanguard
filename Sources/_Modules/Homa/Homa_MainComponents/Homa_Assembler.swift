@@ -15,7 +15,7 @@ extension Homa {
     /// 建立組字引擎處理器副本。
     /// - Parameters:
     ///   - gramQuerier: 單元圖資料存取專用介面。
-    ///   - gramAvailabilityChecker: 單元圖資料可用性檢測介面。
+    ///   - gramAvailabilityChecker: 單元圖資料可用性偵測介面。
     ///   - config: 引擎配置參數。
     public init(
       gramQuerier: @escaping Homa.GramQuerier,
