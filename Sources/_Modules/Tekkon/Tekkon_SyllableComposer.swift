@@ -429,16 +429,6 @@ extension Tekkon {
     internal mutating func translate(key: Unicode.Scalar) -> Unicode.Scalar? {
       guard !isPinyinMode else { return nil }
 
-      // 對於動態佈局，優先使用快取 (暫時停用以避免問題)
-      // if parser.isDynamic {
-      //   switch Self.dynamicLayoutCache.get(parser: parser, key: key, composer: self) {
-      //   case .found(let cachedResult):
-      //     return cachedResult
-      //   case .notFound:
-      //     break
-      //   }
-      // }
-
       let result: Unicode.Scalar?
       switch parser {
       case .ofDachen:
@@ -466,11 +456,6 @@ extension Tekkon {
       default:
         result = nil
       }
-
-      // 將動態佈局結果存入快取 (暫時停用)
-      // if parser.isDynamic {
-      //   Self.dynamicLayoutCache.set(result, parser: parser, key: key, composer: self)
-      // }
 
       return result
     }
@@ -797,9 +782,6 @@ extension Tekkon {
     }
 
     // MARK: Private
-
-    /// 動態佈局按鍵轉譯快取，用於提升效能
-    private static let dynamicLayoutCache = DynamicLayoutCache()
 
     /// 使用 ContiguousArray 的最佳化注音符號儲存，提供更好的快取局部性和記憶體效率
     private var phonabets: ContiguousArray<Phonabet>
