@@ -5,6 +5,12 @@
 import Foundation
 @_exported import Synchronization
 
+#if canImport(Darwin)
+  import Darwin
+#elseif canImport(Glibc)
+  import Glibc
+#endif
+
 #if canImport(OSLog)
   import OSLog
 #endif
@@ -60,11 +66,17 @@ extension FileHandle {
 // MARK: - Real Home Dir for Sandboxed Apps
 
 extension FileManager {
-  public static let realHomeDir = URL(
-    fileURLWithPath: String(cString: getpwuid(getuid()).pointee.pw_dir),
-    isDirectory: true,
-    relativeTo: nil
-  )
+  public static let realHomeDir: URL = {
+    #if canImport(Darwin)
+      return URL(
+        fileURLWithPath: String(cString: getpwuid(getuid()).pointee.pw_dir),
+        isDirectory: true,
+        relativeTo: nil
+      )
+    #else
+      return FileManager.default.homeDirectoryForCurrentUser
+    #endif
+  }()
 }
 
 // MARK: - Check whether current date is the given date.
@@ -330,16 +342,20 @@ extension Process {
   }()
 
   public static let isAppleSilicon: Bool = {
-    var systeminfo = utsname()
-    uname(&systeminfo)
-    let machine = withUnsafeBytes(of: &systeminfo.machine) { bufPtr -> String in
-      let data = Data(bufPtr)
-      if let lastIndex = data.lastIndex(where: { $0 != 0 }) {
-        return String(data: data[0 ... lastIndex], encoding: .isoLatin1) ?? "x86_64"
-      } else {
-        return String(data: data, encoding: .isoLatin1) ?? "x86_64"
+    #if canImport(Darwin)
+      var systeminfo = utsname()
+      uname(&systeminfo)
+      let machine = withUnsafeBytes(of: &systeminfo.machine) { bufPtr -> String in
+        let data = Data(bufPtr)
+        if let lastIndex = data.lastIndex(where: { $0 != 0 }) {
+          return String(data: data[0 ... lastIndex], encoding: .isoLatin1) ?? "x86_64"
+        } else {
+          return String(data: data, encoding: .isoLatin1) ?? "x86_64"
+        }
       }
-    }
-    return machine == "arm64"
+      return machine == "arm64"
+    #else
+      return false
+    #endif
   }()
 }

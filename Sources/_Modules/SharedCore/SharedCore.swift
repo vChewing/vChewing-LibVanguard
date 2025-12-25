@@ -2,7 +2,10 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
-import CoreFoundation
+#if canImport(CoreFoundation)
+  import CoreFoundation
+#endif
+
 import Foundation
 @_exported import SwiftExtension
 
