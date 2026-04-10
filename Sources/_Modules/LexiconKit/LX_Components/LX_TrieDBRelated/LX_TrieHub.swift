@@ -17,7 +17,8 @@ extension VanguardTrie {
 
     internal var sqlTrieMap: [FactoryTrieDBType: VanguardTrie.SQLTrie] = [:]
     internal var plistTrieMap: [FactoryTrieDBType: VanguardTrie.Trie] = [:]
-    internal var textMapTrieMap: [FactoryTrieDBType: VanguardTrie.Trie] = [:]
+    // Phase 04: 改用 any VanguardTrieProtocol 以容納 TextMapTrie（.txtMap）與 Trie（.revlookup）。
+    internal var textMapTrieMap: [FactoryTrieDBType: any VanguardTrieProtocol] = [:]
     internal var userTrie: LexiconGramSupplierProtocol?
     internal var cinTrie: LexiconGramSupplierProtocol?
   }
@@ -65,13 +66,12 @@ extension VanguardTrie.TrieHub {
   ) {
     let map = trieMapProvider()
     map.forEach { trieDataType, url in
-      let newTrie: VanguardTrie.Trie?
+      // Phase 04: .txtMap 使用惰性 TextMapTrie；.revlookup 保持全物化 Trie。
       if url.pathExtension == "revlookup" {
-        newTrie = try? VanguardTrie.TrieIO.loadFromRevLookupTSV(url: url)
+        textMapTrieMap[trieDataType] = try? VanguardTrie.TrieIO.loadFromRevLookupTSV(url: url)
       } else {
-        newTrie = try? VanguardTrie.TrieIO.loadFromTextMap(url: url)
+        textMapTrieMap[trieDataType] = try? VanguardTrie.TrieIO.loadFromTextMapLazy(url: url)
       }
-      textMapTrieMap[trieDataType] = newTrie
     }
   }
 }
