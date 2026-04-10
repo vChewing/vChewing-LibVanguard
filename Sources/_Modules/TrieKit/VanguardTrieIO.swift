@@ -253,6 +253,24 @@ extension VanguardTrie {
       }
     }
 
+    /// Phase 04: 從 TextMap 檔案以惰性模式載入 TextMapTrie。
+    ///
+    /// 初期化時僅解析 HEADER 與 KEY_LINE_MAP 建立索引，
+    /// VALUES 區段的詞條在查詢時才按需解析。
+    /// - Parameter url: TextMap 檔案路徑
+    /// - Returns: 惰性載入的 TextMapTrie 結構
+    /// - Throws: 檔案讀取或解析過程中的例外狀況
+    public static func loadFromTextMapLazy(url: URL) throws -> TextMapTrie {
+      do {
+        let data = try Data(contentsOf: url)
+        return try TextMapTrie(data: data)
+      } catch let error as Exception {
+        throw error
+      } catch {
+        throw Exception.fileLoadFailed(error)
+      }
+    }
+
     /// 從 RevLookup TSV 檔案載入 Trie。
     ///
     /// 格式為 `#PRAGMA:VANGUARD_REVLOOKUP_TSV` 起始，接著 `VERSION\t1`，
@@ -272,6 +290,83 @@ extension VanguardTrie {
       } catch {
         throw Exception.fileLoadFailed(error)
       }
+    }
+
+    // MARK: Internal
+
+    // MARK: - TextMap 解析實作
+
+    /// Phase 04: 解析單一 VALUES 行為詞條元組陣列。
+    ///
+    /// 此方法由 `parseTextMap` 與 `TextMapTrie` 共用，
+    /// 確保完整物化與惰性解析兩條路徑使用同一份解析邏輯。
+    internal static func parseValueLine(
+      _ line: String,
+      isTyping: Bool,
+      defaultProbs: [Int32: Double]
+    )
+      -> [(value: String, typeID: Trie.EntryType, probability: Double, previous: String?)] {
+      guard !line.isEmpty else { return [] }
+      let parts = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+
+      // 型別 A：`>typeID\tencodedCell`（預設機率由 HEADER 提供）。
+      if let first = parts.first, first.hasPrefix(">"), parts.count >= 2 {
+        let typeIDStr = String(first.dropFirst())
+        guard let typeIDRaw = Int32(typeIDStr),
+              let probability = defaultProbs[typeIDRaw] else { return [] }
+        let typeID = Trie.EntryType(rawValue: typeIDRaw)
+        return decodeGroupedValues(parts[1]).map { value in
+          (value, typeID, probability, nil)
+        }
+      }
+
+      // 型別 B：`@probability\tchsCell\tchtCell`（TYPING 專用）。
+      if isTyping, parts.count >= 3, let prob = parseTypingGroupedProbability(parts[0]) {
+        var results: [(String, Trie.EntryType, Double, String?)] = []
+        for val in decodeGroupedValues(parts[1]) where !val.isEmpty {
+          results.append((val, .init(rawValue: 5), prob, nil))
+        }
+        for val in decodeGroupedValues(parts[2]) where !val.isEmpty {
+          results.append((val, .init(rawValue: 6), prob, nil))
+        }
+        return results
+      }
+
+      // 型別 C：`value\tprobability\ttypeID[\tprevious]`。
+      if parts.count >= 3,
+         let probability = Double(parts[1]),
+         let typeIDRaw = Int32(parts[2]) {
+        let value = parts[0]
+        let previous: String? = parts.count >= 4 && !parts[3].isEmpty ? parts[3] : nil
+        return [(value, Trie.EntryType(rawValue: typeIDRaw), probability, previous)]
+      }
+
+      // 舊四欄 CHS/CHT 合併格式（相容路徑）。
+      if isTyping, parts.count >= 4 {
+        var results: [(String, Trie.EntryType, Double, String?)] = []
+        if !parts[0].isEmpty, let prob = Double(parts[1]) {
+          results.append((parts[0], .init(rawValue: 5), prob, nil))
+        }
+        if !parts[2].isEmpty, let prob = Double(parts[3]) {
+          results.append((parts[2], .init(rawValue: 6), prob, nil))
+        }
+        return results
+      }
+
+      // 舊 bare numeric grouped line（相容路徑）。
+      if isTyping, parts.count >= 3, isLegacyTypingGroupedLine(parts),
+         let prob = Double(parts[0]) {
+        var results: [(String, Trie.EntryType, Double, String?)] = []
+        for val in decodeGroupedValues(parts[1]) where !val.isEmpty {
+          results.append((val, .init(rawValue: 5), prob, nil))
+        }
+        for val in decodeGroupedValues(parts[2]) where !val.isEmpty {
+          results.append((val, .init(rawValue: 6), prob, nil))
+        }
+        return results
+      }
+
+      return []
     }
 
     // MARK: Private
@@ -441,8 +536,6 @@ extension VanguardTrie {
       return trie
     }
 
-    // MARK: - TextMap 解析實作
-
     private static func parseTextMap(_ content: String) throws -> Trie {
       let lines = content.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
       var lineIndex = 0
@@ -531,95 +624,15 @@ extension VanguardTrie {
         for i in keyMapEntry.startLine ..< end {
           let valueLine = valueLines[i]
           guard !valueLine.isEmpty else { continue }
-          let parts = valueLine.split(separator: "\t", omittingEmptySubsequences: false)
-            .map(String.init)
-          // 合併行格式：`>typeID\tencodedCell`（預設機率由 HEADER 提供）。
-          if let first = parts.first, first.hasPrefix(">"), parts.count >= 2 {
-            let typeIDStr = String(first.dropFirst())
-            guard let typeIDRaw = Int32(typeIDStr),
-                  let probability = defaultProbs[typeIDRaw] else { continue }
-            let typeID = Trie.EntryType(rawValue: typeIDRaw)
-            let values = decodeGroupedValues(parts[1])
-            for value in values {
-              let entry = Trie.Entry(
-                value: value,
-                typeID: typeID,
-                probability: probability,
-                previous: nil
-              )
-              trie.insert(entry: entry, readings: readingArray)
-            }
-          } else if isTyping, parts.count >= 3, let prob = parseTypingGroupedProbability(parts[0]) {
-            // 新版 CHS/CHT 機率分組格式：`@probability\tchsCell\tchtCell`。
-            let chsValues = decodeGroupedValues(parts[1])
-            let chtValues = decodeGroupedValues(parts[2])
-            for val in chsValues where !val.isEmpty {
-              let entry = Trie.Entry(
-                value: val, typeID: .init(rawValue: 5), probability: prob, previous: nil
-              )
-              trie.insert(entry: entry, readings: readingArray)
-            }
-            for val in chtValues where !val.isEmpty {
-              let entry = Trie.Entry(
-                value: val, typeID: .init(rawValue: 6), probability: prob, previous: nil
-              )
-              trie.insert(entry: entry, readings: readingArray)
-            }
-          } else if parts.count >= 3,
-                    let probability = Double(parts[1]),
-                    let typeIDRaw = Int32(parts[2]) {
-            // 三欄格式：value\tprobability\ttypeID[\tprevious]
-            let value = parts[0]
-            let previous: String? = parts.count >= 4 && !parts[3].isEmpty ? parts[3] : nil
+          let parsed = parseValueLine(valueLine, isTyping: isTyping, defaultProbs: defaultProbs)
+          for p in parsed {
             let entry = Trie.Entry(
-              value: value,
-              typeID: Trie.EntryType(rawValue: typeIDRaw),
-              probability: probability,
-              previous: previous
+              value: p.value,
+              typeID: p.typeID,
+              probability: p.probability,
+              previous: p.previous
             )
             trie.insert(entry: entry, readings: readingArray)
-          } else if isTyping, parts.count >= 4 {
-            // 四欄 CHS/CHT 合併格式。
-            let chsVal = parts[0]
-            let chsProb = Double(parts[1])
-            let chtVal = parts[2]
-            let chtProb = Double(parts[3])
-            // CHS rawValue = 5 << 0, CHT rawValue = 6 << 0 (定義於 LexiconKit)。
-            if !chsVal.isEmpty, let prob = chsProb {
-              let entry = Trie.Entry(
-                value: chsVal,
-                typeID: .init(rawValue: 5),
-                probability: prob,
-                previous: nil
-              )
-              trie.insert(entry: entry, readings: readingArray)
-            }
-            if !chtVal.isEmpty, let prob = chtProb {
-              let entry = Trie.Entry(
-                value: chtVal,
-                typeID: .init(rawValue: 6),
-                probability: prob,
-                previous: nil
-              )
-              trie.insert(entry: entry, readings: readingArray)
-            }
-          } else if isTyping, parts.count >= 3, isLegacyTypingGroupedLine(parts),
-                    let prob = Double(parts[0]) {
-            // 舊版 CHS/CHT 機率分組格式：`probability\tchs1 chs2\tcht1 cht2`，僅保留讀取相容。
-            let chsValues = decodeGroupedValues(parts[1])
-            let chtValues = decodeGroupedValues(parts[2])
-            for val in chsValues where !val.isEmpty {
-              let entry = Trie.Entry(
-                value: val, typeID: .init(rawValue: 5), probability: prob, previous: nil
-              )
-              trie.insert(entry: entry, readings: readingArray)
-            }
-            for val in chtValues where !val.isEmpty {
-              let entry = Trie.Entry(
-                value: val, typeID: .init(rawValue: 6), probability: prob, previous: nil
-              )
-              trie.insert(entry: entry, readings: readingArray)
-            }
           }
         }
       }
