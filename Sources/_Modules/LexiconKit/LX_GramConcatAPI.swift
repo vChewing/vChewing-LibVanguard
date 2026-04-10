@@ -65,7 +65,7 @@ extension Lexicon {
     if flags.contains(.sort) { concatenated.sort(by: Self.sortGrams) }
     var insertedThings: Set<Int> = []
     concatenated = concatenated.compactMap { theTuple in
-      let kvHash: Int = makeHash([theTuple.keyArray, theTuple.value, theTuple.previous])
+      let kvHash = makeGramIdentityHash(theTuple.keyArray, theTuple.value, theTuple.previous)
       if !forbiddenKeyValueHashes.isEmpty {
         guard !forbiddenKeyValueHashes.contains(kvHash) else { return nil }
         return theTuple
@@ -79,16 +79,23 @@ extension Lexicon {
   }
 
   private static func sortGrams(_ lhs: HomaGramTuple, _ rhs: HomaGramTuple) -> Bool {
-    (
-      rhs.keyArray.count, "\(lhs.keyArray)", rhs.probability
-    ) < (
-      lhs.keyArray.count, "\(rhs.keyArray)", lhs.probability
-    )
+    if lhs.keyArray.count != rhs.keyArray.count {
+      return lhs.keyArray.count > rhs.keyArray.count
+    }
+    if lhs.keyArray != rhs.keyArray {
+      return lhs.keyArray.lexicographicallyPrecedes(rhs.keyArray)
+    }
+    return lhs.probability > rhs.probability
   }
 
-  private static func makeHash(_ targets: [any Hashable]) -> Int {
+  private static func makeGramIdentityHash(
+    _ keyArray: [String], _ value: String, _ previous: String?
+  )
+    -> Int {
     var hasher = Hasher()
-    targets.forEach { hasher.combine($0) }
+    hasher.combine(keyArray)
+    hasher.combine(value)
+    hasher.combine(previous)
     return hasher.finalize()
   }
 }
