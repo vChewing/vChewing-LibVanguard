@@ -76,7 +76,7 @@ extension VanguardTrieProtocol {
     generateCombinations(index: 0, current: [])
 
     var result = [TNode]()
-    var handledNodeHashes = Set<Int>()
+    var handledNodeIDs = Set<Int>()
     possibleReadings.forEach { keyArray in
       let nodesFetched = getNodes(
         keyArray: keyArray,
@@ -85,9 +85,9 @@ extension VanguardTrieProtocol {
         longerSegment: false
       )
       nodesFetched.forEach { currentNode in
-        let currentNodeHash = currentNode.hashValue
-        guard !handledNodeHashes.contains(currentNodeHash) else { return }
-        handledNodeHashes.insert(currentNodeHash)
+        let currentNodeID = currentNode.id
+        guard !handledNodeIDs.contains(currentNodeID) else { return }
+        handledNodeIDs.insert(currentNodeID)
         result.append(currentNode)
       }
     }
@@ -168,12 +168,15 @@ extension VanguardTrieProtocol {
     }
     var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
     fetchedNodes.forEach { currentNode in
-      let keyArrayActual = currentNode.readingKey.split(separator: readingSeparator)
+      let keyArrayActual = TrieStringOperationCache.shared.getCachedSplit(
+        currentNode.readingKey,
+        separator: readingSeparator
+      )
       currentNode.entries.forEach { currentEntry in
         guard filterType.contains(currentEntry.typeID) else { return } // 分類一致。
         results.append(
           (
-            keyArrayActual.map(\.description),
+            keyArrayActual,
             currentEntry.value,
             currentEntry.probability,
             currentEntry.previous
@@ -213,7 +216,10 @@ extension VanguardTrieProtocol {
       Int: (keyArray: [String], value: String, probability: Double, previous: String?, seq: Int)
     ]()
     nodes.forEach { node in
-      let nodeKeyArray = node.readingKey.split(separator: readingSeparator).map(\.description)
+      let nodeKeyArray = TrieStringOperationCache.shared.getCachedSplit(
+        node.readingKey,
+        separator: readingSeparator
+      )
       node.entries.forEach { entry in
         // 分類一致。
         guard filterType.contains(entry.typeID) else { return }

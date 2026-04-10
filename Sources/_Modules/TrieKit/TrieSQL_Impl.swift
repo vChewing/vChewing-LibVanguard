@@ -84,13 +84,16 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
       longerSegment: longerSegment
     )
     guard !matchedNodeIDs.isEmpty else { return [] }
-    var handledNodeHashes: Set<Int> = []
+    var handledNodeIDs: Set<Int> = []
     let matchedNodes: [TNode] = matchedNodeIDs.compactMap {
       if let theNode = getNode($0) {
-        let hash = theNode.hashValue
-        if !handledNodeHashes.contains(hash) {
-          handledNodeHashes.insert(theNode.hashValue)
-          let nodeKeyArray = theNode.readingKey.split(separator: readingSeparator)
+        let nodeID = theNode.id
+        if !handledNodeIDs.contains(nodeID) {
+          handledNodeIDs.insert(nodeID)
+          let nodeKeyArray = TrieStringOperationCache.shared.getCachedSplit(
+            theNode.readingKey,
+            separator: readingSeparator
+          )
           if nodeMeetsFilter(theNode, filter: filterType) {
             var matched: Bool = longerSegment
               ? nodeKeyArray.count > keyArray.count
@@ -122,13 +125,15 @@ extension VanguardTrie.SQLTrie: VanguardTrieProtocol {
     WHERE id = ?
     LIMIT 1
     """
-    var statement: OpaquePointer?
-
-    guard sqlite3_prepare_v2(database, query, -1, &statement, nil) == SQLITE_OK else {
-      sqlite3_finalize(statement)
+    guard let statement = getCachedStatement(for: query) else {
       return nil
     }
-    defer { sqlite3_finalize(statement) }
+    sqlite3_reset(statement)
+    sqlite3_clear_bindings(statement)
+    defer {
+      sqlite3_reset(statement)
+      sqlite3_clear_bindings(statement)
+    }
 
     sqlite3_bind_int64(statement, 1, sqlite3_int64(nodeID))
 
