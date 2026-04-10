@@ -27,6 +27,7 @@ extension Homa {
       self.gramAvailabilityChecker = gramAvailabilityChecker
       self.config = config
       self.perceptor = perceptor
+      self.gramQueryCache = [:]
     }
 
     /// 複製指定的組字引擎處理器。
@@ -38,6 +39,7 @@ extension Homa {
       self.gramQuerier = target.gramQuerier
       self.gramAvailabilityChecker = target.gramAvailabilityChecker
       self.perceptor = target.perceptor
+      self.gramQueryCache = target.gramQueryCache
     }
 
     // MARK: Public
@@ -143,6 +145,7 @@ extension Homa {
     /// 最近一次的組句結果陣列也會被清空。游標跳轉換算表也會被清空。
     public func clear() {
       config.clear()
+      gramQueryCache.removeAll(keepingCapacity: true)
     }
 
     /// 在游標位置插入給定的索引鍵。
@@ -159,9 +162,10 @@ extension Homa {
       }
       let gridBackup = segments
       var keyExistenceChecked = [String: Bool]()
+      var warmupQueryBuffer = [[String]: [Homa.Gram]]()
       for (cursorAdvancedPosition, key) in givenKeys.enumerated() {
         if !(keyExistenceChecked[key] ?? false) {
-          guard gramAvailabilityChecker([key]) else {
+          guard !queryGrams(using: [key], cache: &warmupQueryBuffer).isEmpty else {
             throw .givenKeyHasNoResults
           }
           keyExistenceChecked[key] = true
@@ -301,6 +305,9 @@ extension Homa {
     /// - Parameter updateExisting: 是否根據目前的語言模型的資料狀態來對既有節點更新其內部的單元圖陣列資料。
     /// 該特性可以用於「在選字窗內屏蔽了某個詞之後，立刻生效」這樣的軟體功能需求的實現。
     public func assignNodes(updateExisting: Bool = false) throws(Homa.Exception) {
+      if updateExisting {
+        gramQueryCache.removeAll(keepingCapacity: true)
+      }
       let maxSegLength = maxSegLength
       let rangeOfPositions: Range<Int>
       if updateExisting {
@@ -357,6 +364,35 @@ extension Homa {
 
     // MARK: Private
 
+    private static let maxCachedGramQueries = 512
+
+    // Phase 05: 針對連續 insertKey() 的 query 結果快取，避免完整 lexicon partial match 重複查詢。
+    private var gramQueryCache: [[String]: [Homa.Gram]]
+
+    private static func sortGramRAW(_ lhs: Homa.GramRAW, _ rhs: Homa.GramRAW) -> Bool {
+      if lhs.keyArray.count != rhs.keyArray.count {
+        return lhs.keyArray.count > rhs.keyArray.count
+      }
+      if lhs.keyArray != rhs.keyArray {
+        return lhs.keyArray.lexicographicallyPrecedes(rhs.keyArray)
+      }
+      if lhs.probability != rhs.probability {
+        return lhs.probability > rhs.probability
+      }
+      if lhs.value != rhs.value {
+        return lhs.value < rhs.value
+      }
+      return (lhs.previous ?? "") < (rhs.previous ?? "")
+    }
+
+    private static func makeGramIdentityHash(_ raw: Homa.GramRAW) -> Int {
+      var hasher = Hasher()
+      hasher.combine(raw.keyArray)
+      hasher.combine(raw.value)
+      hasher.combine(raw.previous)
+      return hasher.finalize()
+    }
+
     /// 從元圖存取專用 API 將獲取的結果轉為元圖、以供 Nodes 使用。
     ///
     /// 此處故意針對不同的 Nodes 單獨建立 Gram 副本，是為了確保它們的記憶體位置不同。
@@ -373,21 +409,21 @@ extension Homa {
       if let cached = cache[keyArray] {
         return cached
       }
-      var insertedIntel = Set<String>()
-      let newResult: [Homa.Gram] = gramQuerier(keyArray).sorted {
-        (
-          $1.keyArray.count, "\($0.keyArray)", $1.probability
-        ) < (
-          $0.keyArray.count, "\($1.keyArray)", $0.probability
-        )
-      }.compactMap {
-        let intel = "\($0.keyArray) \($0.value) \($0.previous ?? "")"
-        if !insertedIntel.contains(intel) {}
-        guard !insertedIntel.contains(intel) else { return nil }
-        insertedIntel.insert(intel)
+      if let cached = gramQueryCache[keyArray] {
+        cache[keyArray] = cached
+        return cached
+      }
+      var insertedIntel = Set<Int>()
+      let newResult: [Homa.Gram] = gramQuerier(keyArray).sorted(by: Self.sortGramRAW).compactMap {
+        let intel = Self.makeGramIdentityHash($0)
+        guard insertedIntel.insert(intel).inserted else { return nil }
         return Homa.Gram($0)
       }
       cache[keyArray] = newResult
+      if gramQueryCache.count >= Self.maxCachedGramQueries {
+        gramQueryCache.removeAll(keepingCapacity: true)
+      }
+      gramQueryCache[keyArray] = newResult
       return newResult
     }
   }
