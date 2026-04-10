@@ -434,12 +434,12 @@ extension VanguardTrie.TextMapTrie: VanguardTrieProtocol {
       return []
     }
 
-    var handledNodeHashes: Set<Int> = []
+    var handledNodeIDs: Set<Int> = []
     let matchedNodes: [TNode] = matchedNodeIDs.compactMap {
       guard let theNode = getNode($0) else { return nil }
-      let hash = theNode.hashValue
-      guard !handledNodeHashes.contains(hash) else { return nil }
-      handledNodeHashes.insert(hash)
+      let nodeID = theNode.id
+      guard !handledNodeIDs.contains(nodeID) else { return nil }
+      handledNodeIDs.insert(nodeID)
       let nodeKeyArray = TrieStringOperationCache.shared.getCachedSplit(
         theNode.readingKey,
         separator: readingSeparator

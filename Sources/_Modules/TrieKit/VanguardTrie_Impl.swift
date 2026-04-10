@@ -63,12 +63,12 @@ extension VanguardTrie.Trie: VanguardTrieProtocol {
       longerSegment: longerSegment
     )
     guard !matchedNodeIDs.isEmpty else { return [] }
-    var handledNodeHashes: Set<Int> = []
+    var handledNodeIDs: Set<Int> = []
     let matchedNodes: [TNode] = matchedNodeIDs.compactMap {
       if let theNode = getNode($0) {
-        let hash = theNode.hashValue
-        if !handledNodeHashes.contains(hash) {
-          handledNodeHashes.insert(theNode.hashValue)
+        let nodeID = theNode.id
+        if !handledNodeIDs.contains(nodeID) {
+          handledNodeIDs.insert(nodeID)
           let nodeKeyArray = TrieStringOperationCache.shared.getCachedSplit(
             theNode.readingKey,
             separator: readingSeparator
