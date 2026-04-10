@@ -17,6 +17,7 @@ extension VanguardTrie {
 
     internal var sqlTrieMap: [FactoryTrieDBType: VanguardTrie.SQLTrie] = [:]
     internal var plistTrieMap: [FactoryTrieDBType: VanguardTrie.Trie] = [:]
+    internal var textMapTrieMap: [FactoryTrieDBType: VanguardTrie.Trie] = [:]
     internal var userTrie: LexiconGramSupplierProtocol?
     internal var cinTrie: LexiconGramSupplierProtocol?
   }
@@ -56,6 +57,23 @@ extension VanguardTrie.TrieHub {
       plistTrieMap[trieDataType] = newTriePlist
     }
   }
+
+  /// - Warning: 如果新指派的 Trie 有創建失敗的話，其對應的類型的原始 Trie 會變成 nil。
+  public func updateTrieFromTextMapFile(
+    _ trieMapProvider: @escaping ()
+      -> [FactoryTrieDBType: URL]
+  ) {
+    let map = trieMapProvider()
+    map.forEach { trieDataType, url in
+      let newTrie: VanguardTrie.Trie?
+      if url.pathExtension == "revlookup" {
+        newTrie = try? VanguardTrie.TrieIO.loadFromRevLookupTSV(url: url)
+      } else {
+        newTrie = try? VanguardTrie.TrieIO.loadFromTextMap(url: url)
+      }
+      textMapTrieMap[trieDataType] = newTrie
+    }
+  }
 }
 
 // MARK: - VanguardTrie.TrieHub + LexiconGramSupplierProtocol
@@ -87,6 +105,11 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
           partiallyMatchedKeys.formUnion(retrievedKeys)
         }
         plistTrieMap[dataType]?.hasGrams(
+          keysEncrypted, filterType: filterType, partiallyMatch: partiallyMatch
+        ) { retrievedKeys in
+          partiallyMatchedKeys.formUnion(retrievedKeys)
+        }
+        textMapTrieMap[dataType]?.hasGrams(
           keysEncrypted, filterType: filterType, partiallyMatch: partiallyMatch
         ) { retrievedKeys in
           partiallyMatchedKeys.formUnion(retrievedKeys)
@@ -142,6 +165,11 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
           ) { retrievedKeys in
             partiallyMatchedKeys.formUnion(retrievedKeys)
           }
+          textMapTrieMap[dataType]?.queryGrams(
+            keysEncrypted, filterType: filterType, partiallyMatch: partiallyMatch
+          ) { retrievedKeys in
+            partiallyMatchedKeys.formUnion(retrievedKeys)
+          }
           sqlTrieMap[dataType]?.queryGrams(
             keysEncrypted, filterType: filterType, partiallyMatch: partiallyMatch
           ) { retrievedKeys in
@@ -186,6 +214,9 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
         )
         Lexicon.concatGramQueryResults(flags: .decryptReadingKeys) {
           plistTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
+            previous, anterior: anteriorValue, filterType: filterType
+          )
+          textMapTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
             previous, anterior: anteriorValue, filterType: filterType
           )
           sqlTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(

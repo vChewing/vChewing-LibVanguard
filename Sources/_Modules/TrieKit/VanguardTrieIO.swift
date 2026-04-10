@@ -9,6 +9,8 @@ import Foundation
 extension VanguardTrie {
   /// 提供 Trie 資料結構的高效二進位序列化與反序列化功能
   public enum TrieIO {
+    // MARK: Public
+
     // MARK: - 例外型別
 
     /// Trie 輸入輸出操作可能發生的例外狀況
@@ -133,6 +135,501 @@ extension VanguardTrie {
       }
 
       return (errors.isEmpty, errors)
+    }
+
+    /// 將 Trie 序列化為 TextMap 格式字串
+    /// - Parameter trie: 要序列化的 Trie 結構
+    /// - Returns: TextMap 格式的字串
+    public static func serializeToTextMap(_ trie: Trie) -> String {
+      let nodesWithEntries = trie.nodes.values
+        .filter { !$0.entries.isEmpty && !$0.readingKey.isEmpty }
+        .sorted { $0.readingKey < $1.readingKey }
+
+      // 計算每個 typeID 的預設機率。
+      var probsByType: [Int32: Set<Double>] = [:]
+      for node in nodesWithEntries {
+        for entry in node.entries {
+          probsByType[entry.typeID.rawValue, default: []].insert(entry.probability)
+        }
+      }
+      var defaultProbs: [Int32: Double] = [:]
+      for (typeID, probs) in probsByType where probs.count == 1 {
+        defaultProbs[typeID] = probs.first!
+      }
+
+      var valueLines = [String]()
+      var keyMapLines = [String]()
+
+      for node in nodesWithEntries {
+        let startLine = valueLines.count
+        // 具有預設機率的條目按 typeID 合併為 `>typeID\tencodedCell` 格式。
+        var groupedByType: [Int32: [String]] = [:]
+        for entry in node.entries {
+          if let defaultProb = defaultProbs[entry.typeID.rawValue],
+             entry.probability == defaultProb, entry.previous == nil {
+            groupedByType[entry.typeID.rawValue, default: []].append(entry.value)
+          } else {
+            var parts = [String]()
+            parts.append(entry.value)
+            parts.append(formatProbability(entry.probability))
+            parts.append(entry.typeID.rawValue.description)
+            if let previous = entry.previous {
+              parts.append(previous)
+            }
+            valueLines.append(parts.joined(separator: "\t"))
+          }
+        }
+        for (typeID, values) in groupedByType.sorted(by: { $0.key < $1.key }) {
+          valueLines.append(">\(typeID)\t\(encodeGroupedValues(values))")
+        }
+        let count = valueLines.count - startLine
+        if count > 0 {
+          keyMapLines.append("\(node.readingKey)\t\(startLine)\t\(count)")
+        }
+      }
+
+      var result = ""
+      result += "#PRAGMA:VANGUARD_HOMA_LEXICON_HEADER\n"
+      result += "VERSION\t1\n"
+      result += "TYPE\tTRIE_TEXTMAP\n"
+      result += "READING_SEPARATOR\t\(trie.readingSeparator)\n"
+      result += "ENTRY_COUNT\t\(valueLines.count)\n"
+      result += "KEY_COUNT\t\(keyMapLines.count)\n"
+      for (typeID, prob) in defaultProbs.sorted(by: { $0.key < $1.key }) {
+        result += "DEFAULT_PROB_\(typeID)\t\(formatProbability(prob))\n"
+      }
+      result += "#PRAGMA:VANGUARD_HOMA_LEXICON_VALUES\n"
+      for line in valueLines {
+        result += line
+        result += "\n"
+      }
+      result += "#PRAGMA:VANGUARD_HOMA_LEXICON_KEY_LINE_MAP\n"
+      for line in keyMapLines {
+        result += line
+        result += "\n"
+      }
+      return result
+    }
+
+    /// 從 TextMap 格式的 Data 反序列化 Trie 結構
+    /// - Parameter data: TextMap 格式的 UTF-8 Data
+    /// - Returns: 反序列化後的 Trie 結構
+    /// - Throws: 反序列化過程中的例外狀況
+    public static func deserializeFromTextMap(_ data: Data) throws -> Trie {
+      guard let content = String(data: data, encoding: .utf8) else {
+        throw Exception.deserializationFailed(
+          NSError(domain: "VanguardTrie.TrieIO", code: -1, userInfo: [
+            NSLocalizedDescriptionKey: "TextMap data is not valid UTF-8.",
+          ])
+        )
+      }
+      return try deserializeFromTextMap(content)
+    }
+
+    /// 從 TextMap 格式的字串反序列化 Trie 結構
+    /// - Parameter content: TextMap 格式字串
+    /// - Returns: 反序列化後的 Trie 結構
+    /// - Throws: 反序列化過程中的例外狀況
+    public static func deserializeFromTextMap(_ content: String) throws -> Trie {
+      do {
+        return try parseTextMap(content)
+      } catch {
+        throw Exception.deserializationFailed(error)
+      }
+    }
+
+    /// 從 TextMap 檔案載入 Trie
+    /// - Parameter url: TextMap 檔案路徑
+    /// - Returns: 載入的 Trie 結構
+    /// - Throws: 檔案讀取或反序列化過程中的例外狀況
+    public static func loadFromTextMap(url: URL) throws -> Trie {
+      do {
+        let data = try Data(contentsOf: url)
+        return try deserializeFromTextMap(data)
+      } catch let error as Exception {
+        throw error
+      } catch {
+        throw Exception.fileLoadFailed(error)
+      }
+    }
+
+    /// 從 RevLookup TSV 檔案載入 Trie。
+    ///
+    /// 格式為 `#PRAGMA:VANGUARD_REVLOOKUP_TSV` 起始，接著 `VERSION\t1`，
+    /// 後續每行為 `漢字\t讀音1 讀音2 ...`（空格分隔加密讀音）。
+    /// - Parameter url: RevLookup TSV 檔案路徑
+    /// - Returns: 載入的 Trie 結構
+    /// - Throws: 檔案讀取或反序列化過程中的例外狀況
+    public static func loadFromRevLookupTSV(url: URL) throws -> Trie {
+      do {
+        let data = try Data(contentsOf: url)
+        guard let content = String(data: data, encoding: .utf8) else {
+          throw makeParseError("RevLookup TSV data is not valid UTF-8.")
+        }
+        return try parseRevLookupTSV(content)
+      } catch let error as Exception {
+        throw error
+      } catch {
+        throw Exception.fileLoadFailed(error)
+      }
+    }
+
+    // MARK: Private
+
+    private static let typingGroupedLinePrefix: Character = "@"
+    private static let groupedValueSeparator: Character = "|"
+    private static let groupedValueEscape: Character = #"\"#
+    private static let emptyGroupedCellPlaceholder: Character = "\u{7}"
+
+    // MARK: - TextMap 序列化方法
+
+    /// 將 Double 機率值格式化為字串，若小數部分為零則以整數呈現。
+    private static func formatProbability(_ value: Double) -> String {
+      let str = value.description
+      return str.hasSuffix(".0") ? String(str.dropLast(2)) : str
+    }
+
+    private static func encodeGroupedValues(_ values: [String]) -> String {
+      guard !values.isEmpty else { return String(emptyGroupedCellPlaceholder) }
+      return values.map(escapeGroupedValue).joined(separator: String(groupedValueSeparator))
+    }
+
+    private static func escapeGroupedValue(_ value: String) -> String {
+      var result = ""
+      result.reserveCapacity(value.count)
+      for char in value {
+        switch char {
+        case groupedValueEscape:
+          result.append(groupedValueEscape)
+          result.append(groupedValueEscape)
+        case groupedValueSeparator:
+          result.append(groupedValueEscape)
+          result.append(groupedValueSeparator)
+        case " ":
+          result.append(groupedValueEscape)
+          result.append("s")
+        case emptyGroupedCellPlaceholder:
+          result.append(groupedValueEscape)
+          result.append("a")
+        default:
+          result.append(char)
+        }
+      }
+      return result
+    }
+
+    private static func decodeGroupedValues(_ rawCell: String) -> [String] {
+      guard !rawCell.isEmpty, rawCell != String(emptyGroupedCellPlaceholder) else { return [] }
+      if rawCell.contains(groupedValueSeparator) || rawCell.contains(groupedValueEscape) {
+        return splitEscapedGroupedValues(rawCell).map(unescapeGroupedValue)
+      }
+      if rawCell.contains(" ") {
+        return rawCell.split(separator: " ").map(String.init)
+      }
+      return [rawCell]
+    }
+
+    private static func splitEscapedGroupedValues(_ rawCell: String) -> [String] {
+      var result: [String] = []
+      var current = ""
+      current.reserveCapacity(rawCell.count)
+      var isEscaping = false
+      for char in rawCell {
+        if isEscaping {
+          current.append(groupedValueEscape)
+          current.append(char)
+          isEscaping = false
+          continue
+        }
+        if char == groupedValueEscape {
+          isEscaping = true
+          continue
+        }
+        if char == groupedValueSeparator {
+          result.append(current)
+          current.removeAll(keepingCapacity: true)
+          continue
+        }
+        current.append(char)
+      }
+      if isEscaping {
+        current.append(groupedValueEscape)
+      }
+      result.append(current)
+      return result
+    }
+
+    private static func unescapeGroupedValue(_ rawValue: String) -> String {
+      var result = ""
+      result.reserveCapacity(rawValue.count)
+      var isEscaping = false
+      for char in rawValue {
+        if isEscaping {
+          switch char {
+          case groupedValueEscape:
+            result.append(groupedValueEscape)
+          case groupedValueSeparator:
+            result.append(groupedValueSeparator)
+          case "s":
+            result.append(" ")
+          case "a":
+            result.append(emptyGroupedCellPlaceholder)
+          default:
+            result.append(groupedValueEscape)
+            result.append(char)
+          }
+          isEscaping = false
+          continue
+        }
+        if char == groupedValueEscape {
+          isEscaping = true
+          continue
+        }
+        result.append(char)
+      }
+      if isEscaping {
+        result.append(groupedValueEscape)
+      }
+      return result
+    }
+
+    private static func parseTypingGroupedProbability(_ rawValue: String) -> Double? {
+      guard rawValue.first == typingGroupedLinePrefix else { return nil }
+      return Double(String(rawValue.dropFirst()))
+    }
+
+    private static func isLegacyTypingGroupedLine(_ parts: [String]) -> Bool {
+      guard parts.count >= 3, Double(parts[0]) != nil else { return false }
+      if parts[1].isEmpty || parts[2].isEmpty { return true }
+      if parts[1] == String(emptyGroupedCellPlaceholder) || parts[2] ==
+        String(emptyGroupedCellPlaceholder) {
+        return true
+      }
+      if parts[1].contains(" ") || parts[2].contains(" ") { return true }
+      if parts[1].contains(groupedValueSeparator) || parts[2].contains(groupedValueSeparator) {
+        return true
+      }
+      if parts[1].contains(groupedValueEscape) || parts[2].contains(groupedValueEscape) {
+        return true
+      }
+      return Int32(parts[2]) == nil
+    }
+
+    private static func parseRevLookupTSV(_ content: String) throws -> Trie {
+      let lines = content.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+      guard lines.first == "#PRAGMA:VANGUARD_REVLOOKUP_TSV" else {
+        throw makeParseError("Missing #PRAGMA:VANGUARD_REVLOOKUP_TSV")
+      }
+      // revLookup typeID rawValue = 3 << 0（定義於 LexiconKit）。
+      let revLookupTypeID = Trie.EntryType(rawValue: 3)
+      let trie = Trie(separator: "-")
+      for line in lines.dropFirst() { // 跳過 PRAGMA 行。
+        guard !line.hasPrefix("VERSION") else { continue }
+        let parts = line.split(separator: "\t", maxSplits: 1)
+        guard parts.count == 2 else { continue }
+        let character = String(parts[0])
+        // 空格分隔的讀音恢復為 tab 分隔（原始 Trie 內部以 tab 分隔儲存多讀音）。
+        let readings = String(parts[1]).replacingOccurrences(of: " ", with: "\t")
+        let entry = Trie.Entry(
+          value: readings,
+          typeID: revLookupTypeID,
+          probability: 0,
+          previous: nil
+        )
+        trie.insert(entry: entry, readings: [character])
+      }
+      return trie
+    }
+
+    // MARK: - TextMap 解析實作
+
+    private static func parseTextMap(_ content: String) throws -> Trie {
+      let lines = content.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+      var lineIndex = 0
+
+      // Phase 02: 解析 HEADER
+      guard lineIndex < lines.count,
+            lines[lineIndex] == "#PRAGMA:VANGUARD_HOMA_LEXICON_HEADER" else {
+        throw makeParseError("Missing #PRAGMA:VANGUARD_HOMA_LEXICON_HEADER")
+      }
+      lineIndex += 1
+
+      var separatorChar: Character = "-"
+      var entryCount = 0
+      var keyCount = 0
+      var isTyping = false
+      var defaultProbs: [Int32: Double] = [:]
+
+      while lineIndex < lines.count, !lines[lineIndex].hasPrefix("#PRAGMA:") {
+        let parts = lines[lineIndex].split(separator: "\t", maxSplits: 1).map(String.init)
+        if parts.isEmpty { lineIndex += 1; continue }
+        if parts.count >= 2 {
+          switch parts[0] {
+          case "READING_SEPARATOR":
+            if let c = parts[1].first { separatorChar = c }
+          case "ENTRY_COUNT":
+            entryCount = Int(parts[1]) ?? 0
+          case "KEY_COUNT":
+            keyCount = Int(parts[1]) ?? 0
+          case "TYPE":
+            isTyping = parts[1] == "TYPING"
+          default:
+            if parts[0].hasPrefix("DEFAULT_PROB_") {
+              let typeIDStr = String(parts[0].dropFirst("DEFAULT_PROB_".count))
+              if let typeIDRaw = Int32(typeIDStr), let prob = Double(parts[1]) {
+                defaultProbs[typeIDRaw] = prob
+              }
+            }
+          }
+        }
+        lineIndex += 1
+      }
+
+      // Phase 02: 解析 VALUES
+      guard lineIndex < lines.count,
+            lines[lineIndex] == "#PRAGMA:VANGUARD_HOMA_LEXICON_VALUES" else {
+        throw makeParseError("Missing #PRAGMA:VANGUARD_HOMA_LEXICON_VALUES")
+      }
+      lineIndex += 1
+
+      var valueLines = [String]()
+      valueLines.reserveCapacity(entryCount)
+      while lineIndex < lines.count, !lines[lineIndex].hasPrefix("#PRAGMA:") {
+        valueLines.append(lines[lineIndex])
+        lineIndex += 1
+      }
+
+      // Phase 02: 解析 KEY_LINE_MAP
+      guard lineIndex < lines.count,
+            lines[lineIndex] == "#PRAGMA:VANGUARD_HOMA_LEXICON_KEY_LINE_MAP"
+      else {
+        throw makeParseError("Missing #PRAGMA:VANGUARD_HOMA_LEXICON_KEY_LINE_MAP")
+      }
+      lineIndex += 1
+
+      var keyMapEntries = [(readingKey: String, startLine: Int, count: Int)]()
+      keyMapEntries.reserveCapacity(keyCount)
+      while lineIndex < lines.count {
+        let line = lines[lineIndex]
+        if line.isEmpty { lineIndex += 1; continue }
+        let parts = line.split(separator: "\t").map(String.init)
+        guard parts.count >= 3,
+              let start = Int(parts[1]),
+              let cnt = Int(parts[2]) else {
+          lineIndex += 1
+          continue
+        }
+        keyMapEntries.append((parts[0], start, cnt))
+        lineIndex += 1
+      }
+
+      // Phase 02: 從解析結果重建 Trie。
+      let trie = Trie(separator: separatorChar)
+      for keyMapEntry in keyMapEntries {
+        let readingArray = keyMapEntry.readingKey.split(separator: separatorChar).map(String.init)
+        let end = min(keyMapEntry.startLine + keyMapEntry.count, valueLines.count)
+        for i in keyMapEntry.startLine ..< end {
+          let valueLine = valueLines[i]
+          guard !valueLine.isEmpty else { continue }
+          let parts = valueLine.split(separator: "\t", omittingEmptySubsequences: false)
+            .map(String.init)
+          // 合併行格式：`>typeID\tencodedCell`（預設機率由 HEADER 提供）。
+          if let first = parts.first, first.hasPrefix(">"), parts.count >= 2 {
+            let typeIDStr = String(first.dropFirst())
+            guard let typeIDRaw = Int32(typeIDStr),
+                  let probability = defaultProbs[typeIDRaw] else { continue }
+            let typeID = Trie.EntryType(rawValue: typeIDRaw)
+            let values = decodeGroupedValues(parts[1])
+            for value in values {
+              let entry = Trie.Entry(
+                value: value,
+                typeID: typeID,
+                probability: probability,
+                previous: nil
+              )
+              trie.insert(entry: entry, readings: readingArray)
+            }
+          } else if isTyping, parts.count >= 3, let prob = parseTypingGroupedProbability(parts[0]) {
+            // 新版 CHS/CHT 機率分組格式：`@probability\tchsCell\tchtCell`。
+            let chsValues = decodeGroupedValues(parts[1])
+            let chtValues = decodeGroupedValues(parts[2])
+            for val in chsValues where !val.isEmpty {
+              let entry = Trie.Entry(
+                value: val, typeID: .init(rawValue: 5), probability: prob, previous: nil
+              )
+              trie.insert(entry: entry, readings: readingArray)
+            }
+            for val in chtValues where !val.isEmpty {
+              let entry = Trie.Entry(
+                value: val, typeID: .init(rawValue: 6), probability: prob, previous: nil
+              )
+              trie.insert(entry: entry, readings: readingArray)
+            }
+          } else if parts.count >= 3,
+                    let probability = Double(parts[1]),
+                    let typeIDRaw = Int32(parts[2]) {
+            // 三欄格式：value\tprobability\ttypeID[\tprevious]
+            let value = parts[0]
+            let previous: String? = parts.count >= 4 && !parts[3].isEmpty ? parts[3] : nil
+            let entry = Trie.Entry(
+              value: value,
+              typeID: Trie.EntryType(rawValue: typeIDRaw),
+              probability: probability,
+              previous: previous
+            )
+            trie.insert(entry: entry, readings: readingArray)
+          } else if isTyping, parts.count >= 4 {
+            // 四欄 CHS/CHT 合併格式。
+            let chsVal = parts[0]
+            let chsProb = Double(parts[1])
+            let chtVal = parts[2]
+            let chtProb = Double(parts[3])
+            // CHS rawValue = 5 << 0, CHT rawValue = 6 << 0 (定義於 LexiconKit)。
+            if !chsVal.isEmpty, let prob = chsProb {
+              let entry = Trie.Entry(
+                value: chsVal,
+                typeID: .init(rawValue: 5),
+                probability: prob,
+                previous: nil
+              )
+              trie.insert(entry: entry, readings: readingArray)
+            }
+            if !chtVal.isEmpty, let prob = chtProb {
+              let entry = Trie.Entry(
+                value: chtVal,
+                typeID: .init(rawValue: 6),
+                probability: prob,
+                previous: nil
+              )
+              trie.insert(entry: entry, readings: readingArray)
+            }
+          } else if isTyping, parts.count >= 3, isLegacyTypingGroupedLine(parts),
+                    let prob = Double(parts[0]) {
+            // 舊版 CHS/CHT 機率分組格式：`probability\tchs1 chs2\tcht1 cht2`，僅保留讀取相容。
+            let chsValues = decodeGroupedValues(parts[1])
+            let chtValues = decodeGroupedValues(parts[2])
+            for val in chsValues where !val.isEmpty {
+              let entry = Trie.Entry(
+                value: val, typeID: .init(rawValue: 5), probability: prob, previous: nil
+              )
+              trie.insert(entry: entry, readings: readingArray)
+            }
+            for val in chtValues where !val.isEmpty {
+              let entry = Trie.Entry(
+                value: val, typeID: .init(rawValue: 6), probability: prob, previous: nil
+              )
+              trie.insert(entry: entry, readings: readingArray)
+            }
+          }
+        }
+      }
+      return trie
+    }
+
+    private static func makeParseError(_ message: String) -> NSError {
+      NSError(domain: "VanguardTrie.TrieIO.TextMap", code: -1, userInfo: [
+        NSLocalizedDescriptionKey: message,
+      ])
     }
   }
 }

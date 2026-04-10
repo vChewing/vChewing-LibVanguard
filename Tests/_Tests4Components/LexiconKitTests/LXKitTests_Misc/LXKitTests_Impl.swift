@@ -16,6 +16,14 @@ extension FactoryTrieDBType {
     Bundle.lexiconTestData.url(forResource: sqlFileNameStem, withExtension: "plist")
   }
 
+  func getFactoryTextMapDemoFileURL4Tests() -> URL? {
+    let ext = switch self {
+    case .revLookup: "revlookup"
+    case .typing: "txtMap"
+    }
+    return Bundle.lexiconTestData.url(forResource: sqlFileNameStem, withExtension: ext)
+  }
+
   // MARK: Internal
 
   internal var sqlFileNameStem: String {

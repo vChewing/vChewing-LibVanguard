@@ -15,11 +15,25 @@ import TrieKit
 public struct LXTests4TrieHub {
   // MARK: Internal
 
-  static func makeSharedTrie4Tests(useSQL: Bool, measureTime: Bool = true) -> VanguardTrie.TrieHub {
+  enum DataSource: String, CaseIterable, CustomTestStringConvertible {
+    case sql = "SQL"
+    case plist = "Plist"
+    case textMap = "TextMap"
+
+    // MARK: Internal
+
+    var testDescription: String { rawValue }
+  }
+
+  static func makeSharedTrie4Tests(
+    source: DataSource, measureTime: Bool = true
+  )
+    -> VanguardTrie.TrieHub {
     let hub = VanguardTrie.TrieHub()
-    let tag = useSQL ? "(SQL)" : "(Plist)"
-    if useSQL {
-      Self.measureTime("Hub booting time cost \(tag)", useSQL: true, enabled: measureTime) {
+    let tag = "(\(source.rawValue))"
+    switch source {
+    case .sql:
+      Self.measureTime("Hub booting time cost \(tag)", tag: tag, enabled: measureTime) {
         hub.updateTrieFromSQLFile {
           var resultMap4FilePaths: [FactoryTrieDBType: String] = [:]
           FactoryTrieDBType.allCases.forEach { currentCase in
@@ -29,8 +43,8 @@ public struct LXTests4TrieHub {
           return resultMap4FilePaths
         }
       }
-    } else {
-      Self.measureTime("Hub booting time cost \(tag)", useSQL: false, enabled: measureTime) {
+    case .plist:
+      Self.measureTime("Hub booting time cost \(tag)", tag: tag, enabled: measureTime) {
         hub.updateTrieFromPlistFile {
           var resultMap4FileURLs: [FactoryTrieDBType: URL] = [:]
           FactoryTrieDBType.allCases.forEach { currentCase in
@@ -41,14 +55,30 @@ public struct LXTests4TrieHub {
           return resultMap4FileURLs
         }
       }
+    case .textMap:
+      Self.measureTime("Hub booting time cost \(tag)", tag: tag, enabled: measureTime) {
+        hub.updateTrieFromTextMapFile {
+          var resultMap4FileURLs: [FactoryTrieDBType: URL] = [:]
+          FactoryTrieDBType.allCases.forEach { currentCase in
+            if let textMapURL = currentCase.getFactoryTextMapDemoFileURL4Tests() {
+              resultMap4FileURLs[currentCase] = textMapURL
+            }
+          }
+          return resultMap4FileURLs
+        }
+      }
     }
     return hub
   }
 
-  @Test("[LXKit] TrieHub_ConstructionAndQuery", arguments: [false, true])
-  func testTrieHubConstructionAndQuery(useSQL: Bool) throws {
-    let hub = Self.makeSharedTrie4Tests(useSQL: useSQL)
-    let dataTypeCountRegistered = useSQL ? hub.sqlTrieMap.count : hub.plistTrieMap.count
+  @Test("[LXKit] TrieHub_ConstructionAndQuery", arguments: DataSource.allCases)
+  func testTrieHubConstructionAndQuery(source: DataSource) throws {
+    let hub = Self.makeSharedTrie4Tests(source: source)
+    let dataTypeCountRegistered: Int = switch source {
+    case .sql: hub.sqlTrieMap.count
+    case .plist: hub.plistTrieMap.count
+    case .textMap: hub.textMapTrieMap.count
+    }
     #expect(dataTypeCountRegistered == FactoryTrieDBType.allCases.count)
     #expect(hub.hasGrams(["_NORM"], filterType: .meta)) // META
     let queriedResultNORM = hub.queryGrams(["_NORM"], filterType: .meta)
@@ -101,16 +131,16 @@ public struct LXTests4TrieHub {
 
   @Test(
     "[LXKit] TrieHub_AssemblyingUsingFullMatch",
-    arguments: [false, true]
+    arguments: DataSource.allCases
   )
-  func testTrieHubAssemblyingUsingFullMatch(useSQL: Bool) async throws {
-    let hub = Self.makeSharedTrie4Tests(useSQL: useSQL)
+  func testTrieHubAssemblyingUsingFullMatch(source: DataSource) async throws {
+    let hub = Self.makeSharedTrie4Tests(source: source)
     let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
     let assembler = Homa.Assembler(
       gramQuerier: { hub.queryGrams($0, filterType: .cht, partiallyMatch: false) },
       gramAvailabilityChecker: { hub.hasGrams($0, filterType: .cht, partiallyMatch: false) }
     )
-    try Self.measureTime("Key insertion time cost on full match", useSQL: useSQL) {
+    try Self.measureTime("Key insertion time cost on full match", tag: "(\(source.rawValue))") {
       try readings.forEach { try assembler.insertKey($0.description) }
     }
     var assembledSentence = assembler.assemble().compactMap(\.value)
@@ -126,24 +156,23 @@ public struct LXTests4TrieHub {
     #expect(actualkeysJoined == "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ")
   }
 
-  /// 該測試主要是為了測試效能。
   @Test(
     "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops",
-    arguments: [false, true]
+    arguments: DataSource.allCases
   )
-  func testTrieHubAssemblyingUsingPartialMatchAndChops(useSQL: Bool) async throws {
+  func testTrieHubAssemblyingUsingPartialMatchAndChops(source: DataSource) async throws {
     let pinyinTrie = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
     let rawPinyin = "yodienliylvf"
     let rawPinyinChopped = pinyinTrie.chop(rawPinyin)
     #expect(rawPinyinChopped == ["yo", "die", "n", "li", "y", "lv", "f"])
     let keys2Add = pinyinTrie.deductChoppedPinyinToZhuyin(rawPinyinChopped)
     #expect(keys2Add == ["ㄧㄛ&ㄧㄡ&ㄩㄥ", "ㄉㄧㄝ", "ㄋ", "ㄌㄧ", "ㄧ&ㄩ", "ㄌㄩ&ㄌㄩㄝ&ㄌㄩㄢ", "ㄈ"])
-    let hub = Self.makeSharedTrie4Tests(useSQL: useSQL)
+    let hub = Self.makeSharedTrie4Tests(source: source)
     let assembler = Homa.Assembler(
       gramQuerier: { hub.queryGrams($0, filterType: .cht, partiallyMatch: true) },
       gramAvailabilityChecker: { hub.hasGrams($0, filterType: .cht, partiallyMatch: true) }
     )
-    try Self.measureTime("Key insertion time cost on partial match", useSQL: useSQL) {
+    try Self.measureTime("Key insertion time cost on partial match", tag: "(\(source.rawValue))") {
       try keys2Add.forEach { try assembler.insertKey($0.description) }
     }
     var assembledSentence = assembler.assemble().compactMap(\.value)
@@ -163,7 +192,7 @@ public struct LXTests4TrieHub {
 
   private static func measureTime(
     _ memo: String,
-    useSQL: Bool,
+    tag: String,
     enabled: Bool = true,
     _ task: @escaping () throws -> ()
   ) rethrows {
@@ -175,7 +204,6 @@ public struct LXTests4TrieHub {
     try task()
     let timestamp1b = Date().timeIntervalSince1970
     let timeCost = ((timestamp1b - timestamp1a) * 100_000).rounded() / 100
-    let tag = useSQL ? "(SQL)" : "(Plist)"
     print("[Sitrep \(tag)] \(memo): \(timeCost)ms.")
   }
 }
