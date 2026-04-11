@@ -53,6 +53,21 @@ struct TrieKitTextMapTests {
     #expect(values == ["A B", "C|D"])
   }
 
+  @Test("[TrieKit] TextMap parsing tolerates CRLF line endings")
+  func testTextMapParsingToleratesCRLFLineEndings() throws {
+    let textMap =
+      "#PRAGMA:VANGUARD_HOMA_LEXICON_HEADER\r\nVERSION\t1\r\nTYPE\tTYPING\r\nREADING_SEPARATOR\t-\r\nENTRY_COUNT\t1\r\nKEY_COUNT\t1\r\n#PRAGMA:VANGUARD_HOMA_LEXICON_VALUES\r\n@-9.9\t和\t和\r\n#PRAGMA:VANGUARD_HOMA_LEXICON_KEY_LINE_MAP\r\nhe4\t0\t1\r\n"
+
+    let trie = try VanguardTrie.TrieIO.deserializeFromTextMap(textMap)
+    let entries = trie.nodes.values.first(where: { $0.readingKey == "he4" })?.entries ?? []
+    let values = entries.map(\.value).sorted()
+    let typeIDs = entries.map { $0.typeID.rawValue }.sorted()
+
+    #expect(entries.count == 2)
+    #expect(values == ["和", "和"])
+    #expect(typeIDs == [5, 6])
+  }
+
   @Test("[TrieKit] TYPING TextMap grouped line with marker and escapes")
   func testTypingTextMapGroupedLineWithMarkerAndEscapes() throws {
     let encodedChsCell = #"A\sB|C\|D"#
