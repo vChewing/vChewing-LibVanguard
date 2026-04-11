@@ -494,7 +494,8 @@ extension VanguardTrie {
     }
 
     private static func parseTextMap(_ content: String) throws -> Trie {
-      let lines = content.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+      let lines = content.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        .map(String.init)
       var lineIndex = 0
 
       // Phase 02: 解析 HEADER

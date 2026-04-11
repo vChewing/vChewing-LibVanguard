@@ -137,6 +137,11 @@ extension VanguardTrie.TextMapTrie {
   }
 
   /// 以位元組掃描定位三個 PRAGMA 行的位置。
+  ///
+  /// 用 `matchPrefix` 做前綴比對。
+  /// CRLF 資料中 pragma 行為 `#PRAGMA:...HEADER\r\n`，
+  /// 前綴 `#PRAGMA:...HEADER` 完全吻合，`\r` 在前綴之後，不干擾。
+  /// 偏移量 `nextLineStart = i + 1`（`i` 指向 `\n`）也正確。
   private static func locatePragmaBounds(in data: Data) throws -> PragmaBounds {
     let pragmaH = Array("#PRAGMA:VANGUARD_HOMA_LEXICON_HEADER".utf8)
     let pragmaV = Array("#PRAGMA:VANGUARD_HOMA_LEXICON_VALUES".utf8)
@@ -284,7 +289,10 @@ extension VanguardTrie.TextMapTrie {
       var lineStart = start
       var cursor = start
 
-      func processLine(_ lowerBound: Int, _ upperBound: Int) {
+      func processLine(_ lowerBound: Int, _ rawUpperBound: Int) {
+        // Trim trailing \r (CRLF tolerance).
+        var upperBound = rawUpperBound
+        while upperBound > lowerBound, ptr[upperBound - 1] == 0x0D { upperBound -= 1 }
         guard upperBound > lowerBound else { return }
         var firstTab: Int?
         var secondTab: Int?
@@ -374,10 +382,12 @@ extension VanguardTrie.TextMapTrie {
 
       for lineIndex in keyEntry.startLine ..< endLine {
         let start = valueLineOffsets[lineIndex]
-        let rawEnd = lineIndex + 1 < valueLineOffsets.count
+        var end = lineIndex + 1 < valueLineOffsets.count
           ? valueLineOffsets[lineIndex + 1]
           : valuesEndOffset
-        let end = (rawEnd > start && data[rawEnd - 1] == 0x0A) ? rawEnd - 1 : rawEnd
+        while end > start, data[end - 1] == 0x0A || data[end - 1] == 0x0D {
+          end -= 1
+        }
         guard end > start else { continue }
 
         let line = extractString(from: data, start: start, end: end)
@@ -450,11 +460,13 @@ extension VanguardTrie.TextMapTrie {
   private func extractValueLine(_ lineIndex: Int) -> String {
     guard lineIndex >= 0, lineIndex < valuesLineOffsets.count else { return "" }
     let start = valuesLineOffsets[lineIndex]
-    let rawEnd = lineIndex + 1 < valuesLineOffsets.count
+    var end = lineIndex + 1 < valuesLineOffsets.count
       ? valuesLineOffsets[lineIndex + 1]
       : valuesEndOffset
-    // 去掉尾端的 \n。
-    let end = (rawEnd > start && rawData[rawEnd - 1] == 0x0A) ? rawEnd - 1 : rawEnd
+    // 去掉尾端的 \n 與 \r（CRLF tolerance）。
+    while end > start, rawData[end - 1] == 0x0A || rawData[end - 1] == 0x0D {
+      end -= 1
+    }
     guard end > start else { return "" }
     return Self.extractString(from: rawData, start: start, end: end)
   }
