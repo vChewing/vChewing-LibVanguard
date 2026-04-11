@@ -86,9 +86,14 @@ public struct LXTests4TrieHub {
     #expect(hub.hasGrams(["_BUILD_TIMESTAMP"], filterType: .meta))
     let queriedResultTIME = hub.queryGrams(["_BUILD_TIMESTAMP"], filterType: .meta)
     #expect((queriedResultTIME.map(\.probability).first ?? 0) > 0)
-    #expect(hub.hasGrams(["⾡"], filterType: .revLookup)) // RevLookup
-    let queriedResultRevLookup = hub.queryGrams(["⾡"], filterType: .revLookup).first
-    #expect(queriedResultRevLookup?.value == "ㄔㄨㄛˋ")
+    #expect(hub.hasGrams(["和"], filterType: .revLookup)) // RevLookup
+    let queriedResultRevLookup = hub.queryGrams(["和"], filterType: .revLookup).first
+    #expect(queriedResultRevLookup?.value.contains("ㄏㄜˋ") == true)
+    if source == .textMap {
+      #expect(hub.hasGrams(["𡜅"], filterType: .revLookup))
+      let queriedResultCNSRevLookup = hub.queryGrams(["𡜅"], filterType: .revLookup).first
+      #expect(queriedResultCNSRevLookup?.value.contains("ㄌㄩˇ") == true)
+    }
     #expect(hub.hasGrams(["ㄌㄩˇ"], filterType: .cns)) // CNS
     let queriedResultCNS = hub.queryGrams(["ㄌㄩˇ"], filterType: .cns).map(\.value)
     #expect(queriedResultCNS.contains("𡜅"))

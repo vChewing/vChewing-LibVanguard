@@ -17,11 +17,12 @@ extension FactoryTrieDBType {
   }
 
   func getFactoryTextMapDemoFileURL4Tests() -> URL? {
-    let ext = switch self {
-    case .revLookup: "revlookup"
-    case .typing: "txtMap"
+    switch self {
+    case .typing:
+      return Bundle.lexiconTestData.url(forResource: sqlFileNameStem, withExtension: "txtMap")
+    case .revLookup:
+      return nil
     }
-    return Bundle.lexiconTestData.url(forResource: sqlFileNameStem, withExtension: ext)
   }
 
   // MARK: Internal
