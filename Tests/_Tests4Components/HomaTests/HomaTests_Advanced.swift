@@ -684,12 +684,15 @@ public struct HomaTestsAdvanced: HomaTestSuite {
           let candidateCursorPos = assembler.getLogicalCandidateCursorPosition(
             forCursor: candidateCursorType
           )
-          let gramAtCursor = assembler.assembledSentence.findGram(at: candidateCursorPos)?.gram
-          let matchedGram =
-            gramAtCursor?.gram
-              ?? assembler.assembledSentence.first {
-                $0.keyArray == pair.keyArray && $0.value == pair.value
-              }?.gram
+          var keyOffset = 0
+          let matchedGram = assembler.assembledSentence.first { gram in
+            defer { keyOffset += gram.keyArray.count }
+            guard gram.keyArray == pair.keyArray, gram.value == pair.value else { return false }
+            let gramRange = keyOffset ..< (keyOffset + gram.keyArray.count)
+            return gramRange.contains(candidateCursorPos)
+          }?.gram ?? assembler.assembledSentence.first {
+            $0.keyArray == pair.keyArray && $0.value == pair.value
+          }?.gram
           #expect(
             matchedGram != nil,
             Comment(stringLiteral: "未能在位置 \(pos) 找到候選 \(pair.value) 的 Gram 參考。")

@@ -26,8 +26,14 @@ extension Homa.Assembler {
   ) throws(Homa.Exception) {
     // 針對給定的候選字推算實際游標位置並拿到鞏固邊界範圍與偵錯資訊。
     let targetCursor = getLogicalCandidateCursorPosition(forCursor: cursorType)
+    let candidateRange = candidateRange(
+      for: theCandidate,
+      cursorType: cursorType,
+      cursorPosition: targetCursor
+    )
     let (consolidationRange, debugIntel) = calculateConsolidationBoundaries(
       for: theCandidate,
+      candidateRange: candidateRange,
       cursorPosition: targetCursor
     )
     if let debugIntelHandler {
@@ -39,9 +45,6 @@ extension Homa.Assembler {
 
     // 用於避免重複處理同一節點。
     var nodeIndices = [Int]()
-    let candidateKeyCount = max(theCandidate.keyArray.count, 1)
-    let candidateRangeUpperBound = Swift.min(targetCursor + candidateKeyCount, length)
-    let candidateRange = targetCursor ..< candidateRangeUpperBound
 
     // 自鞏固下界開始掃描，逐節點鎖定並處理內容。
     var position = consolidationRange.lowerBound
@@ -132,13 +135,14 @@ extension Homa.Assembler {
   /// - Returns: 回傳一個 Range<Int> 表示要被鞏固的字元索引範圍，以及 debug 相關字串資訊。
   private func calculateConsolidationBoundaries(
     for candidate: Homa.CandidatePair,
+    candidateRange: Range<Int>,
     cursorPosition: Int
   )
     -> (range: Range<Int>, debugInfo: String) {
     // 暫存既有句子內容，以便乾操控後恢復。
     let currentAssembledSentence = assembledSentence
-    var frontBoundaryEX = cursorPosition + 1
-    var rearBoundaryEX = cursorPosition
+    var frontBoundaryEX = candidateRange.upperBound
+    var rearBoundaryEX = candidateRange.lowerBound
     var debugIntelToPrint = ""
 
     // 建立節點覆寫狀態鏡像並暫停感知器，避免試算影響真實狀態。
@@ -158,11 +162,21 @@ extension Homa.Assembler {
     }
 
     // 嘗試在原位置覆寫候選字，若成功則評估回寫後的上下文邊界。
-    if (try? overrideCandidate(candidate, at: cursorPosition)) != nil {
+    if (try? overrideCandidate(
+      candidate,
+      at: cursorPosition,
+      type: .withSpecified,
+      isExplicitlyOverridden: true,
+      enforceRetokenization: true
+    )) != nil {
       assemble()
-      let range = assembledSentence.contextRange(ofGivenCursor: cursorPosition)
-      rearBoundaryEX = range.lowerBound
-      frontBoundaryEX = range.upperBound
+      let probeCursor = Swift.min(
+        Swift.max(candidateRange.lowerBound, cursorPosition),
+        Swift.max(candidateRange.upperBound - 1, candidateRange.lowerBound)
+      )
+      let range = assembledSentence.contextRange(ofGivenCursor: probeCursor)
+      rearBoundaryEX = Swift.min(rearBoundaryEX, range.lowerBound)
+      frontBoundaryEX = Swift.max(frontBoundaryEX, range.upperBound)
       debugIntelToPrint.append("EX: \(rearBoundaryEX)..<\(frontBoundaryEX), ")
     }
 
@@ -191,6 +205,21 @@ extension Homa.Assembler {
     debugIntelToPrint.append("FIN: \(rearBoundary)..<\(frontBoundary)")
 
     return (rearBoundary ..< frontBoundary, debugIntelToPrint)
+  }
+
+  private func candidateRange(
+    for candidate: Homa.CandidatePair,
+    cursorType: CandidateCursor,
+    cursorPosition: Int
+  )
+    -> Range<Int> {
+    let candidateLength = Swift.max(candidate.keyArray.count, 1)
+    let rangeStart: Int = switch cursorType {
+    case .placedFront: Swift.max(0, cursorPosition - candidateLength + 1)
+    case .placedRear: cursorPosition
+    }
+    let rangeEnd = Swift.min(length, rangeStart + candidateLength)
+    return rangeStart ..< Swift.max(rangeEnd, rangeStart)
   }
 
   /// 嘗試將完整節點內容一次性覆寫（整段覆寫法）。

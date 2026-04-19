@@ -103,7 +103,7 @@ extension Homa.Assembler {
     let theCandidateNow = candidates[newIndex]
 
     // 進行上下文鞏固和覆寫操作。
-    // 重試機制：如果 consolidateNode 沒有改變組字器狀態，則重試最多 20 次
+    // 只有當目標候選字真的成為邏輯游標上的 explicit node 時才算成功。
     var retryCount = 0
     let maxRetries = 20
     let previousSentence = assembledSentence
@@ -111,7 +111,7 @@ extension Homa.Assembler {
     var debugIntel: [String] = []
 
     while retryCount < maxRetries {
-      if retryCount > 1 {
+      if retryCount > 0 {
         try? consolidateCandidateCursorContext(
           for: theCandidateNow.pair,
           cursorType: cursorType
@@ -122,17 +122,40 @@ extension Homa.Assembler {
         }
       }
 
-      // 覆寫候選字並重新組裝
-      try overrideCandidate(
-        theCandidateNow.pair,
-        at: candidateCursorPos,
-        isExplicitlyOverridden: true
-      )
+      do {
+        try overrideCandidate(
+          theCandidateNow.pair,
+          at: candidateCursorPos,
+          type: .withSpecified,
+          isExplicitlyOverridden: true,
+          enforceRetokenization: retryCount % 2 == 1
+        )
+      } catch {
+        retryCount += 1
+        if retryCount < maxRetries {
+          debugIntel.append(
+            "revolveCandidate: override failed, retrying (\(retryCount)/\(maxRetries))"
+          )
+        }
+        continue
+      }
 
       let currentSentence = assembledSentence
-      if previousSentence.map(\.value) != currentSentence.map(\.value) {
+      let currentGramAtCursor = currentSentence.findGram(at: candidateCursorPos)?.gram
+      let currentPairAtCursor = currentGramAtCursor.map {
+        Homa.CandidatePair(
+          keyArray: $0.keyArray,
+          value: $0.value,
+          score: $0.score
+        )
+      }
+      let didChangeSentence = previousSentence.map(\ .value) != currentSentence.map(\ .value)
+      let didApplyTargetCandidate = currentPairAtCursor == theCandidateNow.pair
+      let didLockExplicitNode = currentGramAtCursor?.isExplicit == true
+
+      if didChangeSentence, didApplyTargetCandidate, didLockExplicitNode {
         debugIntel.append(
-          "revolveCandidate: consolidateNode succeeded after \(retryCount + 1) attempts"
+          "revolveCandidate: succeeded after \(retryCount + 1) attempts"
         )
         successfullyRevolved = true
         break
@@ -141,10 +164,23 @@ extension Homa.Assembler {
       retryCount += 1
       if retryCount < maxRetries {
         debugIntel.append(
-          "revolveCandidate: consolidateNode failed, retrying (\(retryCount)/\(maxRetries))"
+          "revolveCandidate: target not stabilized, retrying (\(retryCount)/\(maxRetries)) [applied=\(didApplyTargetCandidate), explicit=\(didLockExplicitNode), changed=\(didChangeSentence)]"
         )
-        // 第一次使用 preConsolidate，後續重試不使用，以避免重複相同的失敗原因
       }
+    }
+
+    guard successfullyRevolved else {
+      if let debugIntelHandler {
+        debugIntel.append("IDX: \(newIndex + 1)/\(candidates.count)")
+        debugIntel.append("VAL: \(theCandidateNow.pair.value)")
+        debugIntel.append("\(cursorType)")
+        debugIntel.append("ENC: \(cursor)")
+        debugIntel.append("LCC: \(candidateCursorPos)")
+        debugIntel.append(assembledSentence.compactMap(\ .value).joined())
+        debugIntel.append("<- Revolve Failed")
+        debugIntelHandler(debugIntel.joined(separator: " | "))
+      }
+      throw .nothingOverriddenAtNode
     }
 
     // 處理偵錯資訊
