@@ -51,7 +51,7 @@ extension Homa.Assembler {
           }
         }
         let newCandidate = Homa.CandidatePairWeighted(
-          pair: .init(keyArray: gram.keyArray, value: gram.current),
+          pair: .init(keyArray: gram.keyArray, value: gram.current, score: gram.probability),
           weight: gram.probability
         )
         guard !seen.contains(newCandidate.pair) else { return }

@@ -41,6 +41,11 @@ extension Homa {
     public static func == (lhs: Self, rhs: Self) -> Bool {
       lhs.raw == rhs.raw
     }
+
+    public func hash(into hasher: inout Hasher) {
+      hasher.combine(keyArray)
+      hasher.combine(value)
+    }
   }
 
   @frozen
@@ -53,7 +58,7 @@ extension Homa {
     }
 
     public init(pair: CandidatePair, weight: Double) {
-      self.pair = pair
+      self.pair = .init(pair.raw, score: weight)
       self.weight = weight
     }
 

@@ -91,6 +91,24 @@ public struct HomaTestsBasic: HomaTestSuite {
     #expect(assembler.length == 0)
   }
 
+  @Test("[Homa] CandidatePairWeighted_PropagatesWeightToPairScore")
+  func testCandidatePairWeightedPropagatesWeightToPairScore() async throws {
+    let weighted = Homa.CandidatePairWeighted(
+      pair: .init(keyArray: ["ㄅ"], value: "波"),
+      weight: -0.125
+    )
+    #expect(weighted.weight == -0.125)
+    #expect(weighted.pair.score == -0.125)
+  }
+
+  @Test("[Homa] CandidatePair_HashIgnoresScoreLikeEquality")
+  func testCandidatePairHashIgnoresScoreLikeEquality() async throws {
+    let lhs = Homa.CandidatePair(keyArray: ["ㄅ"], value: "波", score: -0.3)
+    let rhs = Homa.CandidatePair(keyArray: ["ㄅ"], value: "波", score: -0.1)
+    #expect(lhs == rhs)
+    #expect(Set([lhs, rhs]).count == 1)
+  }
+
   /// 測試任何長度大於 1 的幅節。
   @Test("[Homa] Assembler_SegmentsAcrossPositions")
   func testSegmentsAcrossPositions() async throws {
