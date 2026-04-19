@@ -161,6 +161,28 @@ public struct LXTests4Perceptor {
     }
   }
 
+  @Test("[LXKit] Perceptor_ReducedLifetime")
+  func testPOM_03A_ReducedLifetimeShrinksObservationWindow() throws {
+    let perceptor = Perceptor(capacity: capacity)
+    let key = "(ㄔㄥˊ-ㄒㄧㄣˋ,誠信)&(ㄓㄜˋ,這)&(ㄉㄧㄢˇ,點)"
+    let expectedSuggestion = "點"
+
+    perceptor.reducedLifetime = true
+    percept(who: perceptor, key: key, candidate: expectedSuggestion, timestamp: nowTimeStamp)
+
+    let stillAvailable = perceptor.getSuggestion(
+      key: key,
+      timestamp: nowTimeStamp + (dayInSeconds * 0.2)
+    )
+    #expect(stillAvailable?.map(\.value).first ?? "" == expectedSuggestion)
+
+    let expired = perceptor.getSuggestion(
+      key: key,
+      timestamp: nowTimeStamp + (dayInSeconds * 0.51)
+    )
+    #expect(expired == nil, "啟用 reducedLifetime 後，觀測應在約 12 小時後失效")
+  }
+
   @Test("[LXKit] Perceptor_LRUTable")
   func testPOM_04_LRUTable() throws {
     let a = (key: "(ㄕㄣˊ-ㄌㄧˇ-ㄌㄧㄥˊ-ㄏㄨㄚˊ,神里綾華)&(ㄉㄜ˙,的)&(ㄍㄡˇ,狗)", value: "狗", head: "ㄍㄡˇ")

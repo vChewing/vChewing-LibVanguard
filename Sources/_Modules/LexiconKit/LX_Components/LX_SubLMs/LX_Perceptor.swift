@@ -37,6 +37,8 @@ public final class Perceptor {
 
   public var thresholdProvider: (() -> Double)?
 
+  public var reducedLifetime = false
+
   public var threshold: Double {
     let fallbackValue = Self.kDecayThreshold
     guard let thresholdCalculated = thresholdProvider?() else { return fallbackValue }
@@ -181,14 +183,12 @@ extension Perceptor {
         }
         mutLRUMap[key] = thePair
         mutLRUKeySeqList.insert(key, at: 0)
-        print("Perceptor: 已更新現有洞察: \(key)")
       } else {
         let perception = Perception()
         perception.update(candidate: candidate, timestamp: timestamp)
         let koPair = KeyPerceptionPair(key: key, perception: perception)
         mutLRUMap[key] = koPair
         mutLRUKeySeqList.insert(key, at: 0)
-        print("Perceptor: 已完成新洞察: \(key)")
       }
       trimLRUIfNeededLocked()
     }
@@ -616,7 +616,7 @@ extension Perceptor {
 
     let daysDiff = (timestamp - eventTimestamp) / (24 * 3_600)
 
-    var T = 8.0
+    var T = reducedLifetime ? 0.5 : 8.0
     if isUnigram { T *= 0.85 }
     if isSingleCharUnigram { T *= 0.8 }
 
