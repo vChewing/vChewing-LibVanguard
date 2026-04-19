@@ -91,20 +91,18 @@ public struct HomaTestsBasic: HomaTestSuite {
     #expect(assembler.length == 0)
   }
 
-  @Test("[Homa] CandidatePairWeighted_PropagatesWeightToPairScore")
-  func testCandidatePairWeightedPropagatesWeightToPairScore() async throws {
-    let weighted = Homa.CandidatePairWeighted(
-      pair: .init(keyArray: ["ㄅ"], value: "波"),
-      weight: -0.125
-    )
+  @Test("[Homa] CandidatePair_CanProduceWeightedPair")
+  func testCandidatePairCanProduceWeightedPair() async throws {
+    let pair = Homa.CandidatePair(keyArray: ["ㄅ"], value: "波")
+    let weighted = pair.weighted(-0.125)
     #expect(weighted.weight == -0.125)
-    #expect(weighted.pair.score == -0.125)
+    #expect(weighted.pair == pair)
   }
 
-  @Test("[Homa] CandidatePair_HashIgnoresScoreLikeEquality")
-  func testCandidatePairHashIgnoresScoreLikeEquality() async throws {
-    let lhs = Homa.CandidatePair(keyArray: ["ㄅ"], value: "波", score: -0.3)
-    let rhs = Homa.CandidatePair(keyArray: ["ㄅ"], value: "波", score: -0.1)
+  @Test("[Homa] CandidatePair_HashMatchesRawEquality")
+  func testCandidatePairHashMatchesRawEquality() async throws {
+    let lhs = Homa.CandidatePair(keyArray: ["ㄅ"], value: "波")
+    let rhs = Homa.CandidatePair(keyArray: ["ㄅ"], value: "波")
     #expect(lhs == rhs)
     #expect(Set([lhs, rhs]).count == 1)
   }

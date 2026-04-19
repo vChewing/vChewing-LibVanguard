@@ -7,23 +7,20 @@ extension Homa {
   public struct CandidatePair: Codable, Hashable, Sendable, Equatable {
     // MARK: Lifecycle
 
-    public init(_ tuplet: CandidatePairRAW, score: Double? = nil) {
+    public init(_ tuplet: CandidatePairRAW) {
       self.keyArray = tuplet.keyArray
       self.value = tuplet.value
-      self.score = score
     }
 
-    public init(keyArray: [String], value: String, score: Double? = nil) {
+    public init(keyArray: [String], value: String) {
       self.keyArray = keyArray
       self.value = value
-      self.score = score
     }
 
     // MARK: Public
 
     public let keyArray: [String]
     public let value: String
-    public let score: Double?
 
     public var raw: CandidatePairRAW {
       (keyArray, value)
@@ -46,6 +43,10 @@ extension Homa {
       hasher.combine(keyArray)
       hasher.combine(value)
     }
+
+    public func weighted(_ score: Double) -> CandidatePairWeighted {
+      CandidatePairWeighted(pair: self, weight: score)
+    }
   }
 
   @frozen
@@ -53,17 +54,17 @@ extension Homa {
     // MARK: Lifecycle
 
     public init(_ tuplet: CandidatePairWeightedRAW) {
-      self.pair = .init(tuplet.pair, score: tuplet.weight)
+      self.pair = .init(tuplet.pair)
       self.weight = tuplet.weight
     }
 
     public init(pair: CandidatePair, weight: Double) {
-      self.pair = .init(pair.raw, score: weight)
+      self.pair = pair
       self.weight = weight
     }
 
     public init(gram: Gram) {
-      self.pair = .init(keyArray: gram.keyArray, value: gram.current, score: gram.probability)
+      self.pair = .init(keyArray: gram.keyArray, value: gram.current)
       self.weight = gram.probability
     }
 

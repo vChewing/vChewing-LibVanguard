@@ -961,9 +961,8 @@ public struct HomaTestsAdvanced: HomaTestSuite {
 
     let pomSuggestedCandidate = Homa.CandidatePair(
       keyArray: ["hui4", "hua4"],
-      value: "會話",
-      score: -0.074493074227700559
-    )
+      value: "會話"
+    ).weighted(-0.074493074227700559)
     let pomSuggestedCandidateOverrideCursor = 4
     #expect(
       Self.mustDone {
@@ -1018,7 +1017,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     #expect(
       Self.mustDone {
         try assembler.overrideCandidate(
-          diJiaoCandidate.pair,
+          diJiaoCandidate,
           at: readingKeys.count,
           enforceRetokenization: true,
           perceptionHandler: { obsCaptured = $0 }
@@ -1063,11 +1062,7 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     )
     #expect(baselineKey?.ngramKey == "()&(di4,第)&(jiao1,交)")
 
-    let pomSuggestedCandidate = Homa.CandidatePair(
-      keyArray: diJiaoCandidate.pair.keyArray,
-      value: diJiaoCandidate.pair.value,
-      score: diJiaoCandidate.pair.score
-    )
+    let pomSuggestedCandidate = diJiaoCandidate.pair.weighted(diJiaoCandidate.weight)
     let overrideCursor = readingKeys.count
     let overrideType: Homa.Node.OverrideType =
       obsCaptured.forceHighScoreOverride ? .withSpecified : .withTopGramScore

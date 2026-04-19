@@ -475,9 +475,8 @@ public struct LXTests4Perceptor {
     )
     let candidateSuggested = Homa.CandidatePair(
       keyArray: firstSuggestionRAW.keyArray,
-      value: firstSuggestionRAW.value,
-      score: firstSuggestionRAW.probability
-    )
+      value: firstSuggestionRAW.value
+    ).weighted(firstSuggestionRAW.probability)
     let cursorForOverride = suggestion.overrideCursor ?? cursorShi
     if (try? validationCompositor.overrideCandidate(
       candidateSuggested,
@@ -488,7 +487,7 @@ public struct LXTests4Perceptor {
       enforceRetokenization: true
     )) == nil {
       try validationCompositor.overrideCandidateLiteral(
-        candidateSuggested.value,
+        candidateSuggested.pair.value,
         at: cursorForOverride,
         overrideType: suggestion.forceHighScoreOverride
           ? Homa.Node.OverrideType.withSpecified
@@ -551,9 +550,8 @@ public struct LXTests4Perceptor {
 
     let candidateSuggested = Homa.CandidatePair(
       keyArray: firstSuggestionRAW.keyArray,
-      value: firstSuggestionRAW.value,
-      score: firstSuggestionRAW.probability
-    )
+      value: firstSuggestionRAW.value
+    ).weighted(firstSuggestionRAW.probability)
     let cursorForOverride = suggestion.overrideCursor ?? cursorShi
     if (try? compositor.overrideCandidate(
       candidateSuggested,
@@ -564,7 +562,7 @@ public struct LXTests4Perceptor {
       enforceRetokenization: true
     )) == nil {
       try compositor.overrideCandidateLiteral(
-        candidateSuggested.value,
+        candidateSuggested.pair.value,
         at: cursorForOverride,
         overrideType: suggestion.forceHighScoreOverride
           ? Homa.Node.OverrideType.withSpecified
@@ -642,9 +640,8 @@ public struct LXTests4Perceptor {
     )
     let candidateSuggested = Homa.CandidatePair(
       keyArray: firstSuggestionRAW.keyArray,
-      value: firstSuggestionRAW.value,
-      score: firstSuggestionRAW.probability
-    )
+      value: firstSuggestionRAW.value
+    ).weighted(firstSuggestionRAW.probability)
     let cursorForOverride = suggestion.overrideCursor ?? cursorHua
     if (try? validationCompositor.overrideCandidate(
       candidateSuggested,
@@ -655,7 +652,7 @@ public struct LXTests4Perceptor {
       enforceRetokenization: true
     )) == nil {
       try validationCompositor.overrideCandidateLiteral(
-        candidateSuggested.value,
+        candidateSuggested.pair.value,
         at: cursorForOverride,
         overrideType: suggestion.forceHighScoreOverride
           ? Homa.Node.OverrideType.withSpecified
@@ -760,9 +757,8 @@ public struct LXTests4Perceptor {
 
     let candidateSuggested = Homa.CandidatePair(
       keyArray: firstSuggestionRAW.keyArray,
-      value: firstSuggestionRAW.value,
-      score: firstSuggestionRAW.probability
-    )
+      value: firstSuggestionRAW.value
+    ).weighted(firstSuggestionRAW.probability)
     let cursorForOverride = suggestion.overrideCursor ?? 0
     if (try? validationCompositor.overrideCandidate(
       candidateSuggested,
@@ -773,7 +769,7 @@ public struct LXTests4Perceptor {
       enforceRetokenization: true
     )) == nil {
       try validationCompositor.overrideCandidateLiteral(
-        candidateSuggested.value,
+        candidateSuggested.pair.value,
         at: cursorForOverride,
         overrideType: suggestion.forceHighScoreOverride
           ? Homa.Node.OverrideType.withSpecified
