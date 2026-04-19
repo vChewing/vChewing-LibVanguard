@@ -379,9 +379,6 @@ extension Homa {
       if lhs.probability != rhs.probability {
         return lhs.probability > rhs.probability
       }
-      if lhs.value != rhs.value {
-        return lhs.value < rhs.value
-      }
       return (lhs.previous ?? "") < (rhs.previous ?? "")
     }
 

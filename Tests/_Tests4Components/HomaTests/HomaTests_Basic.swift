@@ -107,6 +107,24 @@ public struct HomaTestsBasic: HomaTestSuite {
     #expect(Set([lhs, rhs]).count == 1)
   }
 
+  @Test("[Homa] Assembler_QueryGramsPreservesSourceOrderForEqualScorePeers")
+  func testAssemblerQueryGramsPreservesSourceOrderForEqualScorePeers() async throws {
+    let assembler = Homa.Assembler(
+      gramQuerier: { keyArray in
+        [
+          Homa.GramRAW(keyArray: keyArray, value: "，", probability: -9.9, previous: nil),
+          Homa.GramRAW(keyArray: keyArray, value: "〈", probability: -9.9, previous: nil),
+          Homa.GramRAW(keyArray: keyArray, value: "《", probability: -9.9, previous: nil),
+        ]
+      },
+      gramAvailabilityChecker: { !$0.isEmpty }
+    )
+
+    try assembler.insertKey("_punctuation_Standard_<")
+    let values = assembler.segments[0][1]?.grams.map(\.current)
+    #expect(values == ["，", "〈", "《"])
+  }
+
   /// 測試任何長度大於 1 的幅節。
   @Test("[Homa] Assembler_SegmentsAcrossPositions")
   func testSegmentsAcrossPositions() async throws {
