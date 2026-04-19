@@ -50,10 +50,10 @@ extension Homa.Assembler {
           default: break
           }
         }
-        let newCandidate = Homa.CandidatePairWeighted(
-          pair: .init(keyArray: gram.keyArray, value: gram.current, score: gram.probability),
-          weight: gram.probability
-        )
+        let newCandidate = Homa.CandidatePair(
+          keyArray: gram.keyArray,
+          value: gram.current
+        ).weighted(gram.probability)
         guard !seen.contains(newCandidate.pair) else { return }
         result.append(newCandidate)
         seen.insert(newCandidate.pair)
@@ -91,7 +91,27 @@ extension Homa.Assembler {
       keyArray: candidate.keyArray,
       at: location,
       value: candidate.value,
-      score: candidate.score,
+      score: nil,
+      type: overrideType,
+      isExplicitlyOverridden: isExplicitlyOverridden,
+      enforceRetokenization: enforceRetokenization,
+      perceptionHandler: perceptionHandler
+    )
+  }
+
+  public func overrideCandidate(
+    _ candidate: Homa.CandidatePairWeighted,
+    at location: Int,
+    type overrideType: Homa.Node.OverrideType = .withSpecified,
+    isExplicitlyOverridden: Bool = false,
+    enforceRetokenization: Bool = false,
+    perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
+  ) throws(Homa.Exception) {
+    try overrideCandidateAgainst(
+      keyArray: candidate.pair.keyArray,
+      at: location,
+      value: candidate.pair.value,
+      score: candidate.weight,
       type: overrideType,
       isExplicitlyOverridden: isExplicitlyOverridden,
       enforceRetokenization: enforceRetokenization,

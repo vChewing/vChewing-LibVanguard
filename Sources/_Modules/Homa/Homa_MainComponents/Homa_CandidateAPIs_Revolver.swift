@@ -87,8 +87,7 @@ extension Homa.Assembler {
     let currentGramInPath = currentSentence[regionID]
     let currentPair = Homa.CandidatePair(
       keyArray: currentGramInPath.keyArray,
-      value: currentGramInPath.value,
-      score: currentGramInPath.score
+      value: currentGramInPath.value
     )
 
     // 計算新的候選字索引
@@ -124,7 +123,7 @@ extension Homa.Assembler {
 
       do {
         try overrideCandidate(
-          theCandidateNow.pair,
+          theCandidateNow,
           at: candidateCursorPos,
           type: .withSpecified,
           isExplicitlyOverridden: true,
@@ -145,8 +144,7 @@ extension Homa.Assembler {
       let currentPairAtCursor = currentGramAtCursor.map {
         Homa.CandidatePair(
           keyArray: $0.keyArray,
-          value: $0.value,
-          score: $0.score
+          value: $0.value
         )
       }
       let didChangeSentence = previousSentence.map(\ .value) != currentSentence.map(\ .value)
