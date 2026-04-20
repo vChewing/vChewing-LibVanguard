@@ -7,7 +7,7 @@ import Foundation
 // MARK: - VanguardTrie.TextMapTrie
 
 extension VanguardTrie {
-  /// Phase 04: 惰性解析的 TextMap Trie。
+  /// 惰性解析的 TextMap Trie。
   ///
   /// 與 `Trie`（全物化常駐 RAM）不同，`TextMapTrie` 將原始 UTF-8 資料以
   /// `Data` 形式常駐記憶體，僅在查詢時按需解析對應 VALUES 行的詞條。
@@ -26,10 +26,10 @@ extension VanguardTrie {
     public init(data: Data) throws {
       self.rawData = data
 
-      // Phase 04: Step 1 — 定位三個 PRAGMA 區段的位元組範圍。
+      // Step 1 — 定位三個 PRAGMA 區段的位元組範圍。
       let bounds = try Self.locatePragmaBounds(in: data)
 
-      // Phase 04: Step 2 — 解析 HEADER（段落小，可安全轉為 String）。
+      // Step 2 — 解析 HEADER（段落小，可安全轉為 String）。
       let headerStr = Self.extractString(
         from: data,
         start: bounds.headerContentStart,
@@ -40,7 +40,7 @@ extension VanguardTrie {
       self.isTyping = hdr.isTyping
       self.defaultProbs = hdr.defaultProbs
 
-      // Phase 04: Step 3 — 掃描 VALUES 區段的行偏移量（位元組層級）。
+      // Step 3 — 掃描 VALUES 區段的行偏移量（位元組層級）。
       self.valuesLineOffsets = Self.scanValueLineOffsets(
         in: data,
         from: bounds.valuesContentStart,
@@ -48,7 +48,7 @@ extension VanguardTrie {
       )
       self.valuesEndOffset = bounds.keyMapLineStart
 
-      // Phase 04: Step 4 — 解析 KEY_LINE_MAP，建立讀音鍵 → 行範圍索引。
+      // Step 4 — 解析 KEY_LINE_MAP，建立讀音鍵 → 行範圍索引。
       let (entries, initialsMap) = Self.parseKeyLineMapContent(
         in: data,
         from: bounds.keyMapContentStart,
@@ -109,7 +109,7 @@ extension VanguardTrie {
     private let valueLineToKeyEntryIndex: [Int32]
     private let reverseLookupTable: [RevLookupEntry]
 
-    // Phase 04: QueryBuffer 快取已解析的節點，避免重複解析。
+    // QueryBuffer 快取已解析的節點，避免重複解析。
     private let queryBuffer4Node: QueryBuffer<VanguardTrie.Trie.TNode?> = .init()
     private let queryBuffer4Nodes: QueryBuffer<[VanguardTrie.Trie.TNode]> = .init()
     private let queryBuffer4NodeIDs: QueryBuffer<[Int]> = .init()

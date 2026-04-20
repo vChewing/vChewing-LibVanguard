@@ -17,7 +17,7 @@ extension VanguardTrie {
 
     internal var sqlTrieMap: [FactoryTrieDBType: VanguardTrie.SQLTrie] = [:]
     internal var plistTrieMap: [FactoryTrieDBType: VanguardTrie.Trie] = [:]
-    // Phase 07: TextMap 路徑改為單一 `.txtMap`，typing / revLookup 共用同一個惰性 TextMapTrie。
+    // TextMap 路徑改為單一 `.txtMap`，typing / revLookup 共用同一個惰性 TextMapTrie。
     internal var textMapTrieMap: [FactoryTrieDBType: any VanguardTrieProtocol] = [:]
     internal var userTrie: LexiconGramSupplierProtocol?
     internal var cinTrie: LexiconGramSupplierProtocol?

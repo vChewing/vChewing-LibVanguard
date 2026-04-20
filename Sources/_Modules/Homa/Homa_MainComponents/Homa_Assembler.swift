@@ -366,7 +366,7 @@ extension Homa {
 
     private static let maxCachedGramQueries = 512
 
-    // Phase 05: 針對連續 insertKey() 的 query 結果快取，避免完整 lexicon partial match 重複查詢。
+    // 針對連續 insertKey() 的 query 結果快取，避免完整 lexicon partial match 重複查詢。
     private var gramQueryCache: [[String]: [Homa.Gram]]
 
     private static func sortGramRAW(_ lhs: Homa.GramRAW, _ rhs: Homa.GramRAW) -> Bool {

@@ -255,7 +255,7 @@ extension VanguardTrie {
       }
     }
 
-    /// Phase 04: 從 TextMap 檔案以惰性模式載入 TextMapTrie。
+    /// 從 TextMap 檔案以惰性模式載入 TextMapTrie。
     ///
     /// 初期化時僅解析 HEADER 與 KEY_LINE_MAP 建立索引，
     /// VALUES 區段的詞條在查詢時才按需解析。
@@ -277,7 +277,7 @@ extension VanguardTrie {
 
     // MARK: - TextMap 解析實作
 
-    /// Phase 04: 解析單一 VALUES 行為詞條元組陣列。
+    /// 解析單一 VALUES 行為詞條元組陣列。
     ///
     /// 此方法由 `parseTextMap` 與 `TextMapTrie` 共用，
     /// 確保完整物化與惰性解析兩條路徑使用同一份解析邏輯。
@@ -498,7 +498,7 @@ extension VanguardTrie {
         .map(String.init)
       var lineIndex = 0
 
-      // Phase 02: 解析 HEADER
+      // 解析 HEADER
       guard lineIndex < lines.count,
             lines[lineIndex] == "#PRAGMA:VANGUARD_HOMA_LEXICON_HEADER" else {
         throw makeParseError("Missing #PRAGMA:VANGUARD_HOMA_LEXICON_HEADER")
@@ -536,7 +536,7 @@ extension VanguardTrie {
         lineIndex += 1
       }
 
-      // Phase 02: 解析 VALUES
+      // 解析 VALUES
       guard lineIndex < lines.count,
             lines[lineIndex] == "#PRAGMA:VANGUARD_HOMA_LEXICON_VALUES" else {
         throw makeParseError("Missing #PRAGMA:VANGUARD_HOMA_LEXICON_VALUES")
@@ -550,7 +550,7 @@ extension VanguardTrie {
         lineIndex += 1
       }
 
-      // Phase 02: 解析 KEY_LINE_MAP
+      // 解析 KEY_LINE_MAP
       guard lineIndex < lines.count,
             lines[lineIndex] == "#PRAGMA:VANGUARD_HOMA_LEXICON_KEY_LINE_MAP"
       else {
@@ -574,7 +574,7 @@ extension VanguardTrie {
         lineIndex += 1
       }
 
-      // Phase 02: 從解析結果重建 Trie。
+      // 從解析結果重建 Trie。
       let trie = Trie(separator: separatorChar)
       for keyMapEntry in keyMapEntries {
         let readingArray = keyMapEntry.readingKey.split(separator: separatorChar).map(String.init)
