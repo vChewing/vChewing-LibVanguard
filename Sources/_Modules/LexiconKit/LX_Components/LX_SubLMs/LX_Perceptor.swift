@@ -432,6 +432,11 @@ extension Perceptor {
     return results
   }
 
+  // 僅供單元測試使用：用於專門曝露替代 Key 的 API。
+  internal func alternateKeysForTesting(_ originalKey: String) -> [String] {
+    _alternateKeys(for: originalKey)
+  }
+
   fileprivate func _forceHighScoreOverrideFlag(for key: String) -> Bool {
     guard let parts = parsePerceptionKey(key) else { return false }
     let headLen = splitReadingSegments(parts.headReading).count
@@ -559,13 +564,35 @@ extension Perceptor {
     _ rhs: (reading: String, value: String)?
   )
     -> Bool {
+    // 若原始（rhs）沒有上下文，則無論 lhs 為何都接受該候選。
+    // 這允許短段候選（可能帶有額外的 previous/anterior 上下文）
+    // 被視為多段原始的備選。
+    if rhs == nil { return true }
+
+    func isSuffixContextMatch(
+      _ candidate: (reading: String, value: String),
+      within original: (reading: String, value: String)
+    )
+      -> Bool {
+      let candidateSegments = readingSegments(from: candidate.reading)
+      let originalSegments = readingSegments(from: original.reading)
+      guard !candidateSegments.isEmpty, originalSegments.count > candidateSegments.count else {
+        return false
+      }
+      guard Array(originalSegments.suffix(candidateSegments.count)) == candidateSegments else {
+        return false
+      }
+      return original.value.hasSuffix(candidate.value)
+    }
+
     switch (lhs, rhs) {
     case (nil, nil):
-      true
+      return true
     case let (.some(lValue), .some(rValue)):
-      lValue.reading == rValue.reading && lValue.value == rValue.value
+      if lValue.reading == rValue.reading, lValue.value == rValue.value { return true }
+      return isSuffixContextMatch(lValue, within: rValue)
     default:
-      false
+      return false
     }
   }
 
