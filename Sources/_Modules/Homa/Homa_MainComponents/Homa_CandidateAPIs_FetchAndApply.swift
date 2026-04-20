@@ -86,7 +86,7 @@ extension Homa.Assembler {
     isExplicitlyOverridden: Bool = false,
     enforceRetokenization: Bool = false,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
-  ) throws(Homa.Exception) {
+  ) throws {
     try overrideCandidateAgainst(
       keyArray: candidate.keyArray,
       at: location,
@@ -106,7 +106,7 @@ extension Homa.Assembler {
     isExplicitlyOverridden: Bool = false,
     enforceRetokenization: Bool = false,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
-  ) throws(Homa.Exception) {
+  ) throws {
     try overrideCandidateAgainst(
       keyArray: candidate.pair.keyArray,
       at: location,
@@ -135,7 +135,7 @@ extension Homa.Assembler {
     isExplicitlyOverridden: Bool = false,
     enforceRetokenization: Bool = false,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
-  ) throws(Homa.Exception) {
+  ) throws {
     try overrideCandidateAgainst(
       keyArray: nil,
       at: location,
@@ -167,7 +167,7 @@ extension Homa.Assembler {
     isExplicitlyOverridden: Bool,
     enforceRetokenization: Bool,
     perceptionHandler: ((Homa.PerceptionIntel) -> ())? = nil
-  ) throws(Homa.Exception) {
+  ) throws {
     let location = max(min(location, keys.count), 0) // 防呆
     let effectiveLocation = min(keys.count - 1, location)
 
@@ -175,7 +175,7 @@ extension Homa.Assembler {
     let arrOverlappedNodes = fetchOverlappingNodes(at: effectiveLocation)
 
     if arrOverlappedNodes.isEmpty {
-      throw .nothingOverriddenAtNode
+      throw Homa.Exception.nothingOverriddenAtNode
     }
 
     let shouldObserve = perceptionHandler != nil || perceptor != nil
@@ -213,8 +213,11 @@ extension Homa.Assembler {
         }
         overridden = anchor
         break
-      } catch {
+      } catch let error as Homa.Exception {
         lastError = error
+      } catch {
+        // 此部分（在理論上來講）永遠都無法被運行。
+        print(error)
       }
     }
 

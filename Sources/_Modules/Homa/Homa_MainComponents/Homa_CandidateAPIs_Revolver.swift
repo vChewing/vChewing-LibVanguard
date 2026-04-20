@@ -47,13 +47,13 @@ extension Homa.Assembler {
     counterClockwise: Bool,
     debugIntelHandler: ((String) -> ())? = nil,
     candidateArrayHandler: (([Homa.CandidatePairWeighted]) -> ())? = nil
-  ) throws(Homa.Exception)
+  ) throws
     -> (
       Homa.CandidatePairWeighted,
       current: Int,
       total: Int
     ) {
-    guard !isEmpty else { throw .assemblerIsEmpty }
+    guard !isEmpty else { throw Homa.Exception.assemblerIsEmpty }
 
     // 獲取候選字列表
     let candidates: [Homa.CandidatePairWeighted] = switch cursorType {
@@ -65,11 +65,11 @@ extension Homa.Assembler {
 
     // 驗證候選字是否存在
     guard let firstCandidate = candidates.first else {
-      throw .noCandidatesAvailableToRevolve
+      throw Homa.Exception.noCandidatesAvailableToRevolve
     }
     guard candidates.count > 1 else {
       print(firstCandidate)
-      throw .onlyOneCandidateAvailableToRevolve
+      throw Homa.Exception.onlyOneCandidateAvailableToRevolve
     }
 
     // 確保有組裝好的節點串資料
@@ -80,7 +80,7 @@ extension Homa.Assembler {
     let regionMap = currentSentence.cursorRegionMap
     let candidateCursorPos = getLogicalCandidateCursorPosition(forCursor: cursorType)
     guard let regionID = regionMap[candidateCursorPos], assembledSentence.count > regionID else {
-      throw .cursorOutOfReasonableNodeRegions
+      throw Homa.Exception.cursorOutOfReasonableNodeRegions
     }
 
     // 獲取當前節點和其詞組資訊
@@ -178,7 +178,7 @@ extension Homa.Assembler {
         debugIntel.append("<- Revolve Failed")
         debugIntelHandler(debugIntel.joined(separator: " | "))
       }
-      throw .nothingOverriddenAtNode
+      throw Homa.Exception.nothingOverriddenAtNode
     }
 
     // 處理偵錯資訊

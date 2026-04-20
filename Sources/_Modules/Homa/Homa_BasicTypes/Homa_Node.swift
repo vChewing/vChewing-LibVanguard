@@ -270,7 +270,7 @@ extension Homa.Node {
     value: String,
     previous: String? = nil,
     type: Homa.Node.OverrideType
-  ) throws(Homa.Exception)
+  ) throws
     -> Homa.Gram {
     for (i, gram) in grams.enumerated() {
       if let keyArray, keyArray != gram.keyArray { continue }
@@ -283,7 +283,7 @@ extension Homa.Node {
       }
       return gram
     }
-    throw .nothingOverriddenAtNode
+    throw Homa.Exception.nothingOverriddenAtNode
   }
 }
 
