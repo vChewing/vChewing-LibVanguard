@@ -23,7 +23,7 @@ extension Homa.Assembler {
     for theCandidate: Homa.CandidatePair,
     cursorType: CandidateCursor,
     debugIntelHandler: ((String) -> ())? = nil
-  ) throws(Homa.Exception) {
+  ) throws {
     // 針對給定的候選字推算實際游標位置並拿到鞏固邊界範圍與偵錯資訊。
     let targetCursor = getLogicalCandidateCursorPosition(forCursor: cursorType)
     let candidateRange = candidateRange(
@@ -234,7 +234,7 @@ extension Homa.Assembler {
   private func overrideNodeAsWhole(
     _ node: Homa.GramInPath,
     at startPosition: Int
-  ) throws(Homa.Exception) {
+  ) throws {
     // 試圖以整個節點的候選配對一次覆寫到位。
     let candidate = Homa.CandidatePair(
       keyArray: node.keyArray,
