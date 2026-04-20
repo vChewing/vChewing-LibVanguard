@@ -371,6 +371,23 @@ public struct LXTests4Perceptor {
     #expect(perceptor.getSuggestion(key: otherKey, timestamp: timestamp + 100)?.first?.value == "貓")
   }
 
+  @Test("[LXKit] Perceptor_AlternateKeysAllowsSuffixMatchForJoinedAnteriorContext")
+  func testPOM_09A_AlternateKeysAllowsSuffixMatchForJoinedAnteriorContext() throws {
+    let perceptor = Perceptor(capacity: 10)
+    let timestamp = nowTimeStamp
+
+    // 原始查詢上下文把較遠的前文 join 成較長節點：AB | C | D
+    let originalKey = "(A-B,AB)&(C,C)&(D,orig)"
+    // 已記憶的候選只保留靠近 head 的尾段前文：B | C | D
+    let candidate = "(B,B)&(C,C)&(D,cand)"
+
+    percept(who: perceptor, key: candidate, candidate: "cand", timestamp: timestamp)
+    percept(who: perceptor, key: originalKey, candidate: "orig", timestamp: timestamp)
+
+    let fallbacks = perceptor.alternateKeysForTesting(originalKey)
+    #expect(fallbacks.contains(candidate))
+  }
+
   @Test("[LXKit] Perceptor_Homa_Integration_test")
   func testPOM_10_IntegrationAgainstHoma() throws {
     let perceptor = Perceptor()
