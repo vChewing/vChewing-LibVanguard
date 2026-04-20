@@ -815,6 +815,78 @@ public struct HomaTestsAdvanced: HomaTestSuite {
     }
   }
 
+  /// 組字器的候選字輪替測試——某個罕見情形。
+  @Test("[Homa] Assember_TestCandidateRevolvementRareCase1")
+  func testCandidateRevolvementRareCase1() async throws {
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleData_JiHuQiKeng)
+    let assembler = Homa.Assembler(
+      gramQuerier: { mockLM.queryGrams($0) },
+      gramAvailabilityChecker: { mockLM.hasGrams($0) }
+    )
+    let readingKeys = ["ji1", "hu1", "qi4", "keng1"]
+    try readingKeys.forEach { try assembler.insertKey($0) }
+    assembler.assemble()
+    let assembledBefore = assembler.assembledSentence.map { $0.value }.joined(separator: " ")
+    #expect(assembledBefore == "幾乎 氣 坑")
+    try assembler.moveCursorStepwise(to: .rear)
+    #expect(assembledBefore == "幾乎 氣 坑")
+    let candidateCursorType = Homa.Assembler.CandidateCursor.placedFront
+    let allCandidates = assembler.fetchCandidates(filter: .endAt).map(\ .pair.value)
+    #expect(allCandidates.prefix(4) == ["呼氣", "氣", "迄", "棄"])
+    guard let firstCandidate = allCandidates.first, allCandidates.count > 1 else {
+      Issue.record("JiHuQiKeng rare-case test requires at least two candidates.")
+      return
+    }
+
+    let expectedCycle = allCandidates + [firstCandidate]
+    for expectedValue in expectedCycle {
+      let currentRevolved = try assembler.revolveCandidate(
+        cursorType: candidateCursorType,
+        counterClockwise: false
+      )
+      #expect(currentRevolved.0.pair.value == expectedValue)
+      let expectedNodes: [String] = expectedValue == "呼氣"
+        ? ["幾", expectedValue, "坑"]
+        : ["幾", "呼", expectedValue, "坑"]
+      #expect(assembler.assembledSentence.map(\ .value) == expectedNodes)
+    }
+  }
+
+  @Test("[Homa] Assembler_ConsolidationUsesTrueNodeAnchorsOnOverlap")
+  func testConsolidationUsesTrueNodeAnchorsOnOverlap() async throws {
+    let mockLM = TestLM(rawData: HomaTests.strLMSampleData_JiHuQiKeng)
+    let assembler = Homa.Assembler(
+      gramQuerier: { mockLM.queryGrams($0) },
+      gramAvailabilityChecker: { mockLM.hasGrams($0) }
+    )
+    let readingKeys = ["ji1", "hu1", "qi4", "keng1"]
+    try readingKeys.forEach { try assembler.insertKey($0) }
+    assembler.assemble()
+    #expect(assembler.assembledSentence.map(\ .value) == ["幾乎", "氣", "坑"])
+    try assembler.moveCursorStepwise(to: .rear)
+
+    let candidateCursorType = Homa.Assembler.CandidateCursor.placedFront
+    let targetCandidate = Homa.CandidatePair(keyArray: ["hu1", "qi4"], value: "呼氣")
+    #expect(throws: Never.self) {
+      try assembler.consolidateCandidateCursorContext(
+        for: targetCandidate,
+        cursorType: candidateCursorType
+      )
+    }
+
+    let logicalCursor = assembler.getLogicalCandidateCursorPosition(forCursor: candidateCursorType)
+    #expect(throws: Never.self) {
+      try assembler.overrideCandidate(
+        targetCandidate,
+        at: logicalCursor,
+        type: .withSpecified,
+        isExplicitlyOverridden: true,
+        enforceRetokenization: true
+      )
+    }
+    #expect(assembler.assembledSentence.map(\ .value) == ["幾", "呼氣", "坑"])
+  }
+
   /// 邊緣案例測試：再創世的凱歌（再創紀の凱歌）。
   @Test("[Homa] Perception Intel API (SaisoukiNoGaika)")
   func testPerceptionIntel_SaisoukiNoGaika() async throws {
