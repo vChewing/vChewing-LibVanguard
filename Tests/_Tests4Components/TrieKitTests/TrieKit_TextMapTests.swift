@@ -277,4 +277,46 @@ struct TrieKitTextMapTests {
     let lazyCNSRevLookup = lazyTrie.queryGrams(["𡜅"], filterType: revLookupType).first?.value
     #expect(lazyCNSRevLookup == "lv3")
   }
+
+  @Test(
+    "[TrieKit] TextMapTrie existential query APIs preserve partial and associated phrase semantics"
+  )
+  func testTextMapTrieExistentialQueryAPIs() throws {
+    let textMap = """
+    #PRAGMA:VANGUARD_HOMA_LEXICON_HEADER
+    VERSION	1
+    TYPE	TRIE_TEXTMAP
+    READING_SEPARATOR	-
+    ENTRY_COUNT	4
+    KEY_COUNT	3
+    DEFAULT_PROB_1	-1
+    #PRAGMA:VANGUARD_HOMA_LEXICON_VALUES
+    X	-1	1
+    XY	-2	1
+    XZ	-3	1	PREV
+    XW	-4	1
+    #PRAGMA:VANGUARD_HOMA_LEXICON_KEY_LINE_MAP
+    ab	0	1
+    ab-cd	1	2
+    ab-ce	3	1
+    """
+
+    let trie: any VanguardTrieProtocol = try VanguardTrie.TextMapTrie(data: Data(textMap.utf8))
+
+    let partial = trie.queryGrams(["a"], filterType: .init(rawValue: 1), partiallyMatch: true)
+    #expect(partial.map(\.value) == ["X"])
+
+    let associated = trie.queryAssociatedPhrasesAsGrams(
+      (["ab"], "X"),
+      filterType: .init(rawValue: 1)
+    )
+    #expect(associated?.map(\.value) == ["XY", "XZ", "XW"])
+
+    let associatedFiltered = trie.queryAssociatedPhrasesAsGrams(
+      (["ab"], "X"),
+      anterior: "PREV",
+      filterType: .init(rawValue: 1)
+    )
+    #expect(associatedFiltered?.map(\.value) == ["XZ"])
+  }
 }

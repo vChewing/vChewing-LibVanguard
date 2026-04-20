@@ -24,6 +24,13 @@ public protocol VanguardTrieProtocol {
     partiallyMatch: Bool,
     longerSegment: Bool
   ) -> [TNode]
+
+  func getEntryGroups(
+    keyArray: [String],
+    filterType: EntryType,
+    partiallyMatch: Bool,
+    longerSegment: Bool
+  ) -> [(keyArray: [String], entries: [Entry])]
 }
 
 extension VanguardTrieProtocol {
@@ -94,6 +101,57 @@ extension VanguardTrieProtocol {
     return result
   }
 
+  private func getEntryGroups(
+    keysChopped: [String],
+    filterType: EntryType,
+    partiallyMatch: Bool
+  )
+    -> [(keyArray: [String], entries: [Entry])] {
+    guard keysChopped.joined().contains(chopCaseSeparator) else {
+      return getEntryGroups(
+        keyArray: keysChopped,
+        filterType: filterType,
+        partiallyMatch: partiallyMatch,
+        longerSegment: false
+      )
+    }
+
+    var possibleReadings = [[String]]()
+
+    func generateCombinations(index: Int, current: [String]) {
+      if index >= keysChopped.count {
+        possibleReadings.append(current)
+        return
+      }
+
+      let candidates = keysChopped[index].split(separator: chopCaseSeparator)
+      for candidate in candidates {
+        var newCombination = current
+        newCombination.append(candidate.description)
+        generateCombinations(index: index + 1, current: newCombination)
+      }
+    }
+
+    generateCombinations(index: 0, current: [])
+
+    var result = [(keyArray: [String], entries: [Entry])]()
+    var handledKeyArrays = Set<[String]>()
+    possibleReadings.forEach { keyArray in
+      let groupsFetched = getEntryGroups(
+        keyArray: keyArray,
+        filterType: filterType,
+        partiallyMatch: partiallyMatch,
+        longerSegment: false
+      )
+      groupsFetched.forEach { currentGroup in
+        let currentKeyArray = currentGroup.keyArray
+        guard handledKeyArrays.insert(currentKeyArray).inserted else { return }
+        result.append(currentGroup)
+      }
+    }
+    return result
+  }
+
   internal func nodeMeetsFilter(_ theNode: TNode, filter: EntryType) -> Bool {
     filter.isEmpty || theNode.entries.contains(where: { filter.contains($0.typeID) })
   }
@@ -120,6 +178,33 @@ extension VanguardTrieProtocol {
 }
 
 extension VanguardTrieProtocol {
+  public func getEntryGroups(
+    keyArray: [String],
+    filterType: EntryType,
+    partiallyMatch: Bool,
+    longerSegment: Bool
+  )
+    -> [(keyArray: [String], entries: [Entry])] {
+    let fetchedNodes = getNodes(
+      keyArray: keyArray,
+      filterType: filterType,
+      partiallyMatch: partiallyMatch,
+      longerSegment: longerSegment
+    )
+    return fetchedNodes.compactMap { currentNode in
+      let filteredEntries = switch filterType.isEmpty {
+      case true: currentNode.entries
+      case false: currentNode.entries.filter { filterType.contains($0.typeID) }
+      }
+      guard !filteredEntries.isEmpty else { return nil }
+      let keyArrayActual = TrieStringOperationCache.shared.getCachedSplit(
+        currentNode.readingKey,
+        separator: readingSeparator
+      )
+      return (keyArrayActual, filteredEntries)
+    }
+  }
+
   public func hasGrams(
     _ keys: [String],
     filterType: VanguardTrie.Trie.EntryType,
@@ -129,14 +214,14 @@ extension VanguardTrieProtocol {
     -> Bool {
     guard !keys.isEmpty, keys.allSatisfy({ !$0.isEmpty }) else { return false }
     return if !partiallyMatch {
-      !getNodes(
+      !getEntryGroups(
         keyArray: keys,
         filterType: filterType,
         partiallyMatch: partiallyMatch,
         longerSegment: false
       ).isEmpty
     } else {
-      !getNodes(
+      !getEntryGroups(
         keysChopped: keys,
         filterType: filterType,
         partiallyMatch: partiallyMatch
@@ -152,31 +237,26 @@ extension VanguardTrieProtocol {
   )
     -> [(keyArray: [String], value: String, probability: Double, previous: String?)] {
     guard !keys.isEmpty, keys.allSatisfy({ !$0.isEmpty }) else { return [] }
-    let fetchedNodes = if !partiallyMatch {
-      getNodes(
+    let fetchedGroups = if !partiallyMatch {
+      getEntryGroups(
         keyArray: keys,
         filterType: filterType,
         partiallyMatch: partiallyMatch,
         longerSegment: false
       )
     } else {
-      getNodes(
+      getEntryGroups(
         keysChopped: keys,
         filterType: filterType,
         partiallyMatch: partiallyMatch
       )
     }
     var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
-    fetchedNodes.forEach { currentNode in
-      let keyArrayActual = TrieStringOperationCache.shared.getCachedSplit(
-        currentNode.readingKey,
-        separator: readingSeparator
-      )
-      currentNode.entries.forEach { currentEntry in
-        guard filterType.contains(currentEntry.typeID) else { return } // 分類一致。
+    fetchedGroups.forEach { currentGroup in
+      currentGroup.entries.forEach { currentEntry in
         results.append(
           (
-            keyArrayActual,
+            currentGroup.keyArray,
             currentEntry.value,
             currentEntry.probability,
             currentEntry.previous
@@ -205,26 +285,20 @@ extension VanguardTrieProtocol {
     guard !previous.value.isEmpty else { return nil }
     let prevSegLength = previous.keyArray.count
     // 此時獲取的結果已經有了完全相符的讀音前綴（包括前綴的幅長）。
-    let nodes = getNodes(
+    let groups = getEntryGroups(
       keyArray: previous.keyArray,
       filterType: filterType,
       partiallyMatch: false,
       longerSegment: true
     )
-    guard !nodes.isEmpty else { return nil }
+    guard !groups.isEmpty else { return nil }
     var resultsMap = [
       Int: (keyArray: [String], value: String, probability: Double, previous: String?, seq: Int)
     ]()
-    nodes.forEach { node in
-      let nodeKeyArray = TrieStringOperationCache.shared.getCachedSplit(
-        node.readingKey,
-        separator: readingSeparator
-      )
-      node.entries.forEach { entry in
-        // 分類一致。
-        guard filterType.contains(entry.typeID) else { return }
+    groups.forEach { currentGroup in
+      currentGroup.entries.forEach { entry in
         // 故意略過那些 Entry Value 的長度不等於幅長的資料值。
-        guard entry.value.count == nodeKeyArray.count else { return }
+        guard entry.value.count == currentGroup.keyArray.count else { return }
         // Value 的前綴也得與 previous.value 一致。
         guard entry.value.prefix(prevSegLength) == previous.value else { return }
         if let anteriorValue {
@@ -235,7 +309,7 @@ extension VanguardTrieProtocol {
           }
         }
         let newResult = (
-          keyArray: nodeKeyArray,
+          keyArray: currentGroup.keyArray,
           value: entry.value,
           probability: entry.probability,
           previous: entry.previous,
