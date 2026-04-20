@@ -111,7 +111,7 @@ extension Homa.Assembler {
       keyArray: candidate.pair.keyArray,
       at: location,
       value: candidate.pair.value,
-      score: candidate.weight,
+      score: nil,
       type: overrideType,
       isExplicitlyOverridden: isExplicitlyOverridden,
       enforceRetokenization: enforceRetokenization,

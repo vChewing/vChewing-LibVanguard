@@ -62,15 +62,19 @@ extension Homa.Assembler {
       nodeIndices.append(regionIndex)
 
       guard assembledSentence.indices.contains(regionIndex) else { break }
-      let currentNode = assembledSentence[regionIndex]
+      guard let currentHit = assembledSentence.findGram(at: position) else {
+        position += 1
+        continue
+      }
+      let currentNode = currentHit.gram
       let nodeLength = currentNode.keyArray.count
       guard nodeLength > 0 else {
         position += 1
         continue
       }
 
-      let nodeStart = position
-      let nodeRange = nodeStart ..< (nodeStart + nodeLength)
+      let nodeStart = currentHit.range.lowerBound
+      let nodeRange = currentHit.range
       let overlapsTarget = nodeRange.overlaps(candidateRange)
       var nextPosition = nodeStart
 

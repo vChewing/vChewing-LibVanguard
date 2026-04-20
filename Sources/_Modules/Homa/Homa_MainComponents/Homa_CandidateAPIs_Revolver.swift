@@ -100,6 +100,14 @@ extension Homa.Assembler {
 
     // 獲取新的候選字
     let theCandidateNow = candidates[newIndex]
+    let currentRange = currentSentence.contextRange(ofGivenCursor: candidateCursorPos)
+    let targetRange = calculateTargetCandidateRange(
+      for: theCandidateNow.pair,
+      cursorType: cursorType,
+      cursorPosition: candidateCursorPos,
+      totalLength: length
+    )
+    let needsInitialConsolidation = !currentGramInPath.isExplicit && currentRange != targetRange
 
     // 進行上下文鞏固和覆寫操作。
     // 只有當目標候選字真的成為邏輯游標上的 explicit node 時才算成功。
@@ -110,7 +118,7 @@ extension Homa.Assembler {
     var debugIntel: [String] = []
 
     while retryCount < maxRetries {
-      if retryCount > 0 {
+      if retryCount > 0 || needsInitialConsolidation {
         try? consolidateCandidateCursorContext(
           for: theCandidateNow.pair,
           cursorType: cursorType
@@ -236,5 +244,21 @@ extension Homa.Assembler {
     }
     // 保底處理：確保索引仍在合法範圍內。
     return (0 ..< candidatePairs.count).contains(result) ? result : 0
+  }
+
+  private func calculateTargetCandidateRange(
+    for candidate: Homa.CandidatePair,
+    cursorType: CandidateCursor,
+    cursorPosition: Int,
+    totalLength: Int
+  )
+    -> Range<Int> {
+    let candidateLength = Swift.max(candidate.keyArray.count, 1)
+    let rangeStart: Int = switch cursorType {
+    case .placedFront: Swift.max(0, cursorPosition - candidateLength + 1)
+    case .placedRear: cursorPosition
+    }
+    let rangeEnd = Swift.min(totalLength, rangeStart + candidateLength)
+    return rangeStart ..< Swift.max(rangeEnd, rangeStart)
   }
 }
