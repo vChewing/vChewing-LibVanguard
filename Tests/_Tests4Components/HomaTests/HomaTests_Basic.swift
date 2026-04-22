@@ -125,6 +125,25 @@ public struct HomaTestsBasic: HomaTestSuite {
     #expect(values == ["，", "〈", "《"])
   }
 
+  @Test("[Homa] Assembler_QueryGramsPrefersProbabilityOverActualKeyForPartialSingletons")
+  func testAssemblerQueryGramsPrefersProbabilityOverActualKeyForPartialSingletons() async throws {
+    let assembler = Homa.Assembler(
+      gramQuerier: { _ in
+        [
+          Homa.GramRAW(keyArray: ["shi2"], value: "時", probability: -6, previous: nil),
+          Homa.GramRAW(keyArray: ["shi4"], value: "世", probability: -4, previous: nil),
+          Homa.GramRAW(keyArray: ["shuai1"], value: "衰", probability: -8, previous: nil),
+        ]
+      },
+      gramAvailabilityChecker: { !$0.isEmpty }
+    )
+
+    try assembler.insertKey("sh")
+    let values = assembler.segments[0][1]?.grams.map(\.current)
+    #expect(values == ["世", "時", "衰"])
+    #expect(assembler.assemble().values == ["世"])
+  }
+
   /// 測試任何長度大於 1 的幅節。
   @Test("[Homa] Assembler_SegmentsAcrossPositions")
   func testSegmentsAcrossPositions() async throws {

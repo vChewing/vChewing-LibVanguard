@@ -181,9 +181,10 @@ public struct LXTests4TrieHub {
       try keys2Add.forEach { try assembler.insertKey($0.description) }
     }
     var assembledSentence = assembler.assemble().compactMap(\.value)
-    #expect(assembledSentence == ["優", "跌", "能", "留意", "旅", "方"])
+    #expect(assembledSentence == ["優", "跌", "年", "留意", "旅", "方"])
     try assembler.overrideCandidate(.init((["ㄧㄡ"], "幽")), at: 0)
     try assembler.overrideCandidate(.init((["ㄉㄧㄝˊ"], "蝶")), at: 1)
+    try assembler.overrideCandidate(.init((["ㄋㄥˊ"], "能")), at: 2)
     try assembler.overrideCandidate(.init((["ㄌㄧㄡˊ"], "留")), at: 3)
     try assembler.overrideCandidate(.init((["ㄧˋ", "ㄌㄩˇ"], "一縷")), at: 4)
     try assembler.overrideCandidate(.init((["ㄈㄤ"], "芳")), at: 6)

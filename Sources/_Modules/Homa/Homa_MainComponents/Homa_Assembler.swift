@@ -373,11 +373,11 @@ extension Homa {
       if lhs.keyArray.count != rhs.keyArray.count {
         return lhs.keyArray.count > rhs.keyArray.count
       }
-      if lhs.keyArray != rhs.keyArray {
-        return lhs.keyArray.lexicographicallyPrecedes(rhs.keyArray)
-      }
       if lhs.probability != rhs.probability {
         return lhs.probability > rhs.probability
+      }
+      if lhs.keyArray != rhs.keyArray {
+        return lhs.keyArray.lexicographicallyPrecedes(rhs.keyArray)
       }
       return (lhs.previous ?? "") < (rhs.previous ?? "")
     }
