@@ -108,7 +108,7 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
           partiallyMatchedKeys.formUnion(retrievedKeys)
         }
         textMapTrieMap[dataType]?.hasGrams(
-          keysEncrypted, filterType: filterType, partiallyMatch: partiallyMatch
+          keysVanilla, filterType: filterType, partiallyMatch: partiallyMatch
         ) { retrievedKeys in
           partiallyMatchedKeys.formUnion(retrievedKeys)
         }
@@ -155,15 +155,15 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
         ) { retrievedKeys in
           partiallyMatchedKeys.formUnion(retrievedKeys)
         }
+        textMapTrieMap[dataType]?.queryGrams(
+          keysVanilla, filterType: filterType, partiallyMatch: partiallyMatch
+        ) { retrievedKeys in
+          partiallyMatchedKeys.formUnion(retrievedKeys)
+        }
         Lexicon.concatGramQueryResults(
           flags: isRevLookup ? .decryptValues : .decryptReadingKeys
         ) {
           plistTrieMap[dataType]?.queryGrams(
-            keysEncrypted, filterType: filterType, partiallyMatch: partiallyMatch
-          ) { retrievedKeys in
-            partiallyMatchedKeys.formUnion(retrievedKeys)
-          }
-          textMapTrieMap[dataType]?.queryGrams(
             keysEncrypted, filterType: filterType, partiallyMatch: partiallyMatch
           ) { retrievedKeys in
             partiallyMatchedKeys.formUnion(retrievedKeys)
@@ -210,11 +210,11 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
         userTrie?.queryAssociatedPhrasesAsGrams(
           previous, anterior: anteriorValue, filterType: filterType
         )
+        textMapTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
+          previous, anterior: anteriorValue, filterType: filterType
+        )
         Lexicon.concatGramQueryResults(flags: .decryptReadingKeys) {
           plistTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
-            previous, anterior: anteriorValue, filterType: filterType
-          )
-          textMapTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
             previous, anterior: anteriorValue, filterType: filterType
           )
           sqlTrieMap[dataType]?.queryAssociatedPhrasesAsGrams(
