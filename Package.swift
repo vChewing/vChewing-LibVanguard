@@ -176,6 +176,7 @@ let package = Package(
     Target.target(
       name: "TrieKit",
       dependencies: buildTargetDependencies {
+        "SwiftExtension"
         Target.Dependency.product(name: "CSQLite3", package: "CSQLite3")
       },
       path: "./Sources/_Modules/TrieKit"
