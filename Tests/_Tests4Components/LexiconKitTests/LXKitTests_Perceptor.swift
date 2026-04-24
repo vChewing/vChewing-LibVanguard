@@ -17,8 +17,7 @@ private let dayInSeconds: Double = 24 * 3_600 // 一天的秒數
 private func makeAssembler(using rawData: String) -> Homa.Assembler {
   let lm = TestLM(rawData: rawData)
   return Homa.Assembler(
-    gramQuerier: { lm.queryGrams($0, partiallyMatch: false) },
-    gramAvailabilityChecker: { lm.hasGrams($0, partiallyMatch: false) }
+    gramQuerier: { lm.queryGrams($0, partiallyMatch: false) }
   )
 }
 
@@ -395,7 +394,6 @@ public struct LXTests4Perceptor {
     let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
     let assembler = Homa.Assembler(
       gramQuerier: { hub.queryGrams($0, filterType: .cht, partiallyMatch: false) },
-      gramAvailabilityChecker: { hub.hasGrams($0, filterType: .cht, partiallyMatch: false) },
       perceptor: { intel in
         perceptor.memorizePerception(
           intel,
