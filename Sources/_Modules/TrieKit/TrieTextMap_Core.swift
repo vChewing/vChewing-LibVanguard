@@ -59,6 +59,7 @@ extension VanguardTrie {
         keyEntries: parsedEntries,
         valueLineOffsets: valuesLineOffsets,
         valuesEndOffset: valuesEndOffset,
+        valueLineToKeyEntryIndex: valueLineToKeyEntryIndex,
         isTyping: header.isTyping,
         defaultProbs: header.defaultProbs,
         separator: header.separator
@@ -86,6 +87,9 @@ extension VanguardTrie {
       let keyEnd: Int
       let startLine: Int
       let count: Int
+      /// Precomputed reading-key segment count (number of `-`-separated sub-keys).
+      /// A segment count of 1 means the key represents a single syllable.
+      let segmentCount: UInt8
     }
 
     private struct RevLookupEntry {
@@ -346,7 +350,8 @@ extension VanguardTrie.TextMapTrie {
             keyStart: lowerBound,
             keyEnd: firstTab,
             startLine: startLine,
-            count: count
+            count: count,
+            segmentCount: 0 // filled below
           )
         )
       }
@@ -365,12 +370,22 @@ extension VanguardTrie.TextMapTrie {
     }
 
     var keyInitialsIDMap: [String: [Int]] = [:]
-    for (nodeID, keyEntry) in entries.enumerated() {
+    for (nodeID, idx) in entries.indices.enumerated() {
+      let keyEntry = entries[idx]
       let readingKey = extractString(from: data, start: keyEntry.keyStart, end: keyEntry.keyEnd)
       let keyInitials = readingKey.split(separator: separator).compactMap {
         $0.first?.description
       }.joined()
       keyInitialsIDMap[keyInitials, default: []].append(nodeID)
+      // Precompute segment count for reverse-lookup fast path.
+      let segCount = readingKey.split(separator: separator).count
+      entries[idx] = .init(
+        keyStart: keyEntry.keyStart,
+        keyEnd: keyEntry.keyEnd,
+        startLine: keyEntry.startLine,
+        count: keyEntry.count,
+        segmentCount: UInt8(clamping: segCount)
+      )
     }
 
     return (entries, keyInitialsIDMap)
@@ -392,11 +407,19 @@ extension VanguardTrie.TextMapTrie {
     return lineOwners
   }
 
+  /// Sequential-pass reverse-lookup table builder.
+  ///
+  /// Replaces the previous random-access-per-key implementation.
+  /// Now makes a single sequential walk over VALUES using the pre-built
+  /// `valueLineToKeyEntryIndex` to look up the owning key for each line,
+  /// and extracts ideographic characters via byte-level scanning (no full
+  /// `parseValueLine` or per-line `String` allocation for the line body).
   private static func buildReverseLookupTable(
     in data: Data,
     keyEntries: [KeyEntry],
     valueLineOffsets: [Int],
     valuesEndOffset: Int,
+    valueLineToKeyEntryIndex: [Int32],
     isTyping: Bool,
     defaultProbs: [Int32: Double],
     separator: Character
@@ -404,44 +427,30 @@ extension VanguardTrie.TextMapTrie {
     -> [RevLookupEntry] {
     var charToLineIndices: [String: [Int]] = [:]
 
-    for keyEntry in keyEntries {
-      let readingKey = extractString(from: data, start: keyEntry.keyStart, end: keyEntry.keyEnd)
-      let segmentCount = readingKey.split(separator: separator).count
-      let endLine = Swift.min(keyEntry.startLine + keyEntry.count, valueLineOffsets.count)
+    for lineIndex in 0 ..< valueLineOffsets.count {
+      let keyEntryIndex = Int(valueLineToKeyEntryIndex[lineIndex])
+      guard keyEntryIndex >= 0, keyEntryIndex < keyEntries.count else { continue }
+      let keyEntry = keyEntries[keyEntryIndex]
+      let isSingleSegment = keyEntry.segmentCount == 1
 
-      for lineIndex in keyEntry.startLine ..< endLine {
-        let start = valueLineOffsets[lineIndex]
-        var end = lineIndex + 1 < valueLineOffsets.count
-          ? valueLineOffsets[lineIndex + 1]
-          : valuesEndOffset
-        while end > start, data[end - 1] == 0x0A || data[end - 1] == 0x0D {
-          end -= 1
-        }
-        guard end > start else { continue }
+      let start = valueLineOffsets[lineIndex]
+      var end = lineIndex + 1 < valueLineOffsets.count
+        ? valueLineOffsets[lineIndex + 1]
+        : valuesEndOffset
+      while end > start, data[end - 1] == 0x0A || data[end - 1] == 0x0D {
+        end -= 1
+      }
+      guard end > start else { continue }
 
-        let line = extractString(from: data, start: start, end: end)
-        let includeGroupedTypingLine = line.first == "@" && segmentCount == 1
-        let parsedEntries = VanguardTrie.TrieIO.parseValueLine(
-          line,
-          isTyping: isTyping,
-          defaultProbs: defaultProbs
-        )
-
-        for parsedEntry in parsedEntries {
-          let charactersToIndex: [String] = if parsedEntry.typeID == cnsEntryType {
-            parsedEntry.value.map(String.init)
-          } else if includeGroupedTypingLine {
-            parsedEntry.value.filter { currentCharacter in
-              currentCharacter.unicodeScalars.contains { $0.properties.isIdeographic }
-            }.map(String.init)
-          } else {
-            []
-          }
-
-          for character in charactersToIndex {
-            charToLineIndices[character, default: []].append(lineIndex)
-          }
-        }
+      let chars = collectReverseLookupCharsFromLine(
+        in: data,
+        start: start,
+        end: end,
+        isTyping: isTyping,
+        includeGroupedTypingLine: isSingleSegment
+      )
+      for char in chars {
+        charToLineIndices[char, default: []].append(lineIndex)
       }
     }
 
@@ -471,6 +480,284 @@ extension VanguardTrie.TextMapTrie {
       }
     }
     return result
+  }
+
+  // MARK: - Byte-Level Reverse-Lookup Char Extraction
+
+  /// Byte-level scanner that extracts ideographic characters from a single
+  /// VALUES line without allocating a full `String` for the line body or
+  /// building complete `Entry` structs.
+  ///
+  /// Handles all three TextMap line formats (A / B / C) and legacy compat
+  /// formats directly on `Data` bytes.
+  private static func collectReverseLookupCharsFromLine(
+    in data: Data,
+    start: Int,
+    end: Int,
+    isTyping: Bool,
+    includeGroupedTypingLine: Bool
+  )
+    -> [String] {
+    guard end > start else { return [] }
+    let tab: UInt8 = 0x09
+
+    // --- Locate tab positions (up to 3 tabs needed) ---
+    let tabPositions: [Int] = data.withUnsafeBytes { rawBuffer in
+      let buffer = rawBuffer.bindMemory(to: UInt8.self)
+      var tabs: [Int] = []
+      var cursor = start
+      while cursor < end, tabs.count < 4 {
+        if buffer[cursor] == tab { tabs.append(cursor) }
+        cursor += 1
+      }
+      return tabs
+    }
+
+    // --- Determine format by first byte ---
+    let firstByte = data[start]
+
+    if firstByte == 0x3E, tabPositions.count >= 1 { // '>' = Format A
+      // `>typeID\tgroupedCell`
+      let typeIDStart = start + 1
+      let typeIDEnd = tabPositions[0]
+      let typeIDRaw = parsePositiveInt32(from: data, start: typeIDStart, end: typeIDEnd) ?? -1
+
+      let cellStart = tabPositions[0] + 1
+      let cellEnd = end
+
+      if typeIDRaw == cnsEntryType.rawValue {
+        return collectCharsFromGroupedCellBytes(
+          in: data, start: cellStart, end: cellEnd, ideographicOnly: false
+        )
+      } else if includeGroupedTypingLine {
+        return collectCharsFromGroupedCellBytes(
+          in: data, start: cellStart, end: cellEnd, ideographicOnly: true
+        )
+      }
+      return []
+    }
+
+    if firstByte == 0x40, tabPositions.count >= 2, isTyping { // '@' = Format B
+      // `@prob\tchsCell\tchtCell`
+      guard includeGroupedTypingLine else { return [] }
+      var chars: [String] = []
+      let chsStart = tabPositions[0] + 1
+      let chsEnd = tabPositions[1]
+      chars.append(contentsOf: collectCharsFromGroupedCellBytes(
+        in: data, start: chsStart, end: chsEnd, ideographicOnly: true
+      ))
+      let chtStart = tabPositions[1] + 1
+      let chtEnd = tabPositions.count >= 3 ? tabPositions[2] : end
+      chars.append(contentsOf: collectCharsFromGroupedCellBytes(
+        in: data, start: chtStart, end: chtEnd, ideographicOnly: true
+      ))
+      return chars
+    }
+
+    // --- Format C: `value\tprob\ttypeID[\tprevious]` ---
+    // --- Legacy 4-column / bare numeric grouped (TYPING only) ---
+
+    // Legacy bare numeric grouped: `prob\tchsCell\tchtCell` (TYPING, first cell parses as Double)
+    if isTyping, includeGroupedTypingLine, tabPositions.count >= 2,
+       data[start] >= 0x30, data[start] <= 0x39 || data[start] == 0x2D {
+      var chars: [String] = []
+      let chsStart = tabPositions[0] + 1
+      let chsEnd = tabPositions[1]
+      chars.append(contentsOf: collectCharsFromGroupedCellBytes(
+        in: data, start: chsStart, end: chsEnd, ideographicOnly: true
+      ))
+      let chtStart = tabPositions[1] + 1
+      let chtEnd = tabPositions.count >= 3 ? tabPositions[2] : end
+      chars.append(contentsOf: collectCharsFromGroupedCellBytes(
+        in: data, start: chtStart, end: chtEnd, ideographicOnly: true
+      ))
+      return chars
+    }
+
+    // Legacy 4-column: `chsValue\tchsProb\tchtValue\tchtProb` (TYPING only)
+    if isTyping, includeGroupedTypingLine, tabPositions.count >= 3 {
+      var chars: [String] = []
+      let chsValEnd = tabPositions[0]
+      chars.append(contentsOf: collectCharsFromPlainCellBytes(
+        in: data, start: start, end: chsValEnd, ideographicOnly: true
+      ))
+      let chtValStart = tabPositions[1] + 1
+      let chtValEnd = tabPositions[2]
+      chars.append(contentsOf: collectCharsFromPlainCellBytes(
+        in: data, start: chtValStart, end: chtValEnd, ideographicOnly: true
+      ))
+      return chars
+    }
+
+    // Format C: `value\tprob\ttypeID[\tprevious]` (minimum 2 tabs = 3 fields)
+    if tabPositions.count >= 2 {
+      let typeIDStart = tabPositions[1] + 1
+      let typeIDEnd = tabPositions.count >= 3 ? tabPositions[2] : end
+      let typeIDRaw = parsePositiveInt32(from: data, start: typeIDStart, end: typeIDEnd) ?? -1
+
+      let valueStart = start
+      let valueEnd = tabPositions[0]
+
+      if typeIDRaw == cnsEntryType.rawValue {
+        return collectCharsFromPlainCellBytes(
+          in: data, start: valueStart, end: valueEnd, ideographicOnly: false
+        )
+      } else if includeGroupedTypingLine {
+        return collectCharsFromPlainCellBytes(
+          in: data, start: valueStart, end: valueEnd, ideographicOnly: true
+        )
+      }
+      return []
+    }
+
+    return []
+  }
+
+  /// Extract characters from a **plain** cell (no pipe-escaping).
+  /// - Parameter ideographicOnly: if `true`, only ideographic scalars are kept;
+  ///   if `false`, every scalar is returned.
+  private static func collectCharsFromPlainCellBytes(
+    in data: Data,
+    start: Int,
+    end: Int,
+    ideographicOnly: Bool
+  )
+    -> [String] {
+    guard end > start else { return [] }
+    var result: [String] = []
+    data.withUnsafeBytes { rawBuffer in
+      let buffer = rawBuffer.bindMemory(to: UInt8.self)
+      var i = start
+      while i < end {
+        let byte = buffer[i]
+        let len = utf8SequenceLength(byte)
+        guard len > 0, i + len <= end else { i += 1; continue }
+        if len == 1 { i += 1; continue } // ASCII, skip
+        let scalar = decodeUTF8Scalar(from: buffer, at: i, length: len)
+        if !ideographicOnly || scalar.properties.isIdeographic {
+          result.append(String(scalar))
+        }
+        i += len
+      }
+    }
+    return result
+  }
+
+  /// Extract characters from a **grouped** cell (pipe-separated, backslash-escaped).
+  /// - Parameter ideographicOnly: if `true`, only ideographic scalars are kept;
+  ///   if `false`, every decoded scalar is returned.
+  private static func collectCharsFromGroupedCellBytes(
+    in data: Data,
+    start: Int,
+    end: Int,
+    ideographicOnly: Bool
+  )
+    -> [String] {
+    guard end > start else { return [] }
+    var result: [String] = []
+    // Fast path: no escape or pipe characters → plain cell.
+    let hasSpecial = data.withUnsafeBytes { rawBuffer in
+      let buffer = rawBuffer.bindMemory(to: UInt8.self)
+      for i in start ..< end {
+        let b = buffer[i]
+        if b == 0x7C || b == 0x5C { return true } // '|' or '\'
+      }
+      return false
+    }
+    if !hasSpecial {
+      return collectCharsFromPlainCellBytes(
+        in: data, start: start, end: end, ideographicOnly: ideographicOnly
+      )
+    }
+
+    data.withUnsafeBytes { rawBuffer in
+      let buffer = rawBuffer.bindMemory(to: UInt8.self)
+      var i = start
+      while i < end {
+        let byte = buffer[i]
+        if byte == 0x5C { // '\' escape: skip this and the next byte
+          i += 2
+          continue
+        }
+        if byte == 0x7C { // '|' separator
+          i += 1
+          continue
+        }
+        let len = utf8SequenceLength(byte)
+        guard len > 0, i + len <= end else { i += 1; continue }
+        if len == 1 { i += 1; continue }
+        let scalar = decodeUTF8Scalar(from: buffer, at: i, length: len)
+        if !ideographicOnly || scalar.properties.isIdeographic {
+          result.append(String(scalar))
+        }
+        i += len
+      }
+    }
+    return result
+  }
+
+  // MARK: - Lightweight Parsing Helpers
+
+  /// Returns the length of a UTF-8 sequence given its leading byte.
+  /// Returns 0 if the byte is a continuation byte or invalid.
+  @inline(__always)
+  private static func utf8SequenceLength(_ byte: UInt8) -> Int {
+    if byte & 0x80 == 0 { return 1 }
+    if byte & 0xE0 == 0xC0 { return 2 }
+    if byte & 0xF0 == 0xE0 { return 3 }
+    if byte & 0xF8 == 0xF0 { return 4 }
+    return 0 // continuation byte or invalid
+  }
+
+  /// Decodes a Unicode scalar from a UTF-8 buffer at a given offset.
+  @inline(__always)
+  private static func decodeUTF8Scalar(
+    from buffer: UnsafeBufferPointer<UInt8>,
+    at offset: Int,
+    length: Int
+  )
+    -> Unicode.Scalar {
+    let fallback: Unicode.Scalar = "\u{FFFD}"
+    switch length {
+    case 2:
+      return Unicode.Scalar(
+        (UInt32(buffer[offset] & 0x1F) << 6) |
+          UInt32(buffer[offset + 1] & 0x3F)
+      ) ?? fallback
+    case 3:
+      return Unicode.Scalar(
+        (UInt32(buffer[offset] & 0x0F) << 12) |
+          (UInt32(buffer[offset + 1] & 0x3F) << 6) |
+          UInt32(buffer[offset + 2] & 0x3F)
+      ) ?? fallback
+    case 4:
+      return Unicode.Scalar(
+        (UInt32(buffer[offset] & 0x07) << 18) |
+          (UInt32(buffer[offset + 1] & 0x3F) << 12) |
+          (UInt32(buffer[offset + 2] & 0x3F) << 6) |
+          UInt32(buffer[offset + 3] & 0x3F)
+      ) ?? fallback
+    default:
+      return fallback
+    }
+  }
+
+  /// Parses a positive Int32 from a byte range without String allocation.
+  @inline(__always)
+  private static func parsePositiveInt32(from data: Data, start: Int, end: Int) -> Int32? {
+    guard end > start else { return nil }
+    let count = end - start
+    guard count <= 10 else { return nil } // Max digits for Int32
+    return data.withUnsafeBytes { rawBuffer in
+      let buffer = rawBuffer.bindMemory(to: UInt8.self)
+      var result: Int32 = 0
+      for i in start ..< end {
+        let byte = buffer[i]
+        guard byte >= 0x30, byte <= 0x39 else { return nil as Int32? } // '0'..'9'
+        result = result &* 10 &+ Int32(byte &- 0x30)
+      }
+      return result
+    }
   }
 
   private static func extractString(from data: Data, start: Int, end: Int) -> String {
