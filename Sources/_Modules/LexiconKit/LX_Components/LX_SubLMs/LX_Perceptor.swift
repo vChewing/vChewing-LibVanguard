@@ -405,12 +405,13 @@ extension Perceptor {
   fileprivate func _alternateKeys(for originalKey: String) -> [String] {
     guard let originalParts = parsePerceptionKey(originalKey) else { return [] }
     guard !shouldIgnorePerception(originalParts) else { return [] }
-    let headSegments = splitReadingSegments(originalParts.headReading)
+    let separatorString = "-"
+    let headSegments = readingSegments(from: originalParts.headReading)
     let primaryHeadCandidates: Set<String> = {
-      guard let firstSegment = headSegments.first else { return [] }
-      guard let lastSegment = headSegments.last else { return [firstSegment] }
-      if firstSegment == lastSegment { return [firstSegment] }
-      return [firstSegment, lastSegment]
+      guard let first = headSegments.first else { return [] }
+      guard let last = headSegments.last else { return [first] }
+      if first == last { return [first] }
+      return [first, last]
     }()
     guard !primaryHeadCandidates.isEmpty else { return [] }
 
@@ -420,11 +421,60 @@ extension Perceptor {
       guard !shouldIgnorePerception(candidateParts) else { continue }
       guard compareContextPart(candidateParts.previous, originalParts.previous) else { continue }
       guard compareContextPart(candidateParts.anterior, originalParts.anterior) else { continue }
-      let candidateHeadSegments = splitReadingSegments(candidateParts.headReading)
-      let matchesPrimaryHead = candidateHeadSegments.contains(where: primaryHeadCandidates.contains)
+      let candidateHeadSegments = readingSegments(from: candidateParts.headReading)
+      let matchesPrimaryHead = candidateHeadSegments.contains(
+        where: primaryHeadCandidates.contains
+      )
       let matchesFullHead = candidateParts.headReading == originalParts.headReading
       let matchesOriginalHead = candidateHeadSegments.contains(originalParts.headReading)
-      guard matchesPrimaryHead || matchesFullHead || matchesOriginalHead else { continue }
+      // 若候選的 previous 與 head 串接後等於原始 head（例如切分候選
+      // (B,B)&(C,C) 與原始 (BC,BC)），則視為匹配。
+      let candidateCombinedHead: String = {
+        if let prev = candidateParts
+          .previous { return prev.reading + separatorString + candidateParts.headReading }
+        return candidateParts.headReading
+      }()
+      let matchesCombinedHead = candidateCombinedHead == originalParts.headReading
+
+      // 處理 primary segment 配對的特例：
+      // 當原始 head 有多個 segment，且候選為單段時，僅靠 primary segment 配對會導致
+      // 單段候選插斷多段原始頭（例如原始為 B-C，但候選僅為 B）。為避免誤插斷，
+      // 對於這種 single-seg primary match 我們會拒絕；例外情況為該候選同時提供且其
+      // `previous` 與原始 `previous` 完全相同時，此時才接受（以保留測試案例「再創世的凱歌」的
+      // short->long 使用情境）。
+      let originalSegmentCount = headSegments.count
+      let candidateSegmentCount = candidateHeadSegments.count
+
+      let acceptMatch: Bool = {
+        if matchesFullHead || matchesOriginalHead || matchesCombinedHead { return true }
+        if matchesPrimaryHead {
+          // 若原始 head 有多個 segment，且候選只有單段，僅靠 primary segment 配對可能會導致
+          // 單段候選插斷多段原始頭（例如原始為 B-C，但候選僅為 B）。
+          // 在此情況下，僅在候選提供與原始一致的 previous context 時才接受（可避免誤插斷
+          // 同時保留 Saisouki 的 short->long 場景）。
+          if originalSegmentCount > 1, candidateSegmentCount == 1 {
+            if let cPrev = candidateParts.previous, let oPrev = originalParts.previous {
+              if cPrev.reading == oPrev.reading, cPrev.value == oPrev.value { return true }
+            }
+            // 若原始查詢鍵沒有 previous context（其 head 為多段詞，
+            // 前文已融入 head 內部），則允許候選的 previous reading 與原始 head
+            // 的首段 reading 比對：若一致則接受該候選（解決「多期→多奇」情境下
+            // 多段詞被拆分後 POM 無法透過 alternateKeys 找回記憶的問題）。
+            if originalParts.previous == nil,
+               let cPrev = candidateParts.previous,
+               let firstHeadSegment = headSegments.first,
+               cPrev.reading == firstHeadSegment {
+              return true
+            }
+            return false
+          }
+          return true
+        }
+        return false
+      }()
+
+      guard acceptMatch else { continue }
+
       if keyCandidate != originalKey {
         results.append(keyCandidate)
       }
