@@ -2,6 +2,8 @@
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
+import SwiftExtension
+
 extension KBEvent {
   public init?(fcitxKeyCode: UInt32, fcitxModifierFlags: UInt32, isKeyDown: Bool? = true) {
     guard let matchedKeyCode = Self.mapFcitxToDarwin[fcitxKeyCode] else { return nil }
