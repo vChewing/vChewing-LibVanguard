@@ -209,7 +209,7 @@ extension UserDefaults {
 // Ref: https://www.avanderlee.com/swift/property-wrappers/
 
 @propertyWrapper
-public final class AppProperty<Value> {
+public struct AppProperty<Value: Sendable>: Sendable {
   // MARK: Lifecycle
 
   public init(key: String, defaultValue: Value) {
@@ -230,7 +230,7 @@ public final class AppProperty<Value> {
     get {
       container.object(forKey: key) as? Value ?? defaultValue
     }
-    set {
+    nonmutating set {
       container.set(newValue, forKey: key)
     }
   }
