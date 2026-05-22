@@ -62,10 +62,12 @@ extension Homa.Assembler {
     return result.sorted {
       (
         $0.pair.segLength,
-        $0.pair.keyArray.joined(separator: "-")
+        $0.pair.keyArray.joined(separator: "-"),
+        $0.weight
       ) > (
         $1.pair.segLength,
-        $1.pair.keyArray.joined(separator: "-")
+        $1.pair.keyArray.joined(separator: "-"),
+        $1.weight
       )
     }
   }
