@@ -393,7 +393,16 @@ public struct LXTests4Perceptor {
     let hub = LXTests4TrieHub.makeSharedTrie4Tests(source: .sql)
     let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
     let assembler = Homa.Assembler(
-      gramQuerier: { hub.queryGrams($0, filterType: .cht, partiallyMatch: false) },
+      gramQuerier: {
+        hub.queryGrams($0.map(\.first), filterType: .cht, partiallyMatch: false).map {
+          Homa.Gram(
+            keyArray: $0.keyArray,
+            current: $0.value,
+            previous: $0.previous,
+            probability: $0.probability
+          )
+        }
+      },
       perceptor: { intel in
         perceptor.memorizePerception(
           intel,
