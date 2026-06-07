@@ -142,7 +142,16 @@ public struct LXTests4TrieHub {
     let hub = Self.makeSharedTrie4Tests(source: source)
     let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
     let assembler = Homa.Assembler(
-      gramQuerier: { hub.queryGrams($0, filterType: .cht, partiallyMatch: false) }
+      gramQuerier: {
+        hub.queryGrams($0.map(\.first), filterType: .cht, partiallyMatch: false).map {
+          Homa.Gram(
+            keyArray: $0.keyArray,
+            current: $0.value,
+            previous: $0.previous,
+            probability: $0.probability
+          )
+        }
+      }
     )
     try Self.measureTime("Key insertion time cost on full match", tag: "(\(source.rawValue))") {
       try readings.forEach { try assembler.insertKey($0.description) }
@@ -173,7 +182,16 @@ public struct LXTests4TrieHub {
     #expect(keys2Add == ["ㄧㄛ&ㄧㄡ&ㄩㄥ", "ㄉㄧㄝ", "ㄋ", "ㄌㄧ", "ㄧ&ㄩ", "ㄌㄩ&ㄌㄩㄝ&ㄌㄩㄢ", "ㄈ"])
     let hub = Self.makeSharedTrie4Tests(source: source)
     let assembler = Homa.Assembler(
-      gramQuerier: { hub.queryGrams($0, filterType: .cht, partiallyMatch: true) }
+      gramQuerier: {
+        hub.queryGrams($0.map(\.first), filterType: .cht, partiallyMatch: true).map {
+          Homa.Gram(
+            keyArray: $0.keyArray,
+            current: $0.value,
+            previous: $0.previous,
+            probability: $0.probability
+          )
+        }
+      }
     )
     try Self.measureTime("Key insertion time cost on partial match", tag: "(\(source.rawValue))") {
       try keys2Add.forEach { try assembler.insertKey($0.description) }
