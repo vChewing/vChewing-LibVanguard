@@ -144,6 +144,15 @@ extension VanguardTrie {
     /// 供 `getNodeIDsForKeyArray` 複用的臨時緩衝區，避免每次 cache miss 時分配新陣列。
     /// 僅在呼叫者確保單一執行緒存取 Trie 時安全（TextMap 查詢在主執行緒或序列佇列上進行）。
     private var scratchNodeIDs: [Int] = []
+
+    /// 清除所有 QueryBuffer 快取（node、nodeIDs、nodes、entryGroups）。
+    /// 應在適當的時機呼叫，避免舊查詢結果污染新的查詢。
+    public func flushCaches() {
+      queryBuffer4Node.clear()
+      queryBuffer4Nodes.clear()
+      queryBuffer4NodeIDs.clear()
+      queryBuffer4EntryGroups.clear()
+    }
   }
 }
 
