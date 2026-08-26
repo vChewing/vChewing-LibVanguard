@@ -27,6 +27,86 @@ extension StringProtocol {
     }
     return false
   }
+
+  func sliced(by separator: any StringProtocol = "") -> [String] {
+    /// 以指定分界字元拆分字串，回傳字串陣列；等同於 `split` 的功能，但不使用 Foundation。
+    ///
+    /// - 注意：該實作會將分隔符視為完整字串進行比對（以 Unicode Scalar 為基準），
+    ///         若分隔符為空字串，則回傳每個 Unicode Scalar 各自獨立為一個字串的陣列。
+    /// - Parameters:
+    ///   - separator: 作為斷詞分界的字串，預設為空字串。
+    /// - Returns: 拆分後的字串陣列。
+    ///
+    /// 範例：
+    /// "a-b-c".sliced(by: "-") => ["a","b","c"]
+    /// "幽蝶".sliced(by: "")  => ["幽","蝶"]
+    let selfArray = Array(unicodeScalars)
+    let arrSeparator = Array(separator.description.unicodeScalars)
+    // 空分隔符：每個 Unicode Scalar 各自成為一個元素。
+    guard !arrSeparator.isEmpty else {
+      return selfArray.map { String($0) }
+    }
+    var result: [String] = []
+    var buffer: [Unicode.Scalar] = []
+    var sleepCount = 0
+    for index in selfArray.indices {
+      let currentChar = selfArray[index]
+      let range = index ..< (Swift.min(index + arrSeparator.count, selfArray.count))
+      let ripped = Array(selfArray[range])
+      if ripped.isEmpty { continue }
+      if ripped == arrSeparator {
+        sleepCount = range.count
+        result.append(buffer.map { String($0) }.joined())
+        buffer.removeAll()
+      }
+      if sleepCount < 1 {
+        buffer.append(currentChar)
+      }
+      sleepCount -= 1
+    }
+    result.append(buffer.map { String($0) }.joined())
+    buffer.removeAll()
+    return result
+  }
+
+  /// 以純 Swift 方法將字串中的指定子字串替換為另一字串。
+  ///
+  /// - Parameters:
+  ///   - target: 要被替換的子字串。
+  ///   - newString: 替換為的新字串。
+  /// - Returns: 替換完成的字串。
+  ///
+  /// 注意：此函式使用 Unicode Scalar 做逐個比對，不會使用 Foundation 的 replace API，
+  /// 因此在面對某些特殊 Unicode 合字組合時，行為可能與 Foundation 產生差異。
+  ///
+  /// 範例：
+  /// "a-b-c".swapping("-","+") => "a+b+c"
+  func swapping(_ target: String, with newString: String) -> String {
+    let selfArray = Array(unicodeScalars)
+    let arrTarget = Array(target.description.unicodeScalars)
+    var result = ""
+    var buffer: [Unicode.Scalar] = []
+    var sleepCount = 0
+    for index in selfArray.indices {
+      let currentChar = selfArray[index]
+      let range = index ..< (Swift.min(index + arrTarget.count, selfArray.count))
+      let ripped = Array(selfArray[range])
+      if ripped.isEmpty { continue }
+      if ripped == arrTarget {
+        sleepCount = ripped.count
+        result.append(buffer.map { String($0) }.joined())
+        result.append(newString)
+        buffer.removeAll()
+      }
+      if sleepCount < 1 {
+        buffer.append(currentChar)
+      }
+      sleepCount -= 1
+    }
+    result.append(buffer.map { String($0) }.joined())
+    buffer.removeAll()
+    return result
+  }
 }
 
 // MARK: - Index Revolver (only for Array)
