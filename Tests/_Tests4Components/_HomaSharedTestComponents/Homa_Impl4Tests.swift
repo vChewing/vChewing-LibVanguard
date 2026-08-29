@@ -134,13 +134,15 @@ public final class TestLM {
       let value = String(components[1])
       guard let probability = Double(components[2].description) else { return }
       let previous = components.count > 3 ? String(components[3]) : nil
+      let anterior = components.count > 4 ? String(components[4]) : nil
       let readings: [String] = valueSegmentationOnly
         ? value.map(\.description)
-        : components[0].split(separator: readingSeparator).map(\.description)
+        : components[0].sliced(by: readingSeparator).map(\.description)
       let entry = SimpleTrie.Entry(
         value: value,
         probability: probability,
-        previous: previous
+        previous: previous,
+        anterior: anterior
       )
       trie.insert(entry: entry, readings: readings)
     }
@@ -173,10 +175,8 @@ public final class TestLM {
       partiallyMatch: partiallyMatch
     ).map {
       Homa.Gram(
-        keyArray: $0.keyArray,
-        current: $0.value,
-        previous: $0.previous,
-        probability: $0.probability
+        keyArray: $0.keyArray, current: $0.value,
+        previous: $0.previous, anterior: $0.anterior, probability: $0.probability
       )
     }
   }
@@ -297,11 +297,13 @@ public final class SimpleTrie {
     public init(
       value: String,
       probability: Double,
-      previous: String?
+      previous: String?,
+      anterior: String? = nil
     ) {
       self.value = value
       self.probability = probability
       self.previous = previous
+      self.anterior = anterior
     }
 
     // MARK: Public
@@ -309,6 +311,7 @@ public final class SimpleTrie {
     public let value: String
     public let probability: Double
     public let previous: String?
+    public let anterior: String?
 
     public func encode(to encoder: any Encoder) throws {
       var container = encoder.singleValueContainer()
@@ -413,13 +416,15 @@ extension SimpleTrie.Entry {
     keyArray: [String],
     value: String,
     probability: Double,
-    previous: String?
+    previous: String?,
+    anterior: String?
   ) {
     (
       keyArray: readings,
       value: value,
       probability: probability,
-      previous: previous
+      previous: previous,
+      anterior: anterior
     )
   }
 
@@ -440,7 +445,7 @@ extension SimpleTrie {
         var results: [(readings: [String], entry: Entry)] = []
         for nodeID in nodeIDs {
           if let node = nodes[nodeID] {
-            let readings = node.readingKey.split(separator: readingSeparator).map(\.description)
+            let readings = node.readingKey.sliced(by: readingSeparator).map(\.description)
             node.entries.forEach { entry in
               results.append((readings: readings, entry: entry))
             }
@@ -470,7 +475,7 @@ extension SimpleTrie {
     readings: [String],
     entry: Entry
   )] {
-    let readings = node.readingKey.split(separator: readingSeparator).map(String.init)
+    let readings = node.readingKey.sliced(by: readingSeparator).map(\.description)
     return node.entries.map { (readings: readings, entry: $0) }
   }
 
@@ -504,7 +509,7 @@ extension SimpleTrie {
       // 從 keyChainIDMap 中查找所有鍵
       keyChainIDMap.forEach { keyChain, nodeIDs in
         // 只處理那些至少和首個查詢鍵相符的鍵鏈
-        let keyComponents = keyChain.split(separator: readingSeparator).map(String.init)
+        let keyComponents = keyChain.sliced(by: readingSeparator).map(\.description)
 
         // 檢查長度是否相符
         guard keyComponents.count == keys.count else { return }
@@ -606,7 +611,7 @@ extension SimpleTrie {
       let entries = getEntries(node: node)
 
       // 確保讀音數量比對
-      let nodeReadings = node.readingKey.split(separator: readingSeparator).map(\.description)
+      let nodeReadings = node.readingKey.sliced(by: readingSeparator).map(\.description)
       guard nodeReadings.count == keys.count else { continue }
       // 確保每個讀音都以對應的前綴開頭
       let allPrefixMatched = zip(keys, nodeReadings).allSatisfy { $1.hasPrefix($0) }
@@ -657,14 +662,26 @@ extension SimpleTrie {
     partiallyMatch: Bool = false,
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
   )
-    -> [(keyArray: [String], value: String, probability: Double, previous: String?)] {
+    -> [(
+      keyArray: [String],
+      value: String,
+      probability: Double,
+      previous: String?,
+      anterior: String?
+    )] {
     guard !keys.isEmpty else { return [] }
 
     if !partiallyMatch {
       // 精確比對 - 現在也使用緩存提高效能
       let nodeIDs = getNodeIDs(keysChopped: keys, partiallyMatch: false)
       var processedNodeEntries = [Int: [Entry]]()
-      var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
+      var results = [(
+        keyArray: [String],
+        value: String,
+        probability: Double,
+        previous: String?,
+        anterior: String?
+      )]()
 
       for nodeID in nodeIDs {
         guard let node = getNode(nodeID: nodeID) else { continue }
@@ -688,7 +705,7 @@ extension SimpleTrie {
 
         results.append(contentsOf: filteredEntries.map { entry in
           entry.asTuple(
-            with: node.readingKey.split(separator: readingSeparator).map(\.description)
+            with: node.readingKey.sliced(by: readingSeparator).map(\.description)
           )
         })
       }
@@ -711,12 +728,18 @@ extension SimpleTrie {
 
       // 使用緩存避免重複查詢
       var processedNodeEntries = [Int: [Entry]]()
-      var results = [(keyArray: [String], value: String, probability: Double, previous: String?)]()
+      var results = [(
+        keyArray: [String],
+        value: String,
+        probability: Double,
+        previous: String?,
+        anterior: String?
+      )]()
 
       // 3. 獲取每個節點的詞條
       for nodeID in nodeIDs {
         guard let node = getNode(nodeID: nodeID) else { continue }
-        let nodeReadings = node.readingKey.split(separator: readingSeparator).map(\.description)
+        let nodeReadings = node.readingKey.sliced(by: readingSeparator).map(\.description)
         // 使用緩存避免重複查詢
         let entries: [Entry]
         if let cachedEntries = processedNodeEntries[nodeID] {
@@ -745,7 +768,7 @@ extension SimpleTrie {
         // 5. 將符合條件的詞條添加到結果中
         results.append(contentsOf: filteredEntries.map { entry in
           entry.asTuple(
-            with: node.readingKey.split(separator: readingSeparator).map(\.description)
+            with: node.readingKey.sliced(by: readingSeparator).map(\.description)
           )
         })
       }
