@@ -58,7 +58,8 @@ extension Lexicon {
           ? decryptReadingKey(currentTupleRAW.value)
           : currentTupleRAW.value
         return HomaGramTuple(
-          newKeyArray, newValue, currentTupleRAW.probability, currentTupleRAW.previous
+          newKeyArray, newValue, currentTupleRAW.probability, currentTupleRAW.previous,
+          currentTupleRAW.anterior
         )
       }
     }

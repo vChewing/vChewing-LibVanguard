@@ -79,7 +79,7 @@ extension Lexicon.LMPlainBPMF {
     case false:
       if let currentRecordOfChars: String = dataMap[key]?[subKey] {
         pairs.append(contentsOf: currentRecordOfChars.map {
-          ([key], $0.description, 0, nil)
+          ([key], $0.description, 0, nil, nil)
         })
       }
     case true:
@@ -90,7 +90,7 @@ extension Lexicon.LMPlainBPMF {
       filteredKeys.sorted().forEach { matchedKey in
         guard let currentRecordOfChars = dataMap[matchedKey]?[subKey] else { return }
         pairs.append(contentsOf: currentRecordOfChars.map {
-          ([key], $0.description, 0, nil)
+          ([key], $0.description, 0, nil, nil)
         })
       }
     }
