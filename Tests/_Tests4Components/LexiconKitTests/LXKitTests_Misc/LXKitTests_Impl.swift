@@ -8,18 +8,10 @@ import SharedTrieTestDataBundle
 import TrieKit
 
 extension FactoryTrieDBType {
-  func getFactorySQLiteDemoFilePath4Tests() -> String {
-    Bundle.lexiconTestData.url(forResource: sqlFileNameStem, withExtension: "sqlite")?.path ?? ""
-  }
-
-  func getFactoryPlistDemoFileURL4Tests() -> URL? {
-    Bundle.lexiconTestData.url(forResource: sqlFileNameStem, withExtension: "plist")
-  }
-
   func getFactoryTextMapDemoFileURL4Tests() -> URL? {
     switch self {
     case .typing:
-      return Bundle.lexiconTestData.url(forResource: sqlFileNameStem, withExtension: "txtMap")
+      return Bundle.lexiconTestData.url(forResource: fileNameStem, withExtension: "txtMap")
     case .revLookup:
       return nil
     }
@@ -27,7 +19,7 @@ extension FactoryTrieDBType {
 
   // MARK: Internal
 
-  internal var sqlFileNameStem: String {
+  internal var fileNameStem: String {
     switch self {
     case .revLookup: "FactoryDemoDict4RevLookup"
     case .typing: "FactoryDemoDict4Typing"

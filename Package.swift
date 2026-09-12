@@ -43,9 +43,7 @@ let package = Package(
       targets: ["CandidateKit"]
     )
   },
-  dependencies: buildPackageDependencies {
-    Package.Dependency.package(path: "CSQLite3")
-  },
+  dependencies: buildPackageDependencies {},
   targets: buildTargets {
     Target.target(
       name: "LibVanguard",
@@ -177,7 +175,6 @@ let package = Package(
       name: "TrieKit",
       dependencies: buildTargetDependencies {
         "SwiftExtension"
-        Target.Dependency.product(name: "CSQLite3", package: "CSQLite3")
       },
       path: "./Sources/_Modules/TrieKit"
     )

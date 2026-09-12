@@ -15,71 +15,26 @@ import TrieKit
 public struct LXTests4TrieHub {
   // MARK: Internal
 
-  enum DataSource: String, CaseIterable, CustomTestStringConvertible {
-    case sql = "SQL"
-    case plist = "Plist"
-    case textMap = "TextMap"
-
-    // MARK: Internal
-
-    var testDescription: String { rawValue }
-  }
-
-  static func makeSharedTrie4Tests(
-    source: DataSource, measureTime: Bool = true
-  )
-    -> VanguardTrie.TrieHub {
+  static func makeSharedTrie4Tests(measureTime: Bool = true) -> VanguardTrie.TrieHub {
     let hub = VanguardTrie.TrieHub()
-    let tag = "(\(source.rawValue))"
-    switch source {
-    case .sql:
-      Self.measureTime("Hub booting time cost \(tag)", tag: tag, enabled: measureTime) {
-        hub.updateTrieFromSQLFile {
-          var resultMap4FilePaths: [FactoryTrieDBType: String] = [:]
-          FactoryTrieDBType.allCases.forEach { currentCase in
-            let sqlFilePath = currentCase.getFactorySQLiteDemoFilePath4Tests()
-            resultMap4FilePaths[currentCase] = sqlFilePath
+    Self.measureTime("Hub booting time cost (TextMap)", tag: "(TextMap)", enabled: measureTime) {
+      hub.updateTrieFromTextMapFile {
+        var resultMap4FileURLs: [FactoryTrieDBType: URL] = [:]
+        FactoryTrieDBType.allCases.forEach { currentCase in
+          if let textMapURL = currentCase.getFactoryTextMapDemoFileURL4Tests() {
+            resultMap4FileURLs[currentCase] = textMapURL
           }
-          return resultMap4FilePaths
         }
-      }
-    case .plist:
-      Self.measureTime("Hub booting time cost \(tag)", tag: tag, enabled: measureTime) {
-        hub.updateTrieFromPlistFile {
-          var resultMap4FileURLs: [FactoryTrieDBType: URL] = [:]
-          FactoryTrieDBType.allCases.forEach { currentCase in
-            if let plistURL = currentCase.getFactoryPlistDemoFileURL4Tests() {
-              resultMap4FileURLs[currentCase] = plistURL
-            }
-          }
-          return resultMap4FileURLs
-        }
-      }
-    case .textMap:
-      Self.measureTime("Hub booting time cost \(tag)", tag: tag, enabled: measureTime) {
-        hub.updateTrieFromTextMapFile {
-          var resultMap4FileURLs: [FactoryTrieDBType: URL] = [:]
-          FactoryTrieDBType.allCases.forEach { currentCase in
-            if let textMapURL = currentCase.getFactoryTextMapDemoFileURL4Tests() {
-              resultMap4FileURLs[currentCase] = textMapURL
-            }
-          }
-          return resultMap4FileURLs
-        }
+        return resultMap4FileURLs
       }
     }
     return hub
   }
 
-  @Test("[LXKit] TrieHub_ConstructionAndQuery", arguments: DataSource.allCases)
-  func testTrieHubConstructionAndQuery(source: DataSource) throws {
-    let hub = Self.makeSharedTrie4Tests(source: source)
-    let dataTypeCountRegistered: Int = switch source {
-    case .sql: hub.sqlTrieMap.count
-    case .plist: hub.plistTrieMap.count
-    case .textMap: hub.textMapTrieMap.count
-    }
-    #expect(dataTypeCountRegistered == FactoryTrieDBType.allCases.count)
+  @Test("[LXKit] TrieHub_ConstructionAndQuery")
+  func testTrieHubConstructionAndQuery() throws {
+    let hub = Self.makeSharedTrie4Tests()
+    #expect(hub.textMapTrieMap.count == FactoryTrieDBType.allCases.count)
     #expect(hub.hasGrams(["_NORM"], filterType: .meta)) // META
     let queriedResultNORM = hub.queryGrams(["_NORM"], filterType: .meta)
     #expect((queriedResultNORM.map(\.probability).first ?? 0) > 0)
@@ -89,11 +44,9 @@ public struct LXTests4TrieHub {
     #expect(hub.hasGrams(["和"], filterType: .revLookup)) // RevLookup
     let queriedResultRevLookup = hub.queryGrams(["和"], filterType: .revLookup).first
     #expect(queriedResultRevLookup?.value.contains("ㄏㄜˋ") == true)
-    if source == .textMap {
-      #expect(hub.hasGrams(["𡜅"], filterType: .revLookup))
-      let queriedResultCNSRevLookup = hub.queryGrams(["𡜅"], filterType: .revLookup).first
-      #expect(queriedResultCNSRevLookup?.value.contains("ㄌㄩˇ") == true)
-    }
+    #expect(hub.hasGrams(["𡜅"], filterType: .revLookup))
+    let queriedResultCNSRevLookup = hub.queryGrams(["𡜅"], filterType: .revLookup).first
+    #expect(queriedResultCNSRevLookup?.value.contains("ㄌㄩˇ") == true)
     #expect(hub.hasGrams(["ㄌㄩˇ"], filterType: .cns)) // CNS
     let queriedResultCNS = hub.queryGrams(["ㄌㄩˇ"], filterType: .cns).map(\.value)
     #expect(queriedResultCNS.contains("𡜅"))
@@ -134,12 +87,9 @@ public struct LXTests4TrieHub {
     #expect(!queriedResultCHT2.contains("一缕"))
   }
 
-  @Test(
-    "[LXKit] TrieHub_AssemblyingUsingFullMatch",
-    arguments: DataSource.allCases
-  )
-  func testTrieHubAssemblyingUsingFullMatch(source: DataSource) async throws {
-    let hub = Self.makeSharedTrie4Tests(source: source)
+  @Test("[LXKit] TrieHub_AssemblyingUsingFullMatch")
+  func testTrieHubAssemblyingUsingFullMatch() async throws {
+    let hub = Self.makeSharedTrie4Tests()
     let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
     let assembler = Homa.Assembler(
       gramQuerier: {
@@ -153,7 +103,7 @@ public struct LXTests4TrieHub {
         }
       }
     )
-    try Self.measureTime("Key insertion time cost on full match", tag: "(\(source.rawValue))") {
+    try Self.measureTime("Key insertion time cost on full match", tag: "(TextMap)") {
       try readings.forEach { try assembler.insertKey($0.description) }
     }
     var assembledSentence = assembler.assemble().compactMap(\.value)
@@ -169,18 +119,15 @@ public struct LXTests4TrieHub {
     #expect(actualkeysJoined == "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ")
   }
 
-  @Test(
-    "[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops",
-    arguments: DataSource.allCases
-  )
-  func testTrieHubAssemblyingUsingPartialMatchAndChops(source: DataSource) async throws {
+  @Test("[LXKit] TrieHub_AssemblyingUsingPartialMatchAndChops")
+  func testTrieHubAssemblyingUsingPartialMatchAndChops() async throws {
     let pinyinTrie = Tekkon.PinyinTrie(parser: .ofHanyuPinyin)
     let rawPinyin = "yodienliylvf"
     let rawPinyinChopped = pinyinTrie.chop(rawPinyin)
     #expect(rawPinyinChopped == ["yo", "die", "n", "li", "y", "lv", "f"])
     let keys2Add = pinyinTrie.deductChoppedPinyinToZhuyin(rawPinyinChopped)
     #expect(keys2Add == ["ㄧㄛ&ㄧㄡ&ㄩㄥ", "ㄉㄧㄝ", "ㄋ", "ㄌㄧ", "ㄧ&ㄩ", "ㄌㄩ&ㄌㄩㄝ&ㄌㄩㄢ", "ㄈ"])
-    let hub = Self.makeSharedTrie4Tests(source: source)
+    let hub = Self.makeSharedTrie4Tests()
     let assembler = Homa.Assembler(
       gramQuerier: {
         hub.queryGrams($0.map(\.first), filterType: .cht, partiallyMatch: true).map {
@@ -193,7 +140,7 @@ public struct LXTests4TrieHub {
         }
       }
     )
-    try Self.measureTime("Key insertion time cost on partial match", tag: "(\(source.rawValue))") {
+    try Self.measureTime("Key insertion time cost on partial match", tag: "(TextMap)") {
       try keys2Add.forEach { try assembler.insertKey($0.description) }
     }
     var assembledSentence = assembler.assemble().compactMap(\.value)

@@ -390,7 +390,7 @@ public struct LXTests4Perceptor {
   @Test("[LXKit] Perceptor_Homa_Integration_test")
   func testPOM_10_IntegrationAgainstHoma() throws {
     let perceptor = Perceptor()
-    let hub = LXTests4TrieHub.makeSharedTrie4Tests(source: .sql)
+    let hub = LXTests4TrieHub.makeSharedTrie4Tests()
     let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
     let assembler = Homa.Assembler(
       gramQuerier: {
