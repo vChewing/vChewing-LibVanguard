@@ -70,16 +70,16 @@ extension Lexicon.LMPlainBPMF {
     partiallyMatch: Bool = false,
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
   )
-    -> [Lexicon.HomaGramTuple] {
+    -> [Lexicon.HomaGram] {
     guard !key.isEmpty else { return [] }
     // 這裡不做去重複處理，因為倚天中文系統注音排序適應者們已經形成了肌肉記憶。
-    var pairs: [Lexicon.HomaGramTuple] = []
+    var pairs: [Lexicon.HomaGram] = []
     let subKey = isCHS ? "S" : "T"
     switch partiallyMatch {
     case false:
       if let currentRecordOfChars: String = dataMap[key]?[subKey] {
         pairs.append(contentsOf: currentRecordOfChars.map {
-          ([key], $0.description, 0, nil, nil)
+          Lexicon.HomaGram(keyArray: [key], value: $0.description, probability: 0, previous: nil, anterior: nil)
         })
       }
     case true:
@@ -90,7 +90,7 @@ extension Lexicon.LMPlainBPMF {
       filteredKeys.sorted().forEach { matchedKey in
         guard let currentRecordOfChars = dataMap[matchedKey]?[subKey] else { return }
         pairs.append(contentsOf: currentRecordOfChars.map {
-          ([key], $0.description, 0, nil, nil)
+          Lexicon.HomaGram(keyArray: [key], value: $0.description, probability: 0, previous: nil, anterior: nil)
         })
       }
     }

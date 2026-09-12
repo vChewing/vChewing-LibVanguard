@@ -162,10 +162,7 @@ extension VanguardTrieProtocol {
   }
 
   internal func nodeMeetsFilter(_ theNode: TNode, filter: EntryType) -> Bool {
-    filter.isEmpty || theNode.entries.contains(where: { filterMatches(
-      entryType: $0.typeID,
-      filter: filter
-    ) })
+    filter.isEmpty || theNode.entries.contains(where: { filterMatches(entryType: $0.typeID, filter: filter) })
   }
 
   internal func lazyMatch(keyArray: [String], matchAgainst targetKeyChain: String) -> Bool {
@@ -206,12 +203,7 @@ extension VanguardTrieProtocol {
     return fetchedNodes.compactMap { currentNode in
       let filteredEntries = switch filterType.isEmpty {
       case true: currentNode.entries
-      case false: currentNode.entries.filter {
-          filterMatches(
-            entryType: $0.typeID,
-            filter: filterType
-          )
-        }
+      case false: currentNode.entries.filter { filterMatches(entryType: $0.typeID, filter: filterType) }
       }
       guard !filteredEntries.isEmpty else { return nil }
       let keyArrayActual = TrieStringOperationCache.shared.getCachedSplit(
@@ -252,13 +244,7 @@ extension VanguardTrieProtocol {
     partiallyMatch: Bool = false,
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
   )
-    -> [(
-      keyArray: [String],
-      value: String,
-      probability: Double,
-      previous: String?,
-      anterior: String?
-    )] {
+    -> [VanguardTrie.TrieGram] {
     guard !keys.isEmpty, keys.allSatisfy({ !$0.isEmpty }) else { return [] }
     let fetchedGroups = if !partiallyMatch {
       getEntryGroups(
@@ -274,22 +260,16 @@ extension VanguardTrieProtocol {
         partiallyMatch: partiallyMatch
       )
     }
-    var results = [(
-      keyArray: [String],
-      value: String,
-      probability: Double,
-      previous: String?,
-      anterior: String?
-    )]()
+    var results = [VanguardTrie.TrieGram]()
     fetchedGroups.forEach { currentGroup in
       currentGroup.entries.forEach { currentEntry in
         results.append(
-          (
-            currentGroup.keyArray,
-            currentEntry.value,
-            currentEntry.probability,
-            currentEntry.previous,
-            currentEntry.anterior
+          VanguardTrie.TrieGram(
+            keyArray: currentGroup.keyArray,
+            value: currentEntry.value,
+            probability: currentEntry.probability,
+            previous: currentEntry.previous,
+            anterior: currentEntry.anterior
           )
         )
       }
@@ -309,13 +289,7 @@ extension VanguardTrieProtocol {
     anterior anteriorValue: String? = nil,
     filterType: VanguardTrie.Trie.EntryType
   )
-    -> [(
-      keyArray: [String],
-      value: String,
-      probability: Double,
-      previous: String?,
-      anterior: String?
-    )]? {
+    -> [VanguardTrie.TrieGram]? {
     let keys = previous.keyArray
     guard !keys.isEmpty, keys.allSatisfy({ !$0.isEmpty }) else { return nil }
     guard !previous.value.isEmpty else { return nil }
@@ -329,14 +303,7 @@ extension VanguardTrieProtocol {
     )
     guard !groups.isEmpty else { return nil }
     var resultsMap = [
-      Int: (
-        keyArray: [String],
-        value: String,
-        probability: Double,
-        previous: String?,
-        anterior: String?,
-        seq: Int
-      )
+      Int: (keyArray: [String], value: String, probability: Double, previous: String?, anterior: String?, seq: Int)
     ]()
     groups.forEach { currentGroup in
       currentGroup.entries.forEach { entry in
@@ -377,30 +344,28 @@ extension VanguardTrieProtocol {
       }
     }
     guard !resultsMap.isEmpty else { return nil }
-    var final = [(
-      keyArray: [String],
-      value: String,
-      probability: Double,
-      previous: String?,
-      anterior: String?
-    )]()
-    final = resultsMap.values.sorted {
-      (
-        $0.keyArray.count,
-        $0.probability,
-        $1.seq,
-        $0.previous?.count ?? 0,
-        $0.anterior?.count ?? 0
-      ) >
-        (
-          $1.keyArray.count,
-          $1.probability,
-          $0.seq,
-          $1.previous?.count ?? 0,
-          $1.anterior?.count ?? 0
-        )
-    }.map {
-      (
+    var final = [VanguardTrie.TrieGram]()
+    // 拆解排序鍵，避免舊版編譯器對大型 tuple 比較表達式的 type-check 超時；
+    // 比較語義忠實複製既有「seq 交叉比較」怪癖（$1.seq 於第一元、$0.seq 於第二元）。
+    let sortedValues = resultsMap.values.sorted { lhs, rhs in
+      if lhs.keyArray.count != rhs.keyArray.count {
+        return lhs.keyArray.count > rhs.keyArray.count
+      }
+      if lhs.probability != rhs.probability {
+        return lhs.probability > rhs.probability
+      }
+      if rhs.seq != lhs.seq {
+        return rhs.seq > lhs.seq
+      }
+      let lhsPrev = lhs.previous?.count ?? 0
+      let rhsPrev = rhs.previous?.count ?? 0
+      if lhsPrev != rhsPrev {
+        return lhsPrev > rhsPrev
+      }
+      return (lhs.anterior?.count ?? 0) > (rhs.anterior?.count ?? 0)
+    }
+    final = sortedValues.map {
+      VanguardTrie.TrieGram(
         keyArray: $0.keyArray,
         value: $0.value,
         probability: $0.probability,

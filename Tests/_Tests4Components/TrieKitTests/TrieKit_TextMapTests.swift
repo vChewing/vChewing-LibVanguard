@@ -305,9 +305,7 @@ struct TrieKitTextMapTests {
     #expect(lazyCNSRevLookup == "lv3")
   }
 
-  @Test(
-    "[TrieKit] TextMapTrie existential query APIs preserve partial and associated phrase semantics"
-  )
+  @Test("[TrieKit] TextMapTrie existential query APIs preserve partial and associated phrase semantics")
   func testTextMapTrieExistentialQueryAPIs() throws {
     let textMap = """
     #PRAGMA:VANGUARD_HOMA_LEXICON_HEADER
@@ -347,9 +345,7 @@ struct TrieKitTextMapTests {
     #expect(associatedFiltered?.map(\.value) == ["XZ"])
   }
 
-  @Test(
-    "[TrieKit] TextMapTrie flushReverseLookupIndex releases index and rebuilds on demand"
-  )
+  @Test("[TrieKit] TextMapTrie flushReverseLookupIndex releases index and rebuilds on demand")
   func testTextMapTrieFlushReverseLookupIndexRebuildsOnDemand() throws {
     let textMap = """
     #PRAGMA:VANGUARD_HOMA_LEXICON_HEADER

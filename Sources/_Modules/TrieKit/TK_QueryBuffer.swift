@@ -3,7 +3,13 @@
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 
 import Foundation
-import SwiftExtension
+#if canImport(SwiftExtension)
+  // 條件匯入：vChewing-OSX-Legacy 無 `SwiftExtension` 模組（其 `NSMutex` 與本檔同模組），
+  // 故以條件匯入維持三倉 TrieKit 逐位元組一致。
+  import SwiftExtension
+#endif
+
+// MARK: - QueryBuffer
 
 /// 一個會在指定時間間隔後自動使快取條目失效的快取系統。
 ///
@@ -16,14 +22,16 @@ public final class QueryBuffer<T> {
   // MARK: Lifecycle
 
   /// 以特定的過期時間間隔初期化 QueryBuffer
-  /// - Parameter expirationInterval: 條目過期的秒數（預設值：7）
+  /// - Parameters:
+  ///   - expirationInterval: 條目過期的秒數（預設值：7）
+  ///   - maxCount: 最大快取條目數，超過時淘汰最舊條目（nil = 無上限）
   public init(expirationInterval: TimeInterval = 7.0, maxCount: Int? = nil) {
-    self.maxCount = maxCount
     self.expirationNanoseconds = UInt64(expirationInterval * 1_000_000_000)
     self.cleanupThrottleNanoseconds = Swift.max(
       Self.minimumCleanupThrottleNanoseconds,
       Swift.min(expirationNanoseconds, Self.maximumCleanupThrottleNanoseconds)
     )
+    self.maxCount = maxCount
   }
 
   // MARK: Public
@@ -34,18 +42,12 @@ public final class QueryBuffer<T> {
   }
 
   /// 使用字串鍵值將值加入緩衝區
-  /// - Parameters:
-  ///   - key: 將被轉換為雜湊值的字串鍵值
-  ///   - value: 要儲存的值
   public func set(key: String, value: T) {
     guard !key.isEmpty else { return }
     set(hashKey: key.hashValue, value: value)
   }
 
   /// 使用雜湊鍵值將值加入緩衝區
-  /// - Parameters:
-  ///   - hashKey: 整數雜湊鍵值
-  ///   - value: 要儲存的值
   public func set(hashKey: Int, value: T) {
     let now = DispatchTime.now().uptimeNanoseconds
     let entry = CacheEntry(value: value, timestampNs: now)
@@ -53,7 +55,7 @@ public final class QueryBuffer<T> {
       $0[hashKey] = entry
     }
     mtxExpirationQueue.withLock {
-      $0.append(ExpirationMarker(hashKey: hashKey, timestampNs: now))
+      $0.append(.init(hashKey: hashKey, timestampNs: now))
     }
     let shouldCheckCleanup = mtxOperationCount.withLock { operationCount in
       operationCount &+= 1
@@ -66,16 +68,12 @@ public final class QueryBuffer<T> {
   }
 
   /// 如果值存在且未過期，則從緩衝區擷取該值
-  /// - Parameter key: 將被轉換為雜湊值的字串鍵值
-  /// - Returns: 如果快取值可用且未過期則返回該值，否則返回 nil
   public func get(key: String) -> T? {
     guard !key.isEmpty else { return nil }
     return get(hashKey: key.hashValue)
   }
 
   /// 如果值存在且未過期，則從緩衝區擷取該值
-  /// - Parameter hashKey: 整數雜湊鍵值
-  /// - Returns: 如果快取值可用且未過期則返回該值，否則返回 nil
   public func get(hashKey: Int) -> T? {
     let now = DispatchTime.now().uptimeNanoseconds
     guard let entry = mtxCache.withLockRead({ $0[hashKey] }) else { return nil }
@@ -91,8 +89,6 @@ public final class QueryBuffer<T> {
   }
 
   /// 從緩衝區中移除特定條目
-  /// - Parameter key: 將被轉換為雜湊值的字串鍵值
-  /// - Returns: 如果條目存在則返回被移除的值，否則返回 nil
   @discardableResult
   public func remove(key: String) -> T? {
     guard !key.isEmpty else { return nil }
@@ -100,8 +96,6 @@ public final class QueryBuffer<T> {
   }
 
   /// 從緩衝區中移除特定條目
-  /// - Parameter hashKey: 整數雜湊鍵值
-  /// - Returns: 如果條目存在則返回被移除的值，否則返回 nil
   @discardableResult
   public func remove(hashKey: Int) -> T? {
     mtxCache.withLock {
@@ -121,7 +115,6 @@ public final class QueryBuffer<T> {
 
   // MARK: Private
 
-  /// 用於追蹤快取值及其時間戳記的內部結構（使用單調奈秒時間戳）
   private struct CacheEntry {
     let value: T
     let timestampNs: UInt64
@@ -132,51 +125,50 @@ public final class QueryBuffer<T> {
     let timestampNs: UInt64
   }
 
-  /// 每 64 次操作才觸發一次清理（64 = 2^6，使用位元 AND 判斷，避免除法）。
   private static var cleanupCheckInterval: UInt64 { 64 }
 
-  /// 每輪清理最多處理的到期條目數量，避免單次 set 夾帶長時間清掃。
   private static var cleanupRemovalLimit: Int { 32 }
 
-  /// 避免高頻輸入時在極短時間內連續進入清理路徑。
   private static var minimumCleanupThrottleNanoseconds: UInt64 { 1_000_000 }
 
-  /// 預設情況下，超過 250ms 再次清理已足夠；更短的過期間隔則跟隨實際 expiration。
   private static var maximumCleanupThrottleNanoseconds: UInt64 { 250_000_000 }
+
+  private let mtxCache: NSMutex<[Int: CacheEntry]> = .init([:])
+
+  private let mtxExpirationQueue: NSMutex<[ExpirationMarker]> = .init([])
+
+  private let mtxExpirationQueueHead = NSMutex(0)
+
+  private let expirationNanoseconds: UInt64
+
+  private let cleanupThrottleNanoseconds: UInt64
+
+  private let mtxOperationCount = NSMutex<UInt64>(0)
+
+  private let mtxLastCleanupTimestampNs = NSMutex<UInt64>(0)
+
+  private let mtxCleanupInProgress = NSMutex<Bool>(false)
 
   private let maxCount: Int?
 
-  /// 主要快取儲存空間 - 使用 Int（雜湊值）作為鍵值
-  private let mtxCache: NSMutex<[Int: CacheEntry]> = .init([:])
+  private func evictOldestIfOverMaxCountLocked(now: UInt64) {
+    guard let maxCount else { return }
+    let currentCount = count
+    guard currentCount > maxCount else { return }
+    // O(1) 逐出：到期佇列為插入序（＝時間序、`DispatchTime` 單調），
+    // 佇列頭即最舊條目——直接消費之。取代舊實作的「全 Dictionary 掃描找最舊」：
+    // 快取滿後每次 set() 皆 O(n) 掃描（狂拼每鍵大量 set、舊實作佔 ~19% 打字 CPU）。
+    guard let marker = currentExpirationMarker() else { return }
+    _ = mtxCache.withLock { $0.removeValue(forKey: marker.hashKey) }
+    advanceExpirationQueueHead()
+    compactExpirationQueueIfNeeded()
+  }
 
-  /// 按寫入時間排列的到期佇列，供清理路徑增量回收使用。
-  private let mtxExpirationQueue: NSMutex<[ExpirationMarker]> = .init([])
-
-  /// 到期佇列目前尚未處理的頭部索引。
-  private let mtxExpirationQueueHead = NSMutex(0)
-
-  /// 條目過期的奈秒時間間隔
-  private let expirationNanoseconds: UInt64
-
-  /// 清理節流時間，避免在高頻 set 下反覆做無效 cleanup pass。
-  private let cleanupThrottleNanoseconds: UInt64
-
-  /// 操作計數器（使用溢位加法，讓其自然環繞而不越界）
-  private let mtxOperationCount = NSMutex<UInt64>(0)
-
-  /// 上次完成清理嘗試的時間戳記。
-  private let mtxLastCleanupTimestampNs = NSMutex<UInt64>(0)
-
-  /// 防止多條執行緒同時進入清理迴圈。
-  private let mtxCleanupInProgress = NSMutex<Bool>(false)
-
-  /// 判斷目前是否該進入清理流程。
   private func shouldRunCleanupLocked(now: UInt64) -> Bool {
     let lastCleanupTimestampNs = mtxLastCleanupTimestampNs.value
     return now &- lastCleanupTimestampNs >= cleanupThrottleNanoseconds
   }
 
-  /// 嘗試進入清理流程；若已有清理流程在跑則返回 false。
   private func beginCleanupPass(now: UInt64) -> Bool {
     let shouldEnter = mtxCleanupInProgress.withLock { cleanupInProgress in
       if cleanupInProgress {
@@ -190,12 +182,10 @@ public final class QueryBuffer<T> {
     return true
   }
 
-  /// 結束清理流程。
   private func endCleanupPass() {
     mtxCleanupInProgress.value = false
   }
 
-  /// 讀取目前到期佇列頭部對應的 marker。
   private func currentExpirationMarker() -> ExpirationMarker? {
     let head = mtxExpirationQueueHead.value
     return mtxExpirationQueue.withLockRead { queue in
@@ -204,12 +194,10 @@ public final class QueryBuffer<T> {
     }
   }
 
-  /// 將到期佇列頭部索引往前推進一格。
   private func advanceExpirationQueueHead() {
     mtxExpirationQueueHead.withLock { $0 &+= 1 }
   }
 
-  /// 視情況壓縮已掃描過的隊列頭段，避免隊列無界成長。
   private func compactExpirationQueueIfNeeded() {
     let head = mtxExpirationQueueHead.value
     guard head > 0 else { return }
@@ -225,20 +213,6 @@ public final class QueryBuffer<T> {
     mtxExpirationQueueHead.value = 0
   }
 
-  private func evictOldestIfOverMaxCountLocked(now: UInt64) {
-    guard let maxCount else { return }
-    let currentCount = count
-    guard currentCount > maxCount else { return }
-    // O(1) 逐出：到期佇列為插入序（＝時間序、`DispatchTime` 單調），
-    // 佇列頭即最舊條目——直接消費之。取代舊實作的「全 Dictionary 掃描找最舊」：
-    // 快取滿後每次 set() 皆 O(n) 掃描（狂拼每鍵大量 set、舊實作佔 ~19% 打字 CPU）。
-    guard let marker = currentExpirationMarker() else { return }
-    _ = mtxCache.withLock { $0.removeValue(forKey: marker.hashKey) }
-    advanceExpirationQueueHead()
-    compactExpirationQueueIfNeeded()
-  }
-
-  /// 在持有清理權的前提下移除過期條目（分批回收）。
   private func removeExpiredEntriesLocked(now: UInt64) {
     guard beginCleanupPass(now: now) else { return }
     defer { endCleanupPass() }
@@ -250,8 +224,7 @@ public final class QueryBuffer<T> {
         break
       }
       let didRemove = mtxCache.withLock { cache in
-        guard let currentEntry = cache[marker.hashKey],
-              currentEntry.timestampNs == marker.timestampNs else {
+        guard let currentEntry = cache[marker.hashKey], currentEntry.timestampNs == marker.timestampNs else {
           return false
         }
         cache.removeValue(forKey: marker.hashKey)

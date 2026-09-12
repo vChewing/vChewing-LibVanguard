@@ -21,14 +21,14 @@ public protocol LexiconGramSupplierProtocol: AnyObject {
     partiallyMatch: Bool,
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())?
   )
-    -> [Lexicon.HomaGramTuple]
+    -> [Lexicon.HomaGram]
 
   func queryAssociatedPhrasesAsGrams(
     _ previous: (keyArray: [String], value: String),
     anterior anteriorValue: String?,
     filterType: VanguardTrie.Trie.EntryType
   )
-    -> [Lexicon.HomaGramTuple]?
+    -> [Lexicon.HomaGram]?
 }
 
 extension LexiconGramSupplierProtocol {
@@ -38,7 +38,7 @@ extension LexiconGramSupplierProtocol {
     partiallyMatch: Bool = false,
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())? = nil
   )
-    -> [Lexicon.HomaGramTuple] {
+    -> [Lexicon.HomaGram] {
     queryGrams(
       keys,
       filterType: filterType,
@@ -67,7 +67,7 @@ extension LexiconGramSupplierProtocol {
     anterior anteriorValue: String? = nil,
     filterType: VanguardTrie.Trie.EntryType
   )
-    -> [Lexicon.HomaGramTuple]? {
+    -> [Lexicon.HomaGram]? {
     queryAssociatedPhrasesAsGrams(previous, anterior: anteriorValue, filterType: filterType)
   }
 

@@ -88,12 +88,12 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
     partiallyMatch: Bool,
     partiallyMatchedKeysPostHandler: ((Set<[String]>) -> ())?
   )
-    -> [Lexicon.HomaGramTuple] {
+    -> [Lexicon.HomaGram] {
     guard !keys.isEmpty else { return [] }
     let isRevLookup = filterType == .revLookup
     let keysVanilla = keys
     let partiallyMatch = isRevLookup ? false : partiallyMatch
-    var result = [Lexicon.HomaGramTuple]()
+    var result = [Lexicon.HomaGram]()
     var partiallyMatchedKeys: Set<[String]> = []
     defer { if !isRevLookup { partiallyMatchedKeysPostHandler?(partiallyMatchedKeys) } }
     for dataType in FactoryTrieDBType.allCases {
@@ -101,7 +101,7 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
       case .revLookup where !isRevLookup: continue
       default: break dataTypeCheck
       }
-      let fetched: [Lexicon.HomaGramTuple]? = Lexicon.concatGramQueryResults {
+      let fetched: [Lexicon.HomaGram]? = Lexicon.concatGramQueryResults {
         userTrie?.queryGrams(
           keysVanilla, filterType: filterType, partiallyMatch: partiallyMatch
         ) { retrievedKeys in
@@ -131,18 +131,18 @@ extension VanguardTrie.TrieHub: LexiconGramSupplierProtocol {
     anterior anteriorValue: String?,
     filterType: VanguardTrie.Trie.EntryType
   )
-    -> [Lexicon.HomaGramTuple]? {
+    -> [Lexicon.HomaGram]? {
     guard !filterType.contains(.revLookup) else { return nil }
     let keys = previous.keyArray
     guard !keys.isEmpty, keys.allSatisfy({ !$0.isEmpty }) else { return [] }
     guard !previous.value.isEmpty else { return [] }
-    var result = [Lexicon.HomaGramTuple]()
+    var result = [Lexicon.HomaGram]()
     for dataType in FactoryTrieDBType.allCases {
       dataTypeCheck: switch dataType {
       case .revLookup: continue
       default: break dataTypeCheck
       }
-      let fetched: [Lexicon.HomaGramTuple]? = Lexicon.concatGramQueryResults {
+      let fetched: [Lexicon.HomaGram]? = Lexicon.concatGramQueryResults {
         userTrie?.queryAssociatedPhrasesAsGrams(
           previous, anterior: anteriorValue, filterType: filterType
         )

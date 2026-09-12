@@ -40,10 +40,10 @@ extension Lexicon {
   public static func concatGramQueryResults(
     flags: GramConcatFlags = [],
     forbiddenKeyValueHashes: Set<Int> = [],
-    @ArrayBuilder<[HomaGramTuple]?> grams: () -> [[HomaGramTuple]?]
+    @ArrayBuilder<[HomaGram]?> grams: () -> [[HomaGram]?]
   )
-    -> [HomaGramTuple]? {
-    var concatenated: [HomaGramTuple] = grams().compactMap { $0 }.flatMap { $0 }
+    -> [HomaGram]? {
+    var concatenated: [HomaGram] = grams().compactMap { $0 }.flatMap { $0 }
     guard !concatenated.isEmpty else { return nil }
     if flags.contains(.sort) { concatenated.sort(by: Self.sortGrams) }
     var insertedThings: Set<Int> = []
@@ -61,7 +61,7 @@ extension Lexicon {
     return concatenated
   }
 
-  private static func sortGrams(_ lhs: HomaGramTuple, _ rhs: HomaGramTuple) -> Bool {
+  private static func sortGrams(_ lhs: HomaGram, _ rhs: HomaGram) -> Bool {
     if lhs.keyArray.count != rhs.keyArray.count {
       return lhs.keyArray.count > rhs.keyArray.count
     }

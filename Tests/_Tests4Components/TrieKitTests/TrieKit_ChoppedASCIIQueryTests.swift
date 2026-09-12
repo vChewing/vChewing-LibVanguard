@@ -25,20 +25,12 @@ struct TrieKitTextMapChoppedASCIIQueryTests {
     let chs = VanguardTrie.Trie.EntryType(rawValue: 5)
 
     // 部分匹配（"A" 前綴）的 "&" 連讀查詢。
-    let partial = trie.getEntryGroups(
-      keysChopped: ["A&X", "B"],
-      filterType: chs,
-      partiallyMatch: true
-    )
+    let partial = trie.getEntryGroups(keysChopped: ["A&X", "B"], filterType: chs, partiallyMatch: true)
     #expect(partial.count == 2)
     #expect(partial.flatMap(\.entries).map(\.value).sorted() == ["factoryHit", "partial"])
 
     // 精確匹配的 "&" 連讀查詢。
-    let exact = trie.getEntryGroups(
-      keysChopped: ["A1&A2", "B1"],
-      filterType: chs,
-      partiallyMatch: false
-    )
+    let exact = trie.getEntryGroups(keysChopped: ["A1&A2", "B1"], filterType: chs, partiallyMatch: false)
     #expect(exact.count == 1)
     #expect(exact.first?.entries.first?.value == "factoryHit")
 
@@ -49,10 +41,7 @@ struct TrieKitTextMapChoppedASCIIQueryTests {
 
   // MARK: Private
 
-  private func makeTextMap(_ entriesByKey: [(
-    String,
-    [(value: String, probability: Double, typeID: Int32)]
-  )])
+  private func makeTextMap(_ entriesByKey: [(String, [(value: String, probability: Double, typeID: Int32)])])
     -> String {
     var valueLines: [String] = []
     var keyLines: [String] = []

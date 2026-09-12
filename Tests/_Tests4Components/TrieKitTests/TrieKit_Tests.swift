@@ -240,9 +240,9 @@ public struct TrieKitTests: TrieKitTestSuite {
       trie.insert(entry: entry, readings: readings)
     }
     let textMap = VanguardTrie.TrieIO.serializeToTextMap(trie)
-    let trieFinal: VanguardTrieProtocol = try VanguardTrie.TrieIO.deserializeFromTextMap(textMap)
+    let trieFinal: VanguardTrieProtocol = try VanguardTrie.TextMapTrie(data: Data(textMap.utf8))
     let mockLM = TestLM4Trie(trie: trieFinal)
-    #expect(trieFinal.hasGrams(["ㄧˋ", "ㄌㄩˇ"], filterType: .langNeutral))
+    #expect(mockLM.hasGrams(["ㄧˋ", "ㄌㄩˇ"]))
     #expect(!mockLM.queryGrams(["ㄧˋ", "ㄌㄩˇ"]).isEmpty)
     return (mockLM, trieFinal)
   }
