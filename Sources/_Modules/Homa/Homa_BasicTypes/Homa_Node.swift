@@ -222,8 +222,7 @@ extension Homa.Node {
     var bestBigram: Homa.Gram?
     var bestTrigram: Homa.Gram?
     for (index, gram) in grams.enumerated() {
-      if (gram.previous ?? "").isEmpty, (gram.anterior ?? "").isEmpty,
-         firstUnigramProbability == nil {
+      if (gram.previous ?? "").isEmpty, (gram.anterior ?? "").isEmpty, firstUnigramProbability == nil {
         firstUnigramProbability = gram.probability
         firstUnigramIndex = index
       }

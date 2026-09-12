@@ -81,10 +81,7 @@ extension Homa {
             return parent[previousStart]?.gram?.current ?? ""
           }()
           var nodeCopy = nextNode
-          let newScore = dp[i] + nodeCopy.getScore(
-            previous: previousCurrent,
-            anterior: anteriorCurrent
-          )
+          let newScore = dp[i] + nodeCopy.getScore(previous: previousCurrent, anterior: anteriorCurrent)
           visitedNodes.append((i, length, nodeCopy))
 
           // 如果找到更好的路徑，更新 dp 和 parent

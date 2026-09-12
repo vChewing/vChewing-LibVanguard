@@ -30,8 +30,7 @@ extension Homa.Assembler {
       location -= 1
     }
     location = max(min(location, keys.count - 1), 0)
-    let anchors: [(location: Int, segLength: Int, node: Homa.Node)] =
-      fetchOverlappingNodes(at: location)
+    let anchors: [(location: Int, segLength: Int, node: Homa.Node)] = fetchOverlappingNodes(at: location)
     let keyAtCursor = keys[location]
     let cursorAlternatives = keyAtCursor.allValues
     var seen = Set<Homa.CandidatePair>()
@@ -359,12 +358,7 @@ extension Homa.Assembler {
     // 先獲取詀位置的所有單字節點
     segments[givenLocation].keys.sorted().forEach { theSegLength in
       guard let node = segments[givenLocation][theSegLength] else { return }
-      Self.insertAnchor(
-        segmentIndex: givenLocation,
-        segLength: theSegLength,
-        node: node,
-        to: &results
-      )
+      Self.insertAnchor(segmentIndex: givenLocation, segLength: theSegLength, node: node, to: &results)
     }
 
     // 再獲取以當前位置結尾的節點

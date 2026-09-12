@@ -142,9 +142,7 @@ extension Homa.Assembler {
 
       if retryCount == 0, needsInitialConsolidation, skipInitialConsolidation {
         debugIntel
-          .append(
-            "revolveCandidate: initial attempt skips pre-consolidation to avoid over-locking overlap edges"
-          )
+          .append("revolveCandidate: initial attempt skips pre-consolidation to avoid over-locking overlap edges")
       }
 
       do {
@@ -224,8 +222,7 @@ extension Homa.Assembler {
 
     // Soft revolve 可能縮小 effectiveCandidates；對外回報的 current 應對應原始候選列表索引，
     // 以保留完整總數語義（current / total 與原始候選列表一致）。
-    let currentInOriginalCandidates = candidates
-      .firstIndex { $0.pair == theCandidateNow.pair } ?? newIndex
+    let currentInOriginalCandidates = candidates.firstIndex { $0.pair == theCandidateNow.pair } ?? newIndex
     return (theCandidateNow, currentInOriginalCandidates, candidates.count)
   }
 
