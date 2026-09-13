@@ -17,6 +17,20 @@ All contributions to the LibVanguard are subject to this COPYING file.
 
 ------------------
 
+The following component is provided under a different license:
+
+  Sources/_Modules/SwiftExtension/    SPDX-License-Identifier: MulanPSL-2.0
+
+Being under the terms of the Mulan Permissive Software License v2,
+according with:
+
+  LICENSES/preferred/MulanPSL-2.0
+
+It is a general-purpose Swift utility module, hence a permissive license is
+used so that it stays mixable with any other project.
+
+------------------
+
 Also, some components have extra credit annotations. Please see their file headers.
 
 $ EOF.

@@ -1,6 +1,6 @@
-// (c) 2022 and onwards The vChewing Project (LGPL v3.0 License or later).
+// (c) 2022 and onwards The vChewing Project (MulanPSL-2.0 License).
 // ====================
-// This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
+// This code is released under the SPDX-License-Identifier: `MulanPSL-2.0`.
 
 public enum LatinKeyboardMappings: String, CaseIterable {
   case qwerty = "com.apple.keylayout.ABC"
