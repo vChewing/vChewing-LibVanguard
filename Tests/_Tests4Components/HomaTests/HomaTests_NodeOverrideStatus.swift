@@ -206,7 +206,7 @@ extension HomaTestsRoot {
 
     @Test("Assembler Node Override Status Mirroring")
     func testAssemblerNodeOverrideStatusMirroring() throws {
-      let assembler = Self.makeAssemblerUsingMockLM()
+      let assembler = Self.makeAssemblerUsingMockLX()
 
       try assembler.insertKeys(["a", "b", "c"].map { .singleKey($0) })
 
@@ -263,7 +263,7 @@ extension HomaTestsRoot {
 
     @Test("Assembler Node Override Status Mirror vs Copy")
     func testAssemblerNodeOverrideStatusMirrorVsCopy() throws {
-      let assembler = Self.makeAssemblerUsingMockLM()
+      let assembler = Self.makeAssemblerUsingMockLX()
 
       try assembler.insertKeys(["hello", "world", "test"].map { .singleKey($0) })
 

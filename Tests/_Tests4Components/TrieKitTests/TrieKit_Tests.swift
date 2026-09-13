@@ -16,23 +16,23 @@ public struct TrieKitTests: TrieKitTestSuite {
 
   @Test("[TrieKit] Trie Query Test")
   func testTrieDirectQuery() async throws {
-    let mockLM = try prepareTrieLM().lm
+    let mockLX = try prepareTrieLX().lm
     do {
-      let partialMatchQueried = mockLM.queryGrams(["ㄧ"], partiallyMatch: true)
+      let partialMatchQueried = mockLX.queryGrams(["ㄧ"], partiallyMatch: true)
       #expect(!partialMatchQueried.isEmpty)
       #expect(partialMatchQueried.contains(where: { $0.keyArray.first == "ㄧˋ" }))
     }
     do {
-      let fullMatchQueried = mockLM.queryGrams(["ㄧㄡ"], partiallyMatch: true)
+      let fullMatchQueried = mockLX.queryGrams(["ㄧㄡ"], partiallyMatch: true)
       #expect(!fullMatchQueried.isEmpty)
       #expect(!fullMatchQueried.contains(where: { $0.keyArray.first == "ㄧˋ" }))
     }
     do {
-      let fullMatchQueried2 = mockLM.queryGrams(["ㄧㄡ", "ㄉㄧㄝˊ"], partiallyMatch: true)
+      let fullMatchQueried2 = mockLX.queryGrams(["ㄧㄡ", "ㄉㄧㄝˊ"], partiallyMatch: true)
       #expect(!fullMatchQueried2.isEmpty)
     }
     do {
-      let partialMultiMatchQueried = mockLM.queryGrams(["ㄧㄛ&ㄧㄡ&ㄩㄥ"], partiallyMatch: true)
+      let partialMultiMatchQueried = mockLX.queryGrams(["ㄧㄛ&ㄧㄡ&ㄩㄥ"], partiallyMatch: true)
       #expect(!partialMultiMatchQueried.isEmpty)
       #expect(!partialMultiMatchQueried.contains(where: { $0.keyArray.first == "ㄧˋ" }))
     }
@@ -41,10 +41,10 @@ public struct TrieKitTests: TrieKitTestSuite {
   /// 這裡重複對護摩引擎的胡桃測試（Full Match）。
   @Test("[TrieKit] Trie Structure Test (Full Match)")
   func testTrieStructureWithFullMatch() async throws {
-    let mockLM = try prepareTrieLM().lm
+    let mockLX = try prepareTrieLX().lm
     let readings: [Substring] = "ㄧㄡ ㄉㄧㄝˊ ㄋㄥˊ ㄌㄧㄡˊ ㄧˋ ㄌㄩˇ ㄈㄤ".split(separator: " ")
     let assembler = Homa.Assembler(
-      gramQuerier: { mockLM.queryGrams($0) }, // 會回傳包含 Bigram 的結果。
+      gramQuerier: { mockLX.queryGrams($0) }, // 會回傳包含 Bigram 的結果。
     )
     try readings.forEach {
       try assembler.insertKey($0.description)
@@ -65,7 +65,7 @@ public struct TrieKitTests: TrieKitTestSuite {
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "芳"])
     // 剛才測試 Bigram 生效了。現在禁用 Bigram 試試看。先攔截掉 Bigram 結果。
-    assembler.gramQuerier = { mockLM.queryGrams($0).filter { $0.previous == nil } }
+    assembler.gramQuerier = { mockLX.queryGrams($0).filter { $0.previous == nil } }
     try assembler.assignNodes(updateBehavior: .refreshExisting) // 置換掉所有節點裡面的資料。
     assembledSentence = assembler.assemble().compactMap(\.value)
     #expect(assembledSentence == ["幽蝶", "能", "留", "一縷", "方"])
@@ -91,12 +91,12 @@ public struct TrieKitTests: TrieKitTestSuite {
   /// 這裡重複對護摩引擎的胡桃測試（Partial Match）。
   @Test("[TrieKit] Trie Structure Test (Partial Match)")
   func testTrieStructureWithPartialMatch() async throws {
-    let mockLM = try prepareTrieLM().lm
-    #expect(mockLM.hasGrams(["ㄧ"], partiallyMatch: true))
-    #expect(!mockLM.queryGrams(["ㄧ"], partiallyMatch: true).isEmpty)
+    let mockLX = try prepareTrieLX().lm
+    #expect(mockLX.hasGrams(["ㄧ"], partiallyMatch: true))
+    #expect(!mockLX.queryGrams(["ㄧ"], partiallyMatch: true).isEmpty)
     let readings: [String] = "ㄧㄉㄋㄌㄧㄌㄈ".map(\.description)
     let assembler = Homa.Assembler(
-      gramQuerier: { mockLM.queryGrams($0, partiallyMatch: true) }, // 會回傳包含 Bigram 的結果。
+      gramQuerier: { mockLX.queryGrams($0, partiallyMatch: true) }, // 會回傳包含 Bigram 的結果。
     )
     try readings.forEach {
       try assembler.insertKey($0.description)
@@ -130,13 +130,13 @@ public struct TrieKitTests: TrieKitTestSuite {
     #expect(rawPinyinChopped == ["yo", "die", "n", "li", "y", "lv", "f"])
     let keys2Add = pinyinTrie.deductChoppedPinyinToZhuyin(rawPinyinChopped)
     #expect(keys2Add == ["ㄧㄛ&ㄧㄡ&ㄩㄥ", "ㄉㄧㄝ", "ㄋ", "ㄌㄧ", "ㄧ&ㄩ", "ㄌㄩ&ㄌㄩㄝ&ㄌㄩㄢ", "ㄈ"])
-    let mockLM = try prepareTrieLM().lm
-    let hasResults = mockLM.hasGrams(["ㄧ&ㄩ"], partiallyMatch: true)
+    let mockLX = try prepareTrieLX().lm
+    let hasResults = mockLX.hasGrams(["ㄧ&ㄩ"], partiallyMatch: true)
     #expect(hasResults)
-    let queried = mockLM.queryGrams(["ㄧ&ㄩ"], partiallyMatch: true)
+    let queried = mockLX.queryGrams(["ㄧ&ㄩ"], partiallyMatch: true)
     #expect(!queried.isEmpty)
     let assembler = Homa.Assembler(
-      gramQuerier: { mockLM.queryGrams($0, partiallyMatch: true) }, // 會回傳包含 Bigram 的結果。
+      gramQuerier: { mockLX.queryGrams($0, partiallyMatch: true) }, // 會回傳包含 Bigram 的結果。
     )
     try keys2Add.forEach {
       try assembler.insertKey($0.description)
@@ -161,7 +161,7 @@ public struct TrieKitTests: TrieKitTestSuite {
   /// 檢查對關聯詞語的檢索能力。
   @Test("[TrieKit] Trie Associated Phrases Query Test")
   func testTrieQueryingAssociatedPhrases() async throws {
-    let trie = try prepareTrieLM().trie
+    let trie = try prepareTrieLX().trie
     do {
       let fetched = trie.queryAssociatedPhrasesPlain(
         (["ㄌㄧㄡˊ"], "流"),
@@ -216,13 +216,13 @@ public struct TrieKitTests: TrieKitTestSuite {
 
   // MARK: Private
 
-  private func prepareTrieLM() throws -> (
-    lm: TestLM4Trie,
+  private func prepareTrieLX() throws -> (
+    lm: TestLX4Trie,
     trie: any VanguardTrieProtocol
   ) {
     // 先測試物件創建。
     let trie = VanguardTrie.Trie(separator: "-")
-    strLMSampleDataHutaoZhuyin.enumerateLines { line, _ in
+    strLXSampleDataHutaoZhuyin.enumerateLines { line, _ in
       let components = line.split(whereSeparator: \.isWhitespace)
       guard components.count >= 3 else { return }
       let value = String(components[1])
@@ -241,9 +241,9 @@ public struct TrieKitTests: TrieKitTestSuite {
     }
     let textMap = VanguardTrie.TrieIO.serializeToTextMap(trie)
     let trieFinal: VanguardTrieProtocol = try VanguardTrie.TextMapTrie(data: Data(textMap.utf8))
-    let mockLM = TestLM4Trie(trie: trieFinal)
-    #expect(mockLM.hasGrams(["ㄧˋ", "ㄌㄩˇ"]))
-    #expect(!mockLM.queryGrams(["ㄧˋ", "ㄌㄩˇ"]).isEmpty)
-    return (mockLM, trieFinal)
+    let mockLX = TestLX4Trie(trie: trieFinal)
+    #expect(mockLX.hasGrams(["ㄧˋ", "ㄌㄩˇ"]))
+    #expect(!mockLX.queryGrams(["ㄧˋ", "ㄌㄩˇ"]).isEmpty)
+    return (mockLX, trieFinal)
   }
 }

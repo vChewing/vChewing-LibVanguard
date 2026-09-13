@@ -2,7 +2,7 @@
 
 import Foundation
 
-let lmPlainBPMFData: Data = """
+let lxPlainBPMFData: Data = """
 {
 "ㄅ":{"S":"ㄅ","T":"ㄅ"},
 "ㄅㄚ":{"S":"八捌巴疤芭笆粑叭扒豝吧仈朳","T":"八捌巴疤芭笆粑叭扒豝吧仈朳"},

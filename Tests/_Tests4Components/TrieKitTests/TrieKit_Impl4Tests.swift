@@ -11,9 +11,9 @@ import Testing
 
 protocol TrieKitTestSuite {}
 
-// MARK: - TestLM4Trie
+// MARK: - TestLX4Trie
 
-final class TestLM4Trie {
+final class TestLX4Trie {
   // MARK: Lifecycle
 
   init(trie: VanguardTrieProtocol) {

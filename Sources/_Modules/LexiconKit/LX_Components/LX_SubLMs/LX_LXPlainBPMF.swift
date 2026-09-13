@@ -5,7 +5,7 @@
 import Foundation
 import TrieKit
 
-// MARK: - Lexicon.LMPlainBPMF
+// MARK: - Lexicon.LXPlainBPMF
 
 extension Lexicon {
   /// 總是有人要打ㄅ半的。
@@ -13,19 +13,19 @@ extension Lexicon {
   /// ㄅ半輸入法有一種政確，就是候選字的排列順序一定得是倚天中文 DOS 環境的內建的注音輸入法的排序。
   /// 這些肌肉記憶已經深入他們的骨髓，導致他們完全用不來除此以外的任何輸入方案。
   /// 他們往往以為這些是香草的候選字詞順序，實際上這些跟香草一點關係都沒有。
-  final class LMPlainBPMF {
+  final class LXPlainBPMF {
     // MARK: Lifecycle
 
     init?() {
       do {
         let decoded = try JSONDecoder().decode(
           [String: [String: String]].self,
-          from: lmPlainBPMFData
+          from: lxPlainBPMFData
         )
         self.dataMap = decoded
       } catch {
         let prompt =
-          "↑ Exception happened when parsing raw JSON sequence data from vChewing LMAssembly."
+          "↑ Exception happened when parsing raw JSON sequence data from vChewing LXAssembly."
         print("\(error)\n\(prompt)")
         return nil
       }
@@ -43,7 +43,7 @@ extension Lexicon {
   }
 }
 
-extension Lexicon.LMPlainBPMF {
+extension Lexicon.LXPlainBPMF {
   func hasGrams(
     _ key: String,
     partiallyMatch: Bool = false,

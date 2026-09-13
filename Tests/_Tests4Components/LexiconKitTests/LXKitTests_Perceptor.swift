@@ -15,7 +15,7 @@ private let capacity = 5
 private let dayInSeconds: Double = 24 * 3_600 // 一天的秒數
 
 private func makeAssembler(using rawData: String) -> Homa.Assembler {
-  let lm = TestLM(rawData: rawData)
+  let lm = TestLX(rawData: rawData)
   return Homa.Assembler(
     gramQuerier: { lm.queryGrams($0, partiallyMatch: false) }
   )
@@ -450,7 +450,7 @@ public struct LXTests4Perceptor {
   @Test("[LXKit] Perceptor_ActualCase_SaisoukiNoGaika")
   func testPOM_11_ActualCaseScenario_SaisoukiNoGaika() throws {
     let perceptor = Perceptor(capacity: capacity)
-    let compositor = makeAssembler(using: HomaTests.strLMSampleData_SaisoukiNoGaika)
+    let compositor = makeAssembler(using: HomaTests.strLXSampleData_SaisoukiNoGaika)
     // 測試用句「再創世的凱歌」。
     let readingKeys = ["zai4", "chuang4", "shi4", "de5", "kai3", "ge1"]
     try readingKeys.forEach { try compositor.insertKey($0) }
@@ -498,7 +498,7 @@ public struct LXTests4Perceptor {
     )
     #expect(firstObservationKey == obsCaptured.contextualizedGramKey)
     // 然後是記憶效力測試：
-    let validationCompositor = makeAssembler(using: HomaTests.strLMSampleData_SaisoukiNoGaika)
+    let validationCompositor = makeAssembler(using: HomaTests.strLXSampleData_SaisoukiNoGaika)
     try readingKeys.prefix(4).forEach { try validationCompositor.insertKey($0) }
     validationCompositor.assemble()
     let cursorToTest = validationCompositor.cursor
@@ -550,7 +550,7 @@ public struct LXTests4Perceptor {
   @Test("[LXKit] Perceptor_ActualCase_SaisoukiOnly")
   func testPOM_12_ActualCaseScenario_SaisoukiOnly() throws {
     let perceptor = Perceptor(capacity: capacity)
-    let compositor = makeAssembler(using: HomaTests.strLMSampleData_SaisoukiNoGaika)
+    let compositor = makeAssembler(using: HomaTests.strLXSampleData_SaisoukiNoGaika)
     let readingKeys = ["zai4", "chuang4", "shi4"]
     try readingKeys.forEach { try compositor.insertKey($0) }
     compositor.assemble()
@@ -623,7 +623,7 @@ public struct LXTests4Perceptor {
   @Test("[LXKit] Perceptor_ActualCase_BusinessEnglishSession")
   func testPOM_13_ActualCaseScenario_BusinessEnglishSession() throws {
     let perceptor = Perceptor(capacity: capacity)
-    let compositor = makeAssembler(using: HomaTests.strLMSampleData_BusinessEnglishSession)
+    let compositor = makeAssembler(using: HomaTests.strLXSampleData_BusinessEnglishSession)
     let readingKeys = ["shang1", "wu4", "ying1", "yu3", "hui4", "hua4"]
     try readingKeys.forEach { try compositor.insertKey($0) }
     compositor.assemble()
@@ -662,7 +662,7 @@ public struct LXTests4Perceptor {
 
     let validationCompositor = makeAssembler(
       using: HomaTests
-        .strLMSampleData_BusinessEnglishSession
+        .strLXSampleData_BusinessEnglishSession
     )
     try readingKeys.forEach { try validationCompositor.insertKey($0) }
     validationCompositor.assemble()
@@ -715,7 +715,7 @@ public struct LXTests4Perceptor {
   @Test("[LXKit] Perceptor_ActualCase_DiJiaoSubmission")
   func testPOM_14_ActualCaseScenario_DiJiaoSubmission() throws {
     let perceptor = Perceptor(capacity: capacity)
-    let compositor = makeAssembler(using: HomaTests.strLMSampleData_DiJiaoSubmission)
+    let compositor = makeAssembler(using: HomaTests.strLXSampleData_DiJiaoSubmission)
     let readingKeys = ["di4", "jiao1"]
     try readingKeys.forEach { try compositor.insertKey($0) }
     compositor.assemble()
@@ -768,7 +768,7 @@ public struct LXTests4Perceptor {
     )
     #expect(directSuggestion?.first?.value == "遞交")
 
-    let validationCompositor = makeAssembler(using: HomaTests.strLMSampleData_DiJiaoSubmission)
+    let validationCompositor = makeAssembler(using: HomaTests.strLXSampleData_DiJiaoSubmission)
     try readingKeys.forEach { try validationCompositor.insertKey($0) }
     validationCompositor.assemble()
     _ = try? validationCompositor.overrideCandidate(
