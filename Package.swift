@@ -33,28 +33,17 @@ let package = Package(
       name: "Homa",
       targets: ["Homa"]
     )
-    // Basic components ---
-    Product.library(
-      name: "SharedCore",
-      targets: ["SharedCore"]
-    )
-    Product.library(
-      name: "CandidateKit",
-      targets: ["CandidateKit"]
-    )
   },
   dependencies: buildPackageDependencies {},
   targets: buildTargets {
     Target.target(
       name: "LibVanguard",
       dependencies: buildTargetDependencies {
-        "CandidateKit"
         "Tekkon"
         "Homa"
         "BrailleSputnik"
         "TrieKit"
         "LexiconKit"
-        "SharedCore"
       }
     )
     Target.testTarget(
@@ -124,36 +113,6 @@ let package = Package(
         "TrieKit"
       },
       path: "./Tests/_Tests4Components/LexiconKitTests"
-    )
-    // CandidateKit, the basic module for holding candidate pools.
-    Target.target(
-      name: "CandidateKit",
-      dependencies: buildTargetDependencies {
-        "SharedCore"
-      },
-      path: "./Sources/_Modules/CandidateKit"
-    )
-    Target.testTarget(
-      name: "CandidateKitTests",
-      dependencies: buildTargetDependencies {
-        "CandidateKit"
-      },
-      path: "./Tests/_Tests4Components/CandidateKitTests"
-    )
-    // SharedCore, the basic module for holding common protocols.
-    Target.target(
-      name: "SharedCore",
-      dependencies: buildTargetDependencies {
-        "SwiftExtension"
-      },
-      path: "./Sources/_Modules/SharedCore"
-    )
-    Target.testTarget(
-      name: "SharedCoreTests",
-      dependencies: buildTargetDependencies {
-        "SharedCore"
-      },
-      path: "./Tests/_Tests4Components/SharedCoreTests"
     )
     // BrailleSputnik, the Braille module.
     Target.target(
