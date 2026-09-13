@@ -1,0 +1,351 @@
+// (c) 2022 and onwards The vChewing Project (LGPL v3.0 License or later).
+// ====================
+// This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
+
+import Foundation
+
+// MARK: - Facade
+
+extension SessionProtocol {
+  /// 接受所有鍵鼠事件為 KBEvent，讓輸入法判斷是否要處理、該怎樣處理。
+  /// 然後再交給 InputHandler.handleEvent() 分診。
+  /// - Parameters:
+  ///   - event: 裝置操作輸入事件，可能會是 nil。
+  /// - Returns: 回「`true`」以將該按鍵已攔截處理的訊息傳遞給 IMK；回「`false`」則放行、不作處理。
+  public func handleEvent(
+    _ event: KBEvent?
+  )
+    -> Bool {
+    // 就這傳入的 KBEvent 都還有可能是 nil，Apple InputMethodKit 團隊到底在搞三小。
+    guard let event else {
+      resetInputHandler(forceComposerCleanup: true)
+      return false
+    }
+
+    syncCurrentSessionID()
+
+    // 用 Shift 開關半形英數模式，僅對 macOS 10.15 及之後的 macOS 有效。
+    // 警告：這裡的 event 必須是原始 event 且不能被 var，否則會影響 Shift 中英模式判定。
+    if ui?.shiftKeyUpChecker?.check(event) ?? false {
+      vCLog("Shift key tap detected, toggling Alphanumerical Mode if should.")
+      toggleAlphanumericalMode(
+        popNotification: prefs.showNotificationsWhenTogglingShift
+      )
+      // Shift 處理完畢之後也有必要立刻返回處理結果。
+      return true
+    }
+
+    // Caps Lock 通知與切換處理。
+    if ui?.capsLockHitChecker?.check(event) ?? false {
+      asyncOnMain(bypassAsync: UserDefaults.pendingUnitTests) { [weak self] in
+        guard let this = self else { return }
+        vCLog("CapsLock key tap detected, toggling Alphanumerical Mode if should.")
+        let isCapsLockTurnedOn = this.ui?.capsLockToggler?.isOn ?? false
+        if this.prefs.shiftEisuToggleOffTogetherWithCapsLock, !isCapsLockTurnedOn,
+           self?.isASCIIMode ?? false {
+          self?.isASCIIMode.toggle()
+        }
+        self?.resetInputHandler()
+        guard this.prefs.showNotificationsWhenTogglingCapsLock else { return }
+        guard !this.prefs.bypassNonAppleCapsLockHandling else { return }
+        let status = "i18n:NotificationSwitch.Revolver".i18n
+        SessionHost.shared.notify(
+          isCapsLockTurnedOn
+            ? "[Caps Lock ON] " + "i18n:Menu.AlphanumericalInputMode".i18n + "\n" + status
+            : "[Caps Lock OFF] " + "i18n:Menu.ChineseInputMode".i18n + "\n" + status
+        )
+      }
+    }
+
+    switch event.type {
+    case .flagsChanged: return handleKeyDown(event: event)
+    case .keyDown:
+      let result = handleKeyDown(event: event)
+      if result { previouslyHandledEvents.append(event) }
+      return result
+    case .keyUp: return handleKeyUp(event: event)
+    }
+  }
+
+  private func handleKeyUp(event: KBEvent) -> Bool {
+    guard ![.ofEmpty, .ofAbortion].contains(state.type) else { return false }
+    let codes = previouslyHandledEvents.map(\.keyCode)
+    if codes.contains(event.keyCode) {
+      previouslyHandledEvents = previouslyHandledEvents.filter { prevEvent in
+        prevEvent.keyCode != event.keyCode
+      }
+      return true
+    }
+    return false
+  }
+
+  private func handleKeyDown(event: KBEvent) -> Bool {
+    // 先放過一些以 .command 觸發的熱鍵（包括剪貼簿熱鍵）。
+    if state.type == .ofEmpty, event.isSingleCommandBasedLetterHotKey { return false }
+
+    // 如果是 deactivated 狀態的話，強制糾正其為 empty()。
+    if state.type == .ofDeactivated {
+      state = .ofEmpty()
+      return handleKeyDown(event: event)
+    }
+
+    // 用 JIS 鍵盤的英數切換鍵來切換中英文模式。
+    if event.type == .keyDown, event.isJISAlphanumericalKey {
+      vCLog("JIS Eisu key tap detected, toggling Alphanumerical Mode if should.")
+      toggleAlphanumericalMode(
+        popNotification: prefs.showNotificationsWhenTogglingEisu
+      )
+      return true // Adobe Photoshop 相容：對 JIS 英數切換鍵傳入事件一律立刻返回 true。
+    }
+
+    fnKeyCheck: if event.isHoldingAny(.function) {
+      // 這裡需要做額外的檢查。某些按鍵可能自帶 fn flag，哪怕使用者用的是沒有 Fn 的 104 keyboard。
+      let keyCode = KeyCode(rawValue: event.keyCode)
+      guard let keyCode else { return false }
+      let innocentKeyCodes: Set<KeyCode> = [
+        .kPageUp, .kPageDown, .kHome, .kEnd,
+        .kUpArrow, .kDownArrow, .kLeftArrow, .kRightArrow,
+        .kBackSpace, .kWindowsDelete,
+      ]
+      if innocentKeyCodes.contains(keyCode) {
+        break fnKeyCheck
+      }
+      return false
+    }
+
+    /// 這裡仍舊需要判斷 flags。之前使輸入法狀態卡住無法敲漢字的問題已在 InputHandler 內修復。
+    /// 這裡不判斷 flags 的話，用方向鍵前後定位光標之後，再次試圖觸發組字區時、反而會在首次按鍵時失敗。
+    /// 同時注意：必須針對 event.type == .flagsChanged 提前返回結果，
+    /// 否則，每次處理這種判斷時都會因為讀取 event.characters? 而觸發 NSInternalInconsistencyException。
+    /// 但在這裡需要回傳 false，否則可能會在遠端桌面等場合下無法讓遠端的電腦知道修飾鍵狀態集合有發生變化。
+    ///
+    /// 自 2023 年起這裡曾回傳 true，源於當年誤讀 mozc（Google 日文輸入法）的實作——
+    /// mozc 並不處理 keyup 事件，且相關實作既不適用於唯音、也無助於修飾鍵狀態同步。
+    /// 另有其他輸入法會藉由在此回傳 true 來阻止系統的雙擊空格全形句號替換；但正確的作法應是
+    /// 確認輸入法 Info.plist 未帶 TISDoubleSpaceSubstitution 欄位（不少副廠中文輸入法直接
+    /// 繼承系統注音輸入法的 TIS 屬性而把該欄位一併帶走；此欄位並非必需）。
+    if event.isFlagChanged { return false }
+
+    /// 沒有文字輸入客體的話，就不要再往下處理了。
+    guard let inputHandler = inputHandler, clientProxy?.hasClient() == true else {
+      vCLog(
+        "[Event] guard fail: hasHandler=\(inputHandler != nil) hasClient=\(clientProxy?.hasClient() ?? false) proxyNil=\(clientProxy == nil)"
+      )
+      return false
+    }
+
+    /// 除非核心辭典有載入，否則一律蜂鳴。
+    if !SessionHost.shared.isCoreDBConnected() {
+      if (event as InputSignalProtocol).isReservedKey { return false }
+      var newState: State = .ofEmpty()
+      newState.tooltip = "i18n:DictionaryStatus.FactoryDictNotLoaded".i18n
+      newState.tooltipDuration = 1.85
+      newState.data.tooltipColorState = .redAlert
+      switchState(newState)
+      callError("CoreLM not loaded yet.")
+      return true
+    }
+
+    var eventToDeal = event
+
+    // 如果是方向鍵輸入的話，就想辦法帶上標記資訊、來說明當前是縱排還是橫排。
+    if event.isUp || event.isDown || event.isLeft || event.isRight {
+      updateVerticalTypingStatus() // 檢查當前環境是否是縱排輸入。
+      eventToDeal = event
+        .reinitiate(charactersIgnoringModifiers: isVerticalTyping ? "Vertical" : "Horizontal")
+    }
+
+    // 處理 Emacs 與 VIM 的熱鍵模擬。
+    if let handledEmacVIM = reinterpreteKeyDownEventAsVIMEmacsKey(
+      event: &eventToDeal
+    ) {
+      return handledEmacVIM
+    }
+
+    // 在非拼音系模式（注音鍵盤；拼音系含狂拼則不需翻譯）的情況下，強制將當前鍵盤佈局
+    // 翻譯為美規鍵盤（或指定的其它鍵盤佈局）。狂拼為拼音系，由 isPinyinFamilyTypingMode 涵蓋。
+    if !inputHandler.isPinyinFamilyTypingMode || SessionHost.shared.isDynamicBasicKeyboardLayoutEnabled() {
+      var defaultLayout = LatinKeyboardMappings(rawValue: prefs.basicKeyboardLayout) ??
+        .qwerty
+      if let parser = KeyboardParser(rawValue: prefs.keyboardParser) {
+        switch parser {
+        case .ofDachen26, .ofFakeSeigyou, .ofIBM, .ofSeigyou, .ofStandard: defaultLayout = .qwerty
+        default: break
+        }
+      }
+      eventToDeal = eventToDeal.layoutTranslated(to: defaultLayout)
+    }
+
+    // Apple 數字小鍵盤處理
+    if eventToDeal.isNumericPadKey,
+       let eventCharConverted = eventToDeal.characters?.applyingTransformFW2HW(reverse: false) {
+      eventToDeal = eventToDeal.reinitiate(characters: eventCharConverted)
+    } else if [.ofEmpty, .ofInputting].contains(state.type), eventToDeal.isMainAreaNumKey,
+              !eventToDeal.isCommandHeld, !eventToDeal.isControlHeld, eventToDeal.isOptionHeld,
+              !prefs.halfWidthPunctuationEnabled {
+      // Alt(+Shift)+主鍵盤區數字鍵 預先處理（半形標點模式下略過、保留鍵盤佈局自訂字元）。
+      eventToDeal = eventToDeal.reinitiate(characters: eventToDeal.mainAreaNumKeyChar)
+    }
+
+    // 準備修飾鍵，用來判定要新增的詞彙是否需要賦以非常低的權重。
+    Self.areWeNerfing = eventToDeal.commonKeyModifierFlags == [.shift, .command]
+
+    // 此時追加檢查選字窗是否有在正常顯示。
+    if state.isCandidateContainer, !(ui?.candidateUI?.visible ?? false) {
+      toggleCandidateUIVisibility(true, refresh: true)
+    }
+
+    /// 直接交給 commonEventHandler 來處理。
+    let result = inputHandler.triageInput(event: eventToDeal)
+    if !result {
+      // 除非是 .ofMarking 狀態，否則讓某些不用去抓的按鍵起到「取消工具提示」的作用。
+      if [.ofEmpty].contains(state.type) { ui?.tooltipUI?.hide() }
+
+      // 將 Apple 動態鍵盤佈局的 RAW 輸出轉為 ABC 輸出，除非轉換結果與轉換前的內容一致。
+      if SessionHost.shared.isDynamicBasicKeyboardLayoutEnabled(), event.text != eventToDeal.text {
+        switchState(.ofCommitting(textToCommit: eventToDeal.text))
+        return true
+      }
+    }
+
+    return result
+  }
+
+  /// 切換英數模式開關。
+  private func toggleAlphanumericalMode(popNotification: Bool = true) {
+    if var cplk = ui?.capsLockToggler {
+      let oldValue = isASCIIMode
+      isASCIIMode.toggle()
+      let newValue = isASCIIMode
+
+      if prefs.shiftEisuToggleOffTogetherWithCapsLock, oldValue, !newValue,
+         cplk.isOn {
+        cplk.isOn.toggle()
+      }
+
+      if popNotification {
+        let status = "i18n:NotificationSwitch.Revolver".i18n
+        SessionHost.shared.notify(
+          newValue
+            ? "i18n:Menu.AlphanumericalInputMode".i18n + "\n" + status
+            : "i18n:Menu.ChineseInputMode".i18n + "\n" + status
+        )
+      }
+    }
+  }
+}
+
+// MARK: - VIM / EMacs Key Handlers.
+
+extension SessionProtocol {
+  private func reinterpreteKeyDownEventAsVIMEmacsKey(event eventToDeal: inout KBEvent) -> Bool? {
+    // 狂拼 copilot 候選窗為唯讀顯示（選取走 Shift+選字鍵），其顯示中若套用
+    // Emacs／JKHL 鍵重詮釋（Ctrl+字母→方向鍵、HL 翻行列），會把字母鍵轉成
+    // 方向鍵、誤觸狂拼「觸發鍵固化」——提早把未完成讀音提交進組字器並開出
+    // 正常選字窗（實測：zh/ch/sh 的第二個 romaji「h」＋JKHL 行為＝打字中
+    // copilot 窗顯示時被轉為 LeftArrow → 固化 → 正常選字窗誤開；P166）。
+    if isFuriousCopilotCandidateWindowVisible { return nil }
+    // 使 NSEvent 自翻譯，這樣可以讓 Emacs NSEvent 變成標準 NSEvent。
+    if eventToDeal.isEmacsKey {
+      // 注意不要針對 Empty 空狀態使用這個轉換，否則會使得相關組合鍵遞交出垃圾字元。
+      if state.type == .ofEmpty { return false }
+      let verticalProcessing = (state.isCandidateContainer) ? isVerticalCandidateWindow :
+        isVerticalTyping
+      eventToDeal = eventToDeal.convertFromEmacsKeyEvent(isVerticalContext: verticalProcessing)
+    }
+
+    // JKHL 鍵處理。
+    handlingJKHL4CandidateState: do {
+      let behavior = prefs.candidateStateJKHLBehavior
+      let allConditionMet4handlingJKHL4CandidateState: Bool = [
+        behavior != 0,
+        state.isCandidateContainer,
+        eventToDeal.keyModifierFlags.isEmpty,
+      ].reduce(true) { $0 && $1 }
+      guard allConditionMet4handlingJKHL4CandidateState else {
+        break handlingJKHL4CandidateState
+      }
+
+      // JKHL 鍵處理（僅「組字區的游標移動」）。
+      checkMovingICBCursorByJKHL: do {
+        let isICBCursorMovable = state.type == .ofCandidates && !prefs.useSCPCTypingMode
+
+        let allowMovingCursorByJK = isICBCursorMovable && prefs.candidateStateJKHLBehavior == 1
+        let allowMovingCursorByHL = isICBCursorMovable && prefs.candidateStateJKHLBehavior == 2
+
+        // keycode: 38 = J, 40 = K, 4 = H, 37 = L.
+        switch eventToDeal.keyCode {
+        case 40 where allowMovingCursorByJK, 37 where allowMovingCursorByHL:
+          eventToDeal = eventToDeal.reinitiate(
+            with: .keyDown,
+            modifierFlags: [.option, .shift],
+            characters: (
+              isVerticalTyping ? KBEvent.SpecialKey.downArrow : KBEvent.SpecialKey.rightArrow
+            ).unicodeScalar.description,
+            charactersIgnoringModifiers: nil,
+            isARepeat: false,
+            keyCode: (
+              isVerticalTyping ? KeyCode.kDownArrow : KeyCode.kRightArrow
+            ).rawValue
+          )
+          break handlingJKHL4CandidateState
+        case 38 where allowMovingCursorByJK, 4 where allowMovingCursorByHL:
+          eventToDeal = eventToDeal.reinitiate(
+            with: .keyDown,
+            modifierFlags: [.option, .shift],
+            characters: (
+              isVerticalTyping ? KBEvent.SpecialKey.upArrow : KBEvent.SpecialKey.leftArrow
+            ).unicodeScalar.description,
+            charactersIgnoringModifiers: nil,
+            isARepeat: false,
+            keyCode: (
+              isVerticalTyping ? KeyCode.kUpArrow : KeyCode.kLeftArrow
+            ).rawValue
+          )
+          break handlingJKHL4CandidateState
+        default: break checkMovingICBCursorByJKHL
+        }
+      }
+
+      // JKHL 鍵處理（僅翻選字窗行列）。
+      checkFlippingHighlightedRowByJKHL: do {
+        /// 將翻行列鍵（HL 或 JK）轉換為對應的方向鍵。
+        // behavior == 1: JK 移動游標，HL 翻行列
+        // behavior == 2: HL 移動游標，JK 翻行列
+        // keycode: 38 = J, 40 = K, 4 = H, 37 = L.
+        let rowFlippingKeyCodes: [UInt16]
+        switch behavior {
+        case 1: rowFlippingKeyCodes = [4, 37] // H, L
+        case 2: rowFlippingKeyCodes = [38, 40] // J, K
+        default: rowFlippingKeyCodes = []
+        }
+        guard rowFlippingKeyCodes.contains(eventToDeal.keyCode) else {
+          break checkFlippingHighlightedRowByJKHL
+        }
+
+        // 根據候選窗口佈局（橫向/縱向）決定轉換為哪個方向鍵
+        // - 縱向窗：使用 Left(123)/Right(124) 翻列
+        // - 橫向窗：使用 Up(126)/Down(125) 翻行
+        // VIM 鍵位思維：H/K = 往 PREV，L/J = 往 NEXT。
+        let isVertical = isVerticalCandidateWindow
+        let pair: (UInt16, KBEvent.SpecialKey)?
+        switch (eventToDeal.keyCode, isVertical) {
+        case (37, true), (38, true): pair = (124, .rightArrow) // L/J (縱排) -> Right
+        case (37, false), (38, false): pair = (125, .downArrow) // L/J (橫排) -> Down
+        case (4, true), (40, true): pair = (123, .leftArrow) // H/K (縱排) -> Left
+        case (4, false), (40, false): pair = (126, .upArrow) // H/K (橫排) -> Up
+        default: pair = nil
+        }
+        guard let (newKeyCode, newSpecialKey) = pair else {
+          break checkFlippingHighlightedRowByJKHL
+        }
+        eventToDeal = eventToDeal.reinitiate(
+          characters: newSpecialKey.unicodeScalar.description,
+          keyCode: newKeyCode
+        )
+      }
+    }
+
+    return nil
+  }
+}

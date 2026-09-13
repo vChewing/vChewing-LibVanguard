@@ -15,17 +15,39 @@ The vChewing Input Method is dedicated for servicing macOS starting from 10.9 Ma
 
 All problems above led to the decision of making this "LibVanguard" project -- a new cross-platform Chinese input method engine.
 
+## What Is In This Repository
+
+This repository is the aggregate package of the whole input-method core: every target of the
+`BPMFVS`, `BrailleSputnik`, `Homa`, `LexiconAssembly`, `LibVanguard`, `ResourceLocator`,
+`Shared`, `SwiftExtension` and `Tekkon` modules lives here, and the single dynamic product
+`Vanguard` pulls in the entire dependency closure as `libVanguard.dylib`.
+
+SwiftPM refuses to have the same target consumed by both a dynamic and a static product
+(`This will result in duplication of library code.`), hence the whole closure must ship as one
+dynamic library and cannot be split into separately consumable static packages.
+
+Module names and target names are the package's own: `import LibVanguard`, `import LexiconAssembly`,
+and so on. The aggregate module is `LibVanguard`, named after the package; the shipping product is
+`Vanguard`, named after the engine, and that is why the artifact is `libVanguard.dylib` and not
+`libLibVanguard.dylib`.
+
+The `LXAssemblyMaterials4Tests` and `HomaSharedTestComponents` products are test fixtures and are
+shipped apart from `Vanguard` on purpose, so that no test material ends up inside the shipping
+dynamic library.
+
 ## Contributions
 
 Unless specifically invited, this repository is not accepting external contribution for now. The developer might privately license this library to some commercial companies to earn some money for living expenses. That's the reason of using LGPL instead in this library.
 
 ## Credits
 
-- (c) 2025 and onwards The vChewing Project (LGPL-3.0-or-later).
+- (c) 2022 and onwards The vChewing Project (LGPL-3.0-or-later).
   - Swift programmer: Shiki Suen
+- (c) 2025 and onwards The vChewing Project (LGPL-3.0-or-later) -- the `Homa`,
+  `TrieKit` and `BrailleSputnik` modules.
 
 ```text
-// (c) 2025 and onwards The vChewing Project (LGPL v3.0 License or later).
+// (c) 2022 and onwards The vChewing Project (LGPL v3.0 License or later).
 // ====================
 // This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
 ```

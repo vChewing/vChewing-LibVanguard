@@ -1,0 +1,118 @@
+// (c) 2022 and onwards The vChewing Project (LGPL v3.0 License or later).
+// ====================
+// This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
+
+import Foundation
+
+// MARK: - Tooltip Display and Candidate Display Methods
+
+extension SessionProtocol {
+  // 有些 App 會濫用內文組字區的內容來預測使用者的輸入行為。
+  // 對此類 App 有疑慮者，可以將這類 App 登記到客體管理員當中。
+  // 這樣，不但強制使用（限制讀音 20 個的）浮動組字窗，而且內文組字區只會顯示一個空格。
+  public var attributedStringSecured: (value: NSAttributedString, range: NSRange) {
+    // 這個針對 Discord 的 特殊相容策略對 Discord 網頁端無效。
+    let isDiscordClient = clientBundleIdentifier.hasSuffix(".Discord")
+    let securedPlaceholder = isDiscordClient
+      ? IMEStateParsed(state).getAttributedStringPlaceholder("_")
+      : IMEStateParsed(state).attributedStringPlaceholder
+    return clientMitigationLevel >= 2
+      ? (securedPlaceholder, NSRange(location: 0, length: 0))
+      : (IMEStateParsed(state).attributedString, NSRange(state.u16MarkedRange))
+  }
+
+  public var u16Cursor: Int {
+    var u16Cursor: Int = state.u16MarkedRange.lowerBound
+    if !prefs.useDynamicCandidateWindowOrigin, state.isCandidateContainer {
+      u16Cursor = state.u16Cursor
+    }
+    return max(min(IMEStateParsed(state).displayedTextConverted.utf16.count, u16Cursor), 0)
+  }
+
+  public func lineHeightRect(zeroCursor: Bool = false) -> CGRect {
+    if let ctl = clientProxy {
+      return ctl.clientLineHeightRect(forU16CursorPos: zeroCursor ? 0 : UInt(u16Cursor))
+    }
+    return .seniorTheBeast
+  }
+
+  public func toggleCandidateUIVisibility(_ newValue: Bool, refresh: Bool) {
+    guard isCurrentSession else { return }
+    switch (newValue, refresh) {
+    case (false, _), (true, false): ui?.candidateUI?.visible = newValue
+    case (true, true): showCandidates()
+    }
+  }
+
+  public func showTooltip(
+    _ tooltip: String?,
+    colorState: TooltipColorState,
+    duration: Double
+  ) {
+    guard isCurrentSession, let tooltip, !tooltip.isEmpty else {
+      ui?.tooltipUI?.hide()
+      return
+    }
+    guard clientProxy?.hasClient() == true else { return }
+    let lineHeightRect = updateVerticalTypingStatus()
+    var finalOrigin: CGPoint = lineHeightRect.origin
+    let delta: Double = lineHeightRect.size.height + 4.0 // bottomOutOfScreenAdjustmentHeight
+    if isVerticalTyping {
+      finalOrigin = CGPoint(
+        x: lineHeightRect.origin.x + lineHeightRect.size.width + 5, y: lineHeightRect.origin.y
+      )
+    }
+    let tooltipContentDirection: UILayoutOrientation = {
+      if prefs.alwaysShowTooltipTextsHorizontally { return .horizontal }
+      return isVerticalTyping ? .vertical : .horizontal
+    }()
+    // 先隱藏，因為有顯示滯後性。
+    ui?.tooltipUI?.hide()
+    ui?.tooltipUI?.setColor(state: colorState)
+    // 再設定其文字顯示內容並顯示。
+    ui?.tooltipUI?.show(
+      tooltip: tooltip, at: finalOrigin, bottomOutOfScreenAdjustmentHeight: delta,
+      direction: tooltipContentDirection, duration: duration
+    )
+  }
+
+  private func showCandidates() {
+    guard isCurrentSession, clientProxy?.hasClient() == true else { return }
+    updateVerticalTypingStatus()
+
+    let alreadyVisible = ui?.candidateUI?.visible ?? false
+
+    if !alreadyVisible {
+      /// 先取消既有的選字窗的內容顯示。否則可能會重複生成選字窗的 NSWindow()。
+      ui?.candidateUI?.visible = false
+    }
+
+    // 會自動觸發田所選字窗的資料重載。這會讓選字窗自動從當前 Session 讀取最新的配置資料。
+    // 設定 delegate 時會觸發 reloadData() → updateDisplay() → updateNSWindowModern()，
+    // 其中 updateNSWindowModern() 的動畫路徑已內建正確的座標計算，不需額外呼叫 resetCandidateWindowOrigin。
+    ui?.candidateUI?.delegate = self
+
+    if !alreadyVisible {
+      ui?.candidateUI?.visible = true
+      resetCandidateWindowOrigin()
+    }
+  }
+
+  public func candidateWindowOriginInfo() -> (topLeft: CGPoint, heightDelta: Double) {
+    let lhRect = lineHeightRect()
+    var tlPoint = CGPoint(x: lhRect.origin.x, y: lhRect.origin.y - 4.0)
+    tlPoint.x += isVerticalTyping ? (lhRect.size.width + 4.0) : 0
+    return (topLeft: tlPoint, heightDelta: lhRect.size.height + 4.0)
+  }
+
+  public func resetCandidateWindowOrigin() {
+    let info = candidateWindowOriginInfo()
+    let shouldAnimate = (ui?.candidateUI?.visible ?? false) && prefs.enableCandidateWindowAnimation
+    ui?.candidateUI?.set(
+      windowTopLeftPoint: info.topLeft,
+      bottomOutOfScreenAdjustmentHeight: info.heightDelta,
+      useGCD: true,
+      animated: shouldAnimate
+    )
+  }
+}

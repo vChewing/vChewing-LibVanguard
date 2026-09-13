@@ -3,155 +3,293 @@
 
 import PackageDescription
 
+// 本套件是整個輸入核心依賴閉包的聚合包：原 `vChewing_BPMFVS`、`vChewing_BrailleSputnik`、
+// `vChewing_Homa`、`vChewing_LexiconAssembly`、`vChewing_Shared`、`vChewing_SwiftExtension`、
+// `vChewing_Tekkon` 諸套件的所有 target 都併於其中。
+//
+// 之所以必須是聚合體：SwiftPM 拒絕讓同一個 target 同時被「動態產品」與「靜態產品」取用
+// （`This will result in duplication of library code.`），因此整個閉包只能以單一動態庫出貨。
+//
+// 套件名為 `LibVanguard`、出貨產品名為 `Vanguard`，故產物是 `libVanguard.dylib` 而非
+// `libLibVanguard.dylib`。SwiftPM 的資源 bundle 名取「套件名 ＋ target 名」，是以各靶的資源
+// bundle 實名為 `LibVanguard_<Target>.bundle`。
+//
+// 本 manifest 以 `@resultBuilder` 的 DSL 撰寫（見檔尾的 `ArrayBuilder`），
+// 藉此得以在 builder body 內直接以 `#if` 施加 OS 專屬的編譯旗標與連結設定。
 let package = Package(
   name: "LibVanguard",
   platforms: buildSupportedPlatform {
     #if canImport(Darwin)
-      /// Certain cross-platform features in Swift (e.g. Observation) are intentionally
-      /// not supported on Apple platform releases prior to their official adoption.
-      /// There’s no workaround for this limitation.
-      SupportedPlatform.macOS(.v15) // Sonoma
-      SupportedPlatform.macCatalyst(.v18) // Sonoma
-      SupportedPlatform.iOS(.v18) // iOS 17
-      SupportedPlatform.visionOS(.v2) // VisionOS v1
+      // `Observation` 等跨平台特性在 Apple 平台上會被系統版本所限，故最低支援版本須明列。
+      SupportedPlatform.macOS(.v12)
     #endif
   },
   products: buildProducts {
+    /// 唯一的出貨動態庫：整個依賴閉包的聚合體。
     Product.library(
-      name: "LibVanguard",
-      targets: ["LibVanguard"]
+      name: "Vanguard",
+      type: .dynamic,
+      targets: buildStrings {
+        "LibVanguard"
+        "Shared"
+        "SwiftExtension"
+        "ResourceLocator"
+        "LexiconAssembly"
+        "TrieKit"
+        "Homa"
+        "Tekkon"
+        "BrailleSputnik"
+        "BPMFVS"
+      }
+    )
+    /// 測試素材靶另行出貨，刻意與出貨動態庫分開，避免將測試素材塞進出貨 dylib。
+    Product.library(
+      name: "LXAssemblyMaterials4Tests",
+      type: .dynamic,
+      targets: buildStrings {
+        "LXAssemblyMaterials4Tests"
+      }
     )
     Product.library(
-      name: "TrieKit",
-      targets: ["TrieKit"]
+      name: "HomaSharedTestComponents",
+      type: .dynamic,
+      targets: buildStrings {
+        "HomaSharedTestComponents"
+      }
     )
-    Product.library(
-      name: "Tekkon",
-      targets: ["Tekkon"]
-    )
-    Product.library(
-      name: "Homa",
-      targets: ["Homa"]
+    Product.executable(
+      name: "vChewingSharedCLI",
+      targets: buildStrings {
+        "vChewingSharedCLI"
+      }
     )
   },
   dependencies: buildPackageDependencies {},
   targets: buildTargets {
+    // MARK: - Library Targets
+
+    Target.target(
+      name: "SwiftExtension",
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
+    )
+    Target.target(
+      name: "ResourceLocator",
+      dependencies: buildTargetDependencies {
+        "SwiftExtension"
+      }
+    )
+    Target.target(
+      name: "TrieKit",
+      dependencies: buildTargetDependencies {
+        "SwiftExtension"
+      }
+    )
+    Target.target(
+      name: "Tekkon"
+    )
+    Target.target(
+      name: "Homa"
+    )
+    Target.target(
+      name: "BPMFVS",
+      dependencies: buildTargetDependencies {
+        "ResourceLocator"
+      },
+      resources: buildResources {
+        Resource.process("Resources")
+      },
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
+    )
+    Target.target(
+      name: "Shared",
+      dependencies: buildTargetDependencies {
+        "SwiftExtension"
+      },
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
+    )
+    Target.target(
+      name: "BrailleSputnik",
+      dependencies: buildTargetDependencies {
+        "Shared"
+        "Tekkon"
+      },
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
+    )
+    Target.target(
+      name: "LexiconAssembly",
+      dependencies: buildTargetDependencies {
+        "TrieKit"
+        "Homa"
+        "Shared"
+        "SwiftExtension"
+      },
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
+    )
     Target.target(
       name: "LibVanguard",
       dependencies: buildTargetDependencies {
-        "Tekkon"
-        "Homa"
+        "BPMFVS"
         "BrailleSputnik"
-        "TrieKit"
-        "LexiconKit"
-      }
-    )
-    Target.testTarget(
-      name: "LibVanguardTests",
-      dependencies: buildTargetDependencies {
-        "LibVanguard"
-      }
-    )
-    // Tekkon, the phonabet composer.
-    Target.target(
-      name: "Tekkon",
-      path: "./Sources/_Modules/Tekkon"
-    )
-    Target.testTarget(
-      name: "TekkonTests",
-      dependencies: buildTargetDependencies {
+        "LexiconAssembly"
+        "Homa"
+        "ResourceLocator"
+        "Shared"
+        "SwiftExtension"
         "Tekkon"
       },
-      path: "./Tests/_Tests4Components/TekkonTests"
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      },
+      linkerSettings: buildLinkerSettings {
+        LinkerSetting.linkedLibrary("iconv", .when(platforms: [.macOS]))
+      }
     )
-    // Homa, the sentence Assembler.
-    Target.target(
-      name: "Homa",
-      path: "./Sources/_Modules/Homa"
-    )
-    // Shared bundle for all Homa-related tests.
+
+    // MARK: - Test Support Targets
+
+    // 測試素材靶：原始佈局位於 `Tests/`，故保留顯式 `path`。
     Target.target(
       name: "HomaSharedTestComponents",
       dependencies: buildTargetDependencies {
         "Homa"
       },
-      path: "./Tests/_Tests4Components/_HomaSharedTestComponents"
+      path: "Tests/HomaSharedTestComponents"
     )
-    Target.testTarget(
-      name: "HomaTests",
-      dependencies: buildTargetDependencies {
-        "Homa"
-        "HomaSharedTestComponents"
-      },
-      path: "./Tests/_Tests4Components/HomaTests"
-    )
-    // Shared bundle for all tests using factory trie.
     Target.target(
-      name: "SharedTrieTestDataBundle",
-      path: "./Tests/_Tests4Components/_SharedTrieTestDataBundle",
+      name: "LXAssemblyMaterials4Tests",
       resources: buildResources {
-        Resource.process("./Resources")
+        Resource.process("Resources")
       }
     )
-    // LexiconKit, the hub for all subsidiary language models.
-    Target.target(
-      name: "LexiconKit",
+
+    // MARK: - Executable Target
+
+    Target.executableTarget(
+      name: "vChewingSharedCLI",
       dependencies: buildTargetDependencies {
-        "TrieKit"
-        "Homa"
+        "Shared"
       },
-      path: "./Sources/_Modules/LexiconKit"
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
     )
+
+    // MARK: - Test Targets
+
     Target.testTarget(
-      name: "LexiconKitTests",
+      name: "BPMFVSTests",
       dependencies: buildTargetDependencies {
-        "Homa"
-        "HomaSharedTestComponents"
-        "LexiconKit"
-        "SharedTrieTestDataBundle"
-        "Tekkon"
-        "TrieKit"
+        "BPMFVS"
       },
-      path: "./Tests/_Tests4Components/LexiconKitTests"
-    )
-    // BrailleSputnik, the Braille module.
-    Target.target(
-      name: "BrailleSputnik",
-      dependencies: buildTargetDependencies {
-        "Tekkon"
-      },
-      path: "./Sources/_Modules/BrailleSputnik"
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
     )
     Target.testTarget(
       name: "BrailleSputnikTests",
       dependencies: buildTargetDependencies {
         "BrailleSputnik"
       },
-      path: "./Tests/_Tests4Components/BrailleSputnikTests"
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
     )
-    // VanguardTrieSupport, the data structure for factory dictionary files.
-    Target.target(
-      name: "TrieKit",
+    Target.testTarget(
+      name: "HomaTests",
+      dependencies: buildTargetDependencies {
+        "Homa"
+        "HomaSharedTestComponents"
+      }
+    )
+    Target.testTarget(
+      name: "TekkonTests",
+      dependencies: buildTargetDependencies {
+        "Tekkon"
+      }
+    )
+    Target.testTarget(
+      name: "SharedTests",
+      dependencies: buildTargetDependencies {
+        "Shared"
+      },
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
+    )
+    Target.testTarget(
+      name: "SwiftExtensionTests",
       dependencies: buildTargetDependencies {
         "SwiftExtension"
       },
-      path: "./Sources/_Modules/TrieKit"
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
+    )
+    Target.testTarget(
+      name: "ResourceLocatorTests",
+      dependencies: buildTargetDependencies {
+        "ResourceLocator"
+      },
+      resources: buildResources {
+        Resource.process("Resources")
+      }
     )
     Target.testTarget(
       name: "TrieKitTests",
       dependencies: buildTargetDependencies {
+        "TrieKit"
+        "LXAssemblyMaterials4Tests"
         "Homa"
         "Tekkon"
-        "TrieKit"
       },
-      path: "./Tests/_Tests4Components/TrieKitTests"
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
     )
-    // Swift Extension
-    Target.target(
-      name: "SwiftExtension",
-      path: "./Sources/_Modules/SwiftExtension"
+    Target.testTarget(
+      name: "LexiconAssemblyTests",
+      dependencies: buildTargetDependencies {
+        "LexiconAssembly"
+        "LXAssemblyMaterials4Tests"
+        "Homa"
+        "HomaSharedTestComponents"
+        "Tekkon"
+      },
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      }
     )
-  }
+    Target.testTarget(
+      name: "LibVanguardTests",
+      dependencies: buildTargetDependencies {
+        "LibVanguard"
+        "LexiconAssembly"
+        "LXAssemblyMaterials4Tests"
+        "Homa"
+        "HomaSharedTestComponents"
+        "ResourceLocator"
+        "Shared"
+        "Tekkon"
+      },
+      swiftSettings: buildSwiftSettings {
+        .defaultIsolation(MainActor.self) // set Default Actor Isolation
+      },
+      linkerSettings: buildLinkerSettings {
+        LinkerSetting.linkedLibrary("iconv", .when(platforms: [.macOS]))
+      }
+    )
+  },
+  swiftLanguageModes: [.v6]
 )
 
 // MARK: - ArrayBuilder
@@ -204,6 +342,20 @@ func buildTargetDependencies(
 )
   -> [Target.Dependency] {
   dependencies().compactMap { $0 }
+}
+
+func buildSwiftSettings(
+  @ArrayBuilder<SwiftSetting?> settings: () -> [SwiftSetting?]
+)
+  -> [SwiftSetting] {
+  settings().compactMap { $0 }
+}
+
+func buildLinkerSettings(
+  @ArrayBuilder<LinkerSetting?> settings: () -> [LinkerSetting?]
+)
+  -> [LinkerSetting] {
+  settings().compactMap { $0 }
 }
 
 func buildResources(

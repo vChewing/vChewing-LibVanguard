@@ -1,0 +1,54 @@
+// (c) 2022 and onwards The vChewing Project (LGPL v3.0 License or later).
+// ====================
+// This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
+
+import Foundation
+import LXAssemblyMaterials4Tests
+import Testing
+
+@testable import LexiconAssembly
+
+/// 狂拼（Furious Typing）啟用時抑制原廠注音文（zhuyinwen）資料的行為測試。
+/// 測試樣本（vanguardTextMap_test.txtMap）中，讀音「ㄋㄟ-ㄋㄟ」的唯一注音文
+/// 條目為「ㄋㄟㄋㄟ」（type 10）。
+@Suite(.serialized)
+struct LXFacadeFuriousZhuyinwenTests {
+  // MARK: Internal
+
+  @Test
+  func testFactoryZhuyinwenPresentByDefault() throws {
+    defer {
+      LXAssembly.LXFacade.disconnectFactoryDictionary()
+    }
+
+    let instance = LXAssembly.LXFacade(isCHS: true)
+    #expect(
+      LXAssembly.LXFacade
+        .connectToTestFactoryDictionary(textMapData: LXATestsData.textMapTestCoreLXData)
+    )
+    // 未啟用狂拼時，原廠注音文（ㄋㄟㄋㄟ）應照常供應。
+    #expect(instance.unigramsFor(keyArray: Self.boobsKey).contains { $0.current == "ㄋㄟㄋㄟ" })
+  }
+
+  @Test
+  func testFuriousTypingSuppressesFactoryZhuyinwen() throws {
+    defer {
+      LXAssembly.LXFacade.disconnectFactoryDictionary()
+    }
+
+    let instance = LXAssembly.LXFacade(isCHS: true)
+    #expect(
+      LXAssembly.LXFacade
+        .connectToTestFactoryDictionary(textMapData: LXATestsData.textMapTestCoreLXData)
+    )
+    instance.setOptions { config in
+      config.shouldSuppressFactoryZhuyinwenData = true
+    }
+    // 狂拼啟用時，來自原廠辭典（TextMapTrie）的注音文資料應被抑制。
+    #expect(!instance.unigramsFor(keyArray: Self.boobsKey).contains { $0.current == "ㄋㄟㄋㄟ" })
+  }
+
+  // MARK: Private
+
+  private static let boobsKey: [String] = ["ㄋㄟ", "ㄋㄟ"]
+}

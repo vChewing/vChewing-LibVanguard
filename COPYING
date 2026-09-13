@@ -17,17 +17,19 @@ All contributions to the LibVanguard are subject to this COPYING file.
 
 ------------------
 
-The following component is provided under a different license:
+The following components are provided under a different license:
 
-  Sources/_Modules/SwiftExtension/    SPDX-License-Identifier: MulanPSL-2.0
+  Sources/SwiftExtension/             SPDX-License-Identifier: MulanPSL-2.0
+  Sources/ResourceLocator/            SPDX-License-Identifier: MulanPSL-2.0
 
 Being under the terms of the Mulan Permissive Software License v2,
 according with:
 
   LICENSES/preferred/MulanPSL-2.0
 
-It is a general-purpose Swift utility module, hence a permissive license is
-used so that it stays mixable with any other project.
+Both are general-purpose Swift utility modules (`ResourceLocator` locates the
+resources of a loaded module at runtime), hence a permissive license is used so
+that they stay mixable with any other project.
 
 ------------------
 

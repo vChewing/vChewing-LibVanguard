@@ -1,0 +1,73 @@
+// (c) 2022 and onwards The vChewing Project (LGPL v3.0 License or later).
+// ====================
+// This code is released under the SPDX-License-Identifier: `LGPL-3.0-or-later`.
+
+import Foundation
+
+// MARK: - CtlCandidateDelegate
+
+public protocol CtlCandidateDelegate: AnyObject {
+  func candidateController() -> CtlCandidateProtocol?
+  func candidatePairs(conv: Bool) -> [CandidateInState]
+  func callError(_: String)
+  func getCandidate(at: Int) -> CandidateInState?
+  func candidatePairSelectionConfirmed(at index: Int)
+  func candidatePairHighlightChanged(at index: Int?)
+  func candidatePairContextMenuActionTriggered(
+    at index: Int, action: CandidateContextMenuAction
+  )
+  func candidatePairManipulated(at index: Int, action: CandidateContextMenuAction)
+  func candidateToolTip(shortened: Bool) -> String
+  func resetCandidateWindowOrigin()
+  func candidateWindowOriginInfo() -> (topLeft: CGPoint, heightDelta: Double)
+  func checkIsMacroTokenResult(_ index: Int) -> Bool
+  @discardableResult
+  func reverseLookup(for value: String) -> [String]
+  var selectionKeys: String { get }
+  var isVerticalTyping: Bool { get }
+  var isCandidateState: Bool { get }
+  var isVerticalCandidateWindow: Bool { get }
+  var localeForFontFallbacks: String { get }
+  var isCandidateWindowSingleLine: Bool { get }
+  var showCodePointForCurrentCandidate: Bool { get }
+  var shouldAutoExpandCandidates: Bool { get }
+  var isCandidateContextMenuEnabled: Bool { get }
+  var showReverseLookupResult: Bool { get }
+  /// 選字窗頂部 pane 的未完成讀音顯示資料（nullable）。
+  /// 由 data provider 這一側決定何時提供；nil 表示選字窗無需顯示該 pane。
+  var unfinishedReading: String? { get }
+  var clientAccentColor: HSBA? { get }
+}
+
+// MARK: - CtlCandidateProtocol
+
+public protocol CtlCandidateProtocol: AnyObject {
+  var delegate: CtlCandidateDelegate? { get set }
+  var highlightedIndex: Int { get set }
+  var visible: Bool { get set }
+  var expanded: Bool { get }
+  var currentLayout: UILayoutOrientation { get set }
+
+  func showNextPage() -> Bool
+  func showPreviousPage() -> Bool
+  func showNextLine() -> Bool
+  func showPreviousLine() -> Bool
+  func highlightNextCandidate() -> Bool
+  func highlightPreviousCandidate() -> Bool
+  func candidateIndexAtKeyLabelIndex(_: Int) -> Int?
+  /// reposition the candidate/tooltip window; animation may be requested
+  func set(
+    windowTopLeftPoint: CGPoint,
+    bottomOutOfScreenAdjustmentHeight height: Double,
+    useGCD: Bool,
+    animated: Bool
+  )
+}
+
+// MARK: - CandidateContextMenuAction
+
+public enum CandidateContextMenuAction {
+  case toBoost
+  case toNerf
+  case toFilter
+}
