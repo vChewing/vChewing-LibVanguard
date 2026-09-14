@@ -19,8 +19,21 @@ All problems above led to the decision of making this "LibVanguard" project -- a
 
 This repository is the aggregate package of the whole input-method core: every target of the
 `BPMFVS`, `BrailleSputnik`, `Homa`, `LexiconAssembly`, `LibVanguard`, `ResourceLocator`,
-`Shared`, `SwiftExtension` and `Tekkon` modules lives here, and the single dynamic product
+`Shared` and `Tekkon` modules lives here, and the single dynamic product
 `Vanguard` pulls in the entire dependency closure as `libVanguard.dylib`.
+
+The general-purpose utility module `SwiftExtension` is
+*not* part of this aggregate: it was extracted into its own package, whose directory name,
+package identity and package name are all `VanguardSwiftExtension` (its target and module stay
+`SwiftExtension`, so call sites keep writing `import SwiftExtension`), and which ships as a
+separate dynamic product `VanguardSwiftExtension`. It lives **inside this package's own
+directory**, at `Deps/VanguardSwiftExtension/`, rather than as a sibling under `Packages/`: one
+aggregate sits under `Packages/` and the other *is* the repository root, so a sibling
+relationship can never line up, whereas `Deps/…` resolves to the same relative path in both
+repositories. That is what keeps this manifest byte-identical with its `vChewing-macOS`
+counterpart; consumers reach it via
+`.package(path: "../vChewing_OSNeutral_LibVanguard/Deps/VanguardSwiftExtension")` and take
+`package: "VanguardSwiftExtension"` as the module's package identity.
 
 SwiftPM refuses to have the same target consumed by both a dynamic and a static product
 (`This will result in duplication of library code.`), hence the whole closure must ship as one

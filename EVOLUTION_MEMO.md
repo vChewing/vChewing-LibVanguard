@@ -66,11 +66,13 @@
 作業系統中立層：輸入控制器（`InputHandler`）、組字器與用戶端之間的橋接、以及各項與平台無關的
 狀態機。此模組同時是唯一的聚合靶，`Package.swift` 的動態產品 `Vanguard` 即由其拉入整個依賴閉包。
 
-### BPMFVS / BrailleSputnik / Shared / SwiftExtension / ResourceLocator
+### BPMFVS / BrailleSputnik / Shared / ResourceLocator
 
 `BPMFVS` 是注音輸入法核心用的資產與存取器；`BrailleSputnik` 是盲文點字支援模組；
-`Shared` 是全體共用型別與常數；`SwiftExtension` 是通用 Swift 擴充；
-`ResourceLocator` 負責在執行期定位已載入模組的資源。後兩者採 MulanPSL-2.0 授權。
+`Shared` 是全體共用型別與常數；
+`ResourceLocator` 負責在執行期定位已載入模組的資源。後者採 MulanPSL-2.0 授權。
+
+通用 Swift 擴充模組 `SwiftExtension` 已析出為本倉的獨立套件 `Deps/VanguardSwiftExtension/`（置於**聚合體目錄之內**，以維持與 `vChewing-macOS` 之 manifest 逐位元組相同），故不在本聚合體之列；該套件出貨的動態產品名為 `VanguardSwiftExtension`（**產品名與模組名刻意不同**，SwiftPM 不要求同名）。
 
 ### LXAssemblyMaterials4Tests / vChewingSharedCLI
 

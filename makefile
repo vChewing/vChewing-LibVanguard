@@ -1,5 +1,17 @@
 # Pin LC_ALL so CJK collation stays identical regardless of the machine's locale settings.
-.PHONY: lint format lintFormat lintFormatUncommitted test dockertest test-debug dockertest-debug
+.PHONY: lint format lintFormat lintFormatUncommitted spmClean test dockertest test-debug dockertest-debug
+
+# 清建置快取。本倉為倉根套件（聚合體），其巢狀子套件另置於 `Deps/` 之下——
+# 僅在「直接對子套件建置」時才會生成獨立 .build，故須一併清掃，否則殘留物件
+# 會在下一次建置造成 `Undefined symbols` 之假失敗。
+spmClean:
+	swift package clean
+	@for nestedDep in ./Deps/*; do \
+		if [ -f "$$nestedDep/Package.swift" ]; then \
+			echo "processing nested dep $$nestedDep"; \
+			swift package clean --package-path "$$nestedDep" || true; \
+		fi; \
+	done;
 
 format:
 	@export LC_ALL=C; swiftformat --swiftversion 6.0 --indent 2 ./
