@@ -15,6 +15,8 @@ The vChewing Input Method is dedicated for servicing macOS starting from 10.9 Ma
 
 All problems above led to the decision of making this "LibVanguard" project -- a new cross-platform Chinese input method engine.
 
+> This repository currently builds against Swift 6.2+ (maybe 6.4+ in the future), plus Swift 5.10. We have to ban Swift 6.0 ~ 6.1 because they are plagued with inconveniences.
+
 ## What Is In This Repository
 
 This repository is the aggregate package of the whole input-method core: every target of the
