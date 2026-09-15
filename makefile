@@ -1,7 +1,7 @@
 # Pin LC_ALL so CJK collation stays identical regardless of the machine's locale settings.
 .PHONY: lint format lintFormat lintFormatUncommitted spmClean test dockertest test-debug dockertest-debug build510 build510SwiftExtension clean510
 
-# ---- Swift 5.10 側（macOS 10.10 / x86_64，靜態產物）----
+# ---- Swift 5.10 側（macOS 10.9 / x86_64，靜態產物）----
 #
 # 版本擇定：SwiftPM 挑的是「檔內宣告的 tools version 不高於 toolchain 版本者之最高者」，故 5.10
 # toolchain 自動取 `Package@swift-5.10.swift`、6.2 以上自動取 `Package.swift`、6.0／6.1 則由兩份
@@ -20,17 +20,16 @@
 #
 # 部署目標：SwiftPM 5.10 會**丟掉 `--triple` 的版本部分**、一律抬到自身地板（x86_64 為 10.13；
 # arm64 更被 linker 釘在 11.0），宣告 `platforms: [.macOS(.v10_10)]` 也一樣被抬上去。故須以
-# `-Xswiftc -target` 覆寫（同一個 `-target` 後出現者勝）才能真正壓到 macOS 10.10。之所以能這樣
+# `-Xswiftc -target` 覆寫（同一個 `-target` 後出現者勝）才能真正壓到 macOS 10.9。之所以能這樣
 # 只改編譯期：本側產物一律是**靜態庫**，`.a` 不帶任何 load command，minOS 因此不進產物、只影響
 # availability 檢查——而這正是我們要的（讓 5.10 側的可用性判定與 legacy app 的
 # `MACOSX_DEPLOYMENT_TARGET` 一致）。
 #
-# **為何是 10.10 而非 10.9（實測）**：10.9 在 Swift 側不可用作編譯期部署目標，因為 `Data` 本身
-# 標為 macOS 10.10 起可用。實測 `func f() { let d = Data() }` 與 `func g() -> Data? { nil }` 在
-# `-target x86_64-apple-macosx10.9` 下皆報 `'Data' is only available in macOS 10.10 or newer`；
-# 連 legacy 自己以 `@backDeployed` 提供的同名 shim 形態也一樣（`Data` 是型別，非可比對的符號，
-# 平替不了）；10.10 則 OK。附帶：10.9 的實際落地仍由 legacy Xcode 專案連結端決定——靜態 `.a`
-# 不帶 load command，編譯期目標只影響 availability 檢查。
+# **為何是 10.9**：10.9 即 legacy 發行版之部署地板（鐵則：legacy 分支存在的唯一意義就是支持
+# macOS 10.9）。本檔早期記為「10.9 不可用，因 `Data` 標為 macOS 10.10 起可用」——該結論出自舊探針，
+# 與正式路徑之實測不符：本檔這組配對（5.10 toolchain ＋ MacOSX13.3.sdk ＋
+# `-Xswiftc -target x86_64-apple-macosx10.9`）冷啟建置得 `Build complete!`、0 筆 `error:`。
+# 編譯期目標只影響 availability 檢查——本側產物一律靜態 `.a`，不帶 load command，minOS 不進產物。
 # 5.10.1 工具鏈可能落在兩處：官方安裝器寫進 `/Library`，`swiftly` 則自管 `$HOME` 那份。兩者係同一
 # 發行版、識別子相同，並存會令 Xcode 拒絕註冊而所有 `xcodebuild` 於套件解析前即敗。故自動擇一：
 # 優先系統那份（不受 `swiftly uninstall` 影響），次取使用者空間那份。`?=` 仍可顯式覆寫。
@@ -41,7 +40,7 @@ LEGACY_TOOLCHAIN ?= $(firstword $(wildcard \
 LEGACY_SDK ?= /Applications/Xcode-15.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk
 LEGACY_SCRATCH ?= .build/.legacy
 LEGACY_SCRATCH_SWIFTEXTENSION ?= .build/.legacy-swiftExtension
-LEGACY_TRIPLE ?= x86_64-apple-macosx10.10
+LEGACY_TRIPLE ?= x86_64-apple-macosx10.9
 
 build510:
 	@export LC_ALL=C; \
