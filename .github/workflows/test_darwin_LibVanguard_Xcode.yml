@@ -1,4 +1,4 @@
-name: unit-test-LibVanguard-macOS
+name: unit-test-LibVanguard-macOS-Xcode
 on:
   workflow_dispatch: {}
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: test-macOS-LibVanguard
+    name: test-macOS-LibVanguard-Xcode
     runs-on: macos-26
     steps:
       - uses: maxim-lobanov/setup-xcode@v1.7.0
