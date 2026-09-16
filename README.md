@@ -1,8 +1,6 @@
 # LibVanguard, a Chinese Input Method Engine
 
-This project is under development and is in its early stage.
-
-Some developer nodes are available in [EVOLUTION_MEMO.md](./EVOLUTION_MEMO.md) (Traditional Chinese).
+> This cross-platform project is under active development to fit what needed in `vChewing-macOS` repo. Some developer notes are available in [EVOLUTION_MEMO.md](./EVOLUTION_MEMO.md) (Traditional Chinese).
 
 ## The Purpose
 
