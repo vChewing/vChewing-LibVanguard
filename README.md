@@ -15,7 +15,7 @@ The vChewing Input Method is dedicated for servicing macOS starting from 10.9 Ma
 
 All problems above led to the decision of making this "LibVanguard" project -- a new cross-platform Chinese input method engine.
 
-> This repository currently builds against Swift 6.2+ (maybe 6.4+ in the future), plus Swift 5.10. We have to ban Swift 6.0 ~ 6.1 because they are plagued with inconveniences.
+> This repository builds against **Swift 6.4+**, plus Swift 5.10 on the macOS 10.9 legacy path. Swift 6.0 ~ 6.3 are banned outright by blocker manifests: 6.0 and 6.1 are plagued with inconveniences, while 6.2 and 6.3 demand an explicit `@MainActor` on conformances in a default-isolated package (`#ConformanceIsolation`) and cannot build this repository's dependency closure at all.
 
 ## What Is In This Repository
 
@@ -49,6 +49,13 @@ and so on. The aggregate module is `LibVanguard`, named after the package; the s
 The `LXAssemblyMaterials4Tests` and `HomaSharedTestComponents` products are test fixtures and are
 shipped apart from `Vanguard` on purpose, so that no test material ends up inside the shipping
 dynamic library.
+
+## Building
+
+- **Swift 6.4 or newer is a hard floor.** `Package.swift` declares `swift-tools-version: 6.4`, and the blocker manifests (`Package@swift-6.0.swift` … `Package@swift-6.3.swift`) make any 6.0 ~ 6.3 toolchain fail loudly instead of half-building. Besides `Package.swift`, the aggregate also carries `Package@swift-5.10.swift` — the macOS 10.9 legacy path, which produces static archives only (`make build510` / `make build510SwiftExtension` / `make clean510`, scratch `.build/.legacy`) and needs a Swift 5.10.1 OpenSource toolchain plus Xcode 15's `MacOSX13.3.sdk`.
+- **Linux and Windows**: only the latest official Swift release is recommended — **6.4.0 at minimum**.
+- **Compiling with Swift 6.4+ on systems older than macOS 27** (e.g. the last Intel MacBook Pro 13-inch): making your current shell pick up a 6.4+ OpenSource toolchain is **your** responsibility. The official **Swiftly** is one workable answer, but its shell-environment setup is tedious, and it reinstalls every FOSS toolchain into your user space instead of the system root (at least that works on macOS 26). On a machine that tops out at macOS 15, Swiftly may fail to put a toolchain into user space at all — you then have to install the official `.dmg` / `.pkg` into the system root with administrator rights, and you may need to adapt this repository's `makefile` to your own setup. These chores can be delegated to an LLM nowadays, but convenience and risk travel together.
+- **No version-pinned build entry points.** There is deliberately no `build640`-style target: every Swift release would otherwise force another sweep through every `makefile`. Build targets use whatever `swift` the current shell resolves to.
 
 ## Contributions
 
