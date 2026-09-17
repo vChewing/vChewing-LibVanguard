@@ -228,3 +228,4 @@ _UpgradeReport_Files/
 __pycache__/
 ~$*
 .index-build/
+[Tt]mp/
