@@ -141,6 +141,15 @@ public enum UserDef: String, CaseIterable, Identifiable, Sendable {
   case kUsingHotKeyInputMode = "UsingHotKeyInputMode"
   case kFilterFactoryKanjisOfNonCurrentInputMode = "FilterFactoryKanjisOfNonCurrentInputMode"
 
+  // MARK: - 診斷開關（DevZone 專用；P299）。一律預設 `false`＝維持現行行為。
+
+  /// 停用 `IMKSwift` 對 `IMKServer._private._controllers` 之無條件剔除。
+  case kDisableIMKSwiftServerControllerPruning = "_IMKSwift_disableServerControllerPruning"
+  /// 停用 `IMKSwift` 於 controller 停用 3 秒後對 client wrapper 所施之 XPC 終止。
+  case kDisableIMKSwiftClientWrapperTermination = "_IMKSwift_disableClientWrapperTermination"
+  /// 停用 `IMKSwift` 之延遲 dealloc（停用 3 秒後之計時器）。
+  case kDisableIMKSwiftDelayedDeallocation = "_IMKSwift_disableDelayedDeallocation"
+
   // MARK: Public
 
   // MARK: - DataType：以關聯值嵌入預設值的資料型別列舉。
@@ -643,6 +652,9 @@ extension UserDef {
     case .kAlwaysUsePCBWithElectronBasedClients: return .bool(true)
     case .kSecurityHardenedCompositionBuffer: return .bool(false)
     case .kCheckAbusersOfSecureEventInputAPI: return .bool(true)
+    case .kDisableIMKSwiftServerControllerPruning: return .bool(false)
+    case .kDisableIMKSwiftClientWrapperTermination: return .bool(false)
+    case .kDisableIMKSwiftDelayedDeallocation: return .bool(false)
     case .kDeltaOfCalendarYears: return .integer(-2_000)
     case .kMostRecentInputMode: return .string("")
     case .kCassettePath: return .string("")
@@ -790,6 +802,19 @@ extension UserDef {
     case .kCheckAbusersOfSecureEventInputAPI: return .init(
         userDef: self, shortTitle: "i18n:UserDef.kCheckAbusersOfSecureEventInputAPI.shortTitle",
         description: "i18n:UserDef.kCheckAbusersOfSecureEventInputAPI.description"
+      )
+    case .kDisableIMKSwiftServerControllerPruning: return .init(
+        userDef: self, shortTitle: "i18n:UserDef.kDisableIMKSwiftServerControllerPruning.shortTitle",
+        description: "i18n:UserDef.kDisableIMKSwiftServerControllerPruning.description"
+      )
+    case .kDisableIMKSwiftClientWrapperTermination: return .init(
+        userDef: self,
+        shortTitle: "i18n:UserDef.kDisableIMKSwiftClientWrapperTermination.shortTitle",
+        description: "i18n:UserDef.kDisableIMKSwiftClientWrapperTermination.description"
+      )
+    case .kDisableIMKSwiftDelayedDeallocation: return .init(
+        userDef: self, shortTitle: "i18n:UserDef.kDisableIMKSwiftDelayedDeallocation.shortTitle",
+        description: "i18n:UserDef.kDisableIMKSwiftDelayedDeallocation.description"
       )
     case .kDeltaOfCalendarYears: return nil
     case .kMostRecentInputMode: return nil
