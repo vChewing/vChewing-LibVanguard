@@ -3,7 +3,7 @@
 本文記錄了先鋒引擎諸模組的開發備忘錄，供開發者自行備忘使用。
 
 > [!IMPORTANT]
-> 2026-09-14：本倉已完成改組——承載了 `vChewing-macOS` 的全部跨平台輸入邏輯。 `vChewing-macOS` 的 `vChewing_OSNeutral_LibVanguard` 套件與本套件是鏡照關係，原本散在 `Sources/_Modules/*` 的諸模組與其測試靶一併退場。套件名為 `LibVanguard`、出貨產品名為 `Vanguard`（故產物是 `libVanguard.dylib` 而非 `libLibVanguard.dylib`），聚合靶與其測試靶即 `LibVanguard` / `LibVanguardTests`；
+> 2026-09-14：本倉已完成改組——承載了 `vChewing-macOS` 的全部跨平台輸入邏輯。 `vChewing-macOS` 的 `vChewing_OSNeutral_LibVanguard` 套件與本套件是鏡照關係，原本散在 `Sources/_Modules/*` 的諸模組與其測試目標一併退場。套件名為 `LibVanguard`、出貨產品名為 `Vanguard`（故產物是 `libVanguard.dylib` 而非 `libLibVanguard.dylib`），聚合目標與其測試目標即 `LibVanguard` / `LibVanguardTests`；
 > 其餘模組名（`Homa`、`TrieKit`、`LexiconAssembly` 等）不變。模組清單以 `Package.swift` 為準。
 
 ## 關於資訊電子術語
@@ -64,7 +64,7 @@
 ### LibVanguard
 
 作業系統中立層：輸入控制器（`InputHandler`）、組字器與用戶端之間的橋接、以及各項與平台無關的
-狀態機。此模組同時是唯一的聚合靶，`Package.swift` 的動態產品 `Vanguard` 即由其拉入整個依賴閉包。
+狀態機。此模組同時是唯一的聚合目標，`Package.swift` 的動態產品 `Vanguard` 即由其拉入整個依賴閉包。
 
 ### BPMFVS / BrailleSputnik / Shared / ResourceLocator
 
@@ -76,7 +76,7 @@
 
 ### LXAssemblyMaterials4Tests / vChewingSharedCLI
 
-`LXAssemblyMaterials4Tests` 是單元測試專用的辭典素材靶（刻意獨立於出貨動態庫之外）；
+`LXAssemblyMaterials4Tests` 是單元測試專用的辭典素材目標（刻意獨立於出貨動態庫之外）；
 `vChewingSharedCLI` 是跨模組的共享命令列工具。
 
 $ EOF.
