@@ -31,8 +31,9 @@ Illegitimate reasons include:
 ## Other Things to Follow
 
 - **Write the devlogs in zh-Hant-TW.** `vChewing-DevLogs` carries the project's records and
-  its prose is Traditional Chinese (Taiwan), including `KnowledgeMemo4LLM.md`, `DevReqsHistory.md`,
-  `Reqs4LLM/`, and `Research/`. Do not narrate in Japanese, English, or Simplified Chinese. Three
+  its prose is Traditional Chinese (Taiwan), including `KnowledgeMemo4LLM.md` and its sub-articles
+  (`KnowledgeMemo_SubArticles/`), `DevReqsHistory.md`, `Reqs4LLM/`, and `Research/`. Do not narrate in
+  Japanese, English, or Simplified Chinese. Three
   things may keep another language: the owner's words quoted verbatim, the i18n strings and
   terminology tables (whose ja/en/zh-Hans text is the data), and code, paths and API names. A
   kana adjacent to an ASCII letter is the tell — only authored Japanese looks like that. Reply to
@@ -44,4 +45,6 @@ Illegitimate reasons include:
   never write "pushed" unless the owner says so, and never assume a push happened when
   deciding whether `--amend` or a history rewrite is safe.
 
-If you can find `../vChewing-DevLogs/KnowledgeMemo4LLM.md`, please follow its response pattern.
+If you can find `../vChewing-DevLogs/KnowledgeMemo4LLM.md`, read it together with
+`../vChewing-DevLogs/KnowledgeMemo_SubArticles/00-RuleIndex.md`, and follow their response pattern;
+the index routes each kind of task to the sub-articles you must read in full.
