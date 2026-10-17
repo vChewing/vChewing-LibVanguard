@@ -30,4 +30,4 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-swift-
       - name: Test
-        run: swift --version && swift test --no-parallel
+        run: swift --version && swift test -c release

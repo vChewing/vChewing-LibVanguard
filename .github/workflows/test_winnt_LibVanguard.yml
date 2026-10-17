@@ -33,4 +33,4 @@ jobs:
         shell: pwsh
         run: |
           swift --version
-          swift test --no-parallel
+          swift test -c release

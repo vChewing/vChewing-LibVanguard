@@ -23,4 +23,4 @@ jobs:
       - name: Clean
         run: swift package clean
       - name: Test
-        run: swift --version && swift test --no-parallel
+        run: swift --version && swift test -c release
