@@ -23,11 +23,17 @@ jobs:
       - name: Cache SPM build
         uses: actions/cache@v4
         with:
+          # Dependency checkouts only. `.build` is deliberately not cached: a
+          # restored build tree lets a release build reuse artefacts from an older
+          # commit or another toolchain, which is exactly the failure mode this job
+          # must not have. The sibling SwiftOpenSource job cleans for the same
+          # reason; here the clean below is what guarantees it.
           path: |
-            .build
             ~/.swiftpm
           key: ${{ runner.os }}-swift-${{ hashFiles('**/Package.resolved', 'Package.swift') }}
           restore-keys: |
             ${{ runner.os }}-swift-
+      - name: Clean
+        run: swift package clean
       - name: Test
         run: swift --version && swift test -c release
