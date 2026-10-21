@@ -1,0 +1,27 @@
+[core]
+        repositoryformatversion = 0
+        filemode = true
+        bare = false
+        logallrefupdates = true
+        ignorecase = false
+        precomposeunicode = true
+[remote "origin"]
+        url = https://gitee.com/vChewing/vChewing-LibVanguard.git/
+        fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "main"]
+        remote = origin
+        merge = refs/heads/main
+        vscode-merge-base = origin/main
+[branch "upd/dev"]
+        remote = origin
+        merge = refs/heads/upd/dev
+[remote "github"]
+        url = https://github.com/vChewing/vChewing-LibVanguard/
+        fetch = +refs/heads/*:refs/remotes/github/*
+[remote "all"]
+        url = https://gitee.com/vChewing/vChewing-LibVanguard.git/
+        fetch = +refs/heads/*:refs/remotes/all/*
+        pushurl = https://gitee.com/vchewing/vChewing-LibVanguard.git/
+        pushurl = https://github.com/vChewing/vChewing-LibVanguard/
+[lfs]
+        repositoryformatversion = 0
