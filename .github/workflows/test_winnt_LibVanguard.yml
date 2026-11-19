@@ -33,4 +33,6 @@ jobs:
         shell: pwsh
         run: |
           swift --version
-          swift test -c release
+          # SwiftPM on Windows can race while copying a resource bundle into
+          # multiple test products (LibVanguard_Shared.bundle); serialize.
+          swift test -c release --jobs 1
